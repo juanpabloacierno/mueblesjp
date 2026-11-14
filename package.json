@@ -1,0 +1,28 @@
+{
+  "name": "mueblesjp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Calculadora de despiece y cortes para muebles de melamina",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:single": "vite build --mode single",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vite-plugin-singlefile": "2.3.4",
+    "vitest": "4.1.12"
+  }
+}

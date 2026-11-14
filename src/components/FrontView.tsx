@@ -1,5 +1,6 @@
 import { mm } from '../lib/format';
 import { CUP_EDGE_DISTANCE } from '../lib/doors';
+import { BAR_FRONT, BAR_SPACING, TOPE_HEIGHT } from '../lib/shoes';
 import type { Door, ShelfUnit, ShelfUnitResult } from '../lib/types';
 
 interface Props {
@@ -11,6 +12,24 @@ interface Props {
   scale: number;
   /** Dibujar las puertas cerradas. */
   showDoors?: boolean;
+  /** Columna por la que pasa el corte lateral. */
+  column?: number;
+}
+
+/** Pares de zapatos vistos de frente, apoyados a la altura `y` (desde el suelo). */
+function Shoes({ x, width, y, Y }: { x: number; width: number; y: number; Y: (v: number) => number }) {
+  const pairs = Math.max(1, Math.floor((width - 20) / 210));
+  const step = width / pairs;
+  return (
+    <g fill="none" stroke="var(--muted)" strokeWidth={1} opacity={0.8}>
+      {Array.from({ length: pairs }, (_, k) => {
+        const cx = x + step * (k + 0.5);
+        return [cx - 47, cx + 5].map((sx) => (
+          <rect key={`${k}-${sx}`} x={sx} y={Y(y + 95)} width={42} height={95} rx={18} vectorEffect="non-scaling-stroke" />
+        ));
+      })}
+    </g>
+  );
 }
 
 /** Márgenes del dibujo en múltiplos del tamaño de letra (los usa también el cálculo de escala). */
@@ -289,6 +308,67 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
         }),
       )}
 
+      {/* Zapateros */}
+      {result.shoeRacks.map((z) => (
+        <g key={`shoe-${z.column}-${z.bottom}`}>
+          {z.style === 'plano' && <Shoes x={z.x} width={z.width} y={z.bottom} Y={Y} />}
+          {z.levels.map((l, k) => {
+            if (z.style === 'inclinado') {
+              return (
+                <g key={k}>
+                  <rect
+                    x={z.x}
+                    y={Y(l.back + t)}
+                    width={z.width}
+                    height={l.back + t - l.front}
+                    fill="var(--panel-shade)"
+                    stroke="var(--panel-stroke)"
+                    strokeWidth={0.6}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <Shoes x={z.x} width={z.width} y={l.back + t - 30} Y={Y} />
+                  <rect
+                    x={z.x}
+                    y={Y(l.front + TOPE_HEIGHT)}
+                    width={z.width}
+                    height={TOPE_HEIGHT}
+                    fill="var(--panel)"
+                    stroke="var(--panel-stroke)"
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              );
+            }
+            if (z.style === 'barras') {
+              return (
+                <g key={k}>
+                  <rect x={z.x + 2} y={Y(l.back) - 6} width={z.width - 4} height={12} rx={6} fill="var(--muted)" />
+                  <Shoes x={z.x} width={z.width} y={l.front + 4} Y={Y} />
+                  <rect x={z.x + 2} y={Y(l.front) - 8} width={z.width - 4} height={16} rx={8} fill="var(--panel-stroke)" />
+                </g>
+              );
+            }
+            return (
+              <g key={k}>
+                <rect
+                  x={z.x}
+                  y={Y(l.front + t)}
+                  width={z.width}
+                  height={t}
+                  fill="var(--panel)"
+                  stroke="var(--panel-stroke)"
+                  strokeWidth={1}
+                  strokeDasharray="5 3"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <Shoes x={z.x} width={z.width} y={l.front + t} Y={Y} />
+              </g>
+            );
+          })}
+        </g>
+      ))}
+
       {/* Alto libre del maletero */}
       {result.maletero && (
         <g>
@@ -317,7 +397,7 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
           y += g + t;
           const yTop = y0 + g;
           const small = g < fs * 2.2;
-          if (col.compartments[j]?.drawers) return null;
+          if (col.compartments[j]?.drawers || col.compartments[j]?.shoes) return null;
           return (
             <g key={`gap-${col.index}-${j}`}>
               {showLine && !small && (
@@ -377,7 +457,7 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
 }
 
 /** Corte lateral: muestra la profundidad, el fondo y el retiro de estantes. */
-export function SideView({ unit, result, fs, scale, showDoors }: Props) {
+export function SideView({ unit, result, fs, scale, showDoors, column = 0 }: Props) {
   const H = unit.height;
   const D = unit.depth;
   const t = unit.material.thickness;
@@ -393,7 +473,8 @@ export function SideView({ unit, result, fs, scale, showDoors }: Props) {
   const carcassDepth = mode === 'clavado' ? D - tb : D;
   // x = 0 en el frente, crece hacia atrás.
   const backX = mode === 'clavado' ? carcassDepth : mode === 'ranurado' ? D - unit.back.grooveOffset - tb : null;
-  const shelfY = result.columns[0]?.shelves ?? [];
+  const col = result.columns[column] ?? result.columns[0];
+  const shelfY = col?.shelves ?? [];
   const shelfDepth = shelfY[0]?.depth ?? result.shelfDepth - result.frontInset;
   const sideTop = unit.top === 'sobre' ? H - t : H;
   const sideDoor = result.doors.doors.find((d) => d.column === 0 || d.column === null) ?? result.doors.doors[0];
@@ -450,8 +531,54 @@ export function SideView({ unit, result, fs, scale, showDoors }: Props) {
         />
       )}
       {/* Barrales y cajones de la primera columna */}
-      {(result.columns[0]?.compartments ?? []).map((c) => {
+      {(col?.compartments ?? []).map((c) => {
         const front = result.interior.depth - c.depth;
+        if (c.shoes) {
+          const z = c.shoes;
+          return (
+            <g key={`z${c.index}`}>
+              {z.levels.map((l, k) => {
+                if (z.style === 'inclinado') {
+                  const x0 = front + t;
+                  return (
+                    <g key={k}>
+                      <polygon
+                        points={`${x0},${Y(l.front)} ${x0 + z.run - t},${Y(l.back)} ${x0 + z.run - t},${Y(l.back + t)} ${x0},${Y(l.front + t)}`}
+                        fill="var(--panel)"
+                        stroke="var(--panel-stroke)"
+                        strokeWidth={1}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      <rect x={front} y={Y(l.front + TOPE_HEIGHT)} width={t} height={TOPE_HEIGHT} fill="var(--panel)" stroke="var(--panel-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                    </g>
+                  );
+                }
+                if (z.style === 'barras') {
+                  return (
+                    <g key={k} fill="var(--panel-stroke)">
+                      <circle cx={front + BAR_FRONT} cy={Y(l.front)} r={10} />
+                      <circle cx={front + BAR_FRONT + BAR_SPACING} cy={Y(l.back)} r={10} />
+                    </g>
+                  );
+                }
+                return (
+                  <rect
+                    key={k}
+                    x={front}
+                    y={Y(l.front + t)}
+                    width={c.depth}
+                    height={t}
+                    fill="var(--panel)"
+                    stroke="var(--panel-stroke)"
+                    strokeWidth={1}
+                    strokeDasharray="5 3"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })}
+            </g>
+          );
+        }
         if (c.rod) {
           return <ellipse key={`r${c.index}`} cx={front + c.depth / 2} cy={Y(c.rod.y)} rx={15} ry={8} fill="var(--panel-stroke)" />;
         }

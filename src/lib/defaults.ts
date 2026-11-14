@@ -69,7 +69,7 @@ export const PRESETS: Preset[] = [
   {
     key: 'placard-corredizo',
     label: 'Placard con corredizas',
-    description: 'Empotrado 180 × 240, 3 cuerpos y maletero',
+    description: 'Empotrado 180 × 240, cajonera, zapatero y maletero',
     unit: {
       kind: 'placard',
       name: 'Placard dormitorio',
@@ -84,7 +84,7 @@ export const PRESETS: Preset[] = [
       columns: [
         column(0, 'fijo', null, [], [BARRAL]),
         column(4, 'movil', null, [560], [CAJONES_3]),
-        column(3, 'movil', null, [null, null, null, 1000], [null, null, null, BARRAL]),
+        column(1, 'fijo', null, [null, 1000], [{ kind: 'zapatero', style: 'inclinado', levels: 4 }, BARRAL]),
       ],
       maletero: { enabled: true, height: 400 },
       doors: { type: 'corrediza', leaves: 2 },

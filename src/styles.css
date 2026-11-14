@@ -1499,6 +1499,15 @@ tr.gap-row td.n {
   font-family: var(--font-mono);
 }
 
+.hueco-sub {
+  grid-column: 2 / -1;
+}
+
+.hueco-sub .segmented button {
+  min-height: 28px;
+  font-size: 0.8rem;
+}
+
 .hueco-label {
   font-size: 0.8rem;
   color: var(--muted);
@@ -1612,7 +1621,11 @@ tr.gap-row td.n {
 
 @media (max-width: 480px) {
   .hueco-row {
-    grid-template-columns: 54px minmax(56px, 1fr) minmax(80px, 1.2fr) minmax(90px, 1.2fr);
+    grid-template-columns: 50px minmax(54px, 0.9fr) minmax(102px, 1.35fr) minmax(74px, 1fr);
+  }
+  .hueco-row select.input {
+    padding-left: 6px;
+    padding-right: 2px;
   }
   .step {
     grid-template-columns: 36px minmax(0, 1fr);
@@ -1620,4 +1633,30 @@ tr.gap-row td.n {
   .step .step-check {
     grid-column: 2;
   }
+}
+
+.col-pick {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
+.col-pick button {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.col-pick button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }

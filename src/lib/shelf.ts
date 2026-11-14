@@ -2,12 +2,14 @@ import { distribute } from './distribute';
 import { HINGE_LABEL, compartmentBehindInsetDoor, computeDoors, shelfBehindInsetDoor } from './doors';
 import { mm, pieceCode } from './format';
 import { resolveUnit } from './resolve';
+import { SHOE_ANGLE_DEG, TOPE_HEIGHT, layoutShoeRack, slopeWidth } from './shoes';
 import type {
   ColumnResult,
   CompartmentResult,
   DividerPosition,
   DrawerResult,
   RodResult,
+  ShoeRackResult,
   DoorsResult,
   Edges,
   FastenerCounts,
@@ -139,6 +141,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     diagonal,
     rods: [],
     drawers: [],
+    shoeRacks: [],
   };
 
   // --- Validaciones que impiden calcular ---
@@ -235,6 +238,10 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         const d = layoutDrawers(i, x, widths[i], bottom, g, depth, fill.count, t);
         if (typeof d === 'string') warnings.push({ level: 'aviso', text: `${label}${d}` });
         else comp.drawers = d;
+      } else if (fill?.kind === 'zapatero') {
+        const z = layoutShoeRack(i, x, widths[i], bottom, g, depth, interiorDepth - depth, fill.style, fill.levels, t);
+        for (const w of z.warnings) warnings.push({ level: 'aviso', text: `${label}${w}` });
+        if (z.rack) comp.shoes = z.rack;
       }
       return comp;
     });
@@ -365,6 +372,43 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       });
     }
   }
+  for (const col of columns) {
+    for (const comp of col.compartments) {
+      const z = comp.shoes;
+      if (!z) continue;
+      const cols = [col.index + 1];
+      if (z.style === 'inclinado') {
+        add({
+          name: 'Estante zapatero inclinado',
+          qty: z.levels.length,
+          length: col.width,
+          width: slopeWidth(z.run),
+          edges: { long: 0, short: 0 },
+          notes: [`Inclinado ${SHOE_ANGLE_DEG}°, atornillado a los costados`, 'El tope tapa el canto de adelante'],
+          cols,
+        });
+        add({
+          name: 'Tope de zapatero',
+          qty: z.levels.length,
+          length: col.width,
+          width: TOPE_HEIGHT,
+          edges: { long: 1, short: 0 },
+          notes: ['Atornillado al frente del estante inclinado'],
+          cols,
+        });
+      } else if (z.style === 'plano' && z.levels.length) {
+        add({
+          name: 'Estante zapatero',
+          qty: z.levels.length,
+          length: col.width - unit.movableClearance,
+          width: comp.depth,
+          edges: { long: 1, short: 0 },
+          notes: [`${mm(unit.movableClearance)} mm de holgura`],
+          cols,
+        });
+      }
+    }
+  }
   for (const d of doors.doors) {
     const isSliding = d.track !== null;
     add({
@@ -464,6 +508,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   }
   const rods: RodResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.rod ? [comp.rod] : [])));
   const drawers: DrawerResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.drawers ? [comp.drawers] : [])));
+  const shoeRacks: ShoeRackResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.shoes ? [comp.shoes] : [])));
   for (const col of columns) {
     const label = n > 1 ? `Columna ${col.index + 1}: ` : '';
     for (const comp of col.compartments) {
@@ -518,7 +563,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     shelfDepth,
     frontInset,
     doors,
-    counts: countFasteners(unit, columns, dividers, carcassDepth, interiorWidth, columnHeight, drawers),
+    counts: countFasteners(unit, columns, dividers, carcassDepth, interiorWidth, columnHeight, drawers, shoeRacks),
     warnings,
     size: { width: W, height: H, depth: D },
     columnsTop,
@@ -526,6 +571,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     diagonal,
     rods,
     drawers,
+    shoeRacks,
   };
 }
 
@@ -644,6 +690,7 @@ function countFasteners(
   interiorWidth: number,
   columnHeight: number,
   drawers: DrawerResult[],
+  shoeRacks: ShoeRackResult[],
 ): FastenerCounts {
   const spj = screwsPerJoint(carcassDepth);
   const n = columns.length;
@@ -656,10 +703,16 @@ function countFasteners(
   const joints = 2 + 2 + dividers.length * 2 + fixed.length * 2 + (mal ? 2 : 0) + malDividers * 2;
   const drawerCount = drawers.reduce((s, d) => s + d.count, 0);
   // Cada caja de cajón: 4 uniones con 2 tornillos.
-  const screws = joints * spj + plinthPieces * 2 * 2 + drawerCount * 8;
+  // Estantes zapateros inclinados: 2 tornillos por costado.
+  const inclined = shoeRacks.filter((z) => z.style === 'inclinado').reduce((s, z) => s + z.levels.length, 0);
+  const flatShoeShelves = shoeRacks.filter((z) => z.style === 'plano').reduce((s, z) => s + z.levels.length, 0);
+  const screws = joints * spj + plinthPieces * 2 * 2 + drawerCount * 8 + inclined * 4;
   // Cabezas a la vista: atraviesan los laterales o el techo.
   const edgeShelfJoints = n === 1 ? fixed.length * 2 : fixed.filter((c) => c.index === 0 || c.index === n - 1).length;
-  const visibleScrews = (2 + 2 + edgeShelfJoints + dividers.length + (mal ? 2 : 0)) * spj + (unit.plinth.enabled ? 4 : 0);
+  const edgeInclined = shoeRacks
+    .filter((z) => z.style === 'inclinado' && (z.column === 0 || z.column === n - 1))
+    .reduce((sum, z) => sum + z.levels.length * (n === 1 ? 4 : 2), 0);
+  const visibleScrews = (2 + 2 + edgeShelfJoints + dividers.length + (mal ? 2 : 0)) * spj + (unit.plinth.enabled ? 4 : 0) + edgeInclined;
 
   let backNails = 0;
   if (unit.back.mode === 'clavado') {
@@ -673,5 +726,5 @@ function countFasteners(
   }
   // Fondos de cajón clavados cada 10 cm.
   backNails += drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);
-  return { screwsPerJoint: spj, joints: joints + plinthPieces * 2, screws, visibleScrews, shelfPins: movable * 4, backNails };
+  return { screwsPerJoint: spj, joints: joints + plinthPieces * 2, screws, visibleScrews, shelfPins: (movable + flatShoeShelves) * 4, backNails };
 }

@@ -18,8 +18,9 @@ Cargás las medidas del mueble (o del hueco, si va empotrado) y la app te da:
   (recta, codo 9 o codo 18), a qué altura va cada bisagra y cuánto lugar hace falta
   adelante para abrirlas.
 - **Placares**: medidas del hueco con holguras, maletero arriba con sus puertas, y en cada
-  hueco estantes, **barral** o **cajones**. Hay interiores típicos para armar rápido
-  (colgado largo, doble colgado, cajonera + estantes, zapatero…). Avisa si falta alto o
+  hueco estantes, **barral**, **cajones** o **zapatero** (estantes inclinados con tope, dos
+  barras por nivel o estantes planos). Hay interiores típicos para armar rápido
+  (colgado largo, doble colgado, colgado corto + zapatero, cajonera + estantes…). Avisa si falta alto o
   profundidad para colgar y si el mueble armado no se va a poder parar en el hueco.
 - **Lista de compras**: todo lo que puede hacer falta, agrupado en placas y cortes,
   herrajes, tornillos y fijaciones, insumos y herramientas. Viene tildado lo necesario;
@@ -56,6 +57,9 @@ Todas las medidas son en milímetros.
 | Barral | Luz de la columna − 2 mm, con el centro a 50 mm del techo del hueco |
 | Frente de cajón | Luz − 6 mm × (alto del hueco − 3 mm por luz) ÷ cajones |
 | Caja de cajón | Luz − 26 mm (correderas telescópicas) × frente − 30 mm, largo de la corredera |
+| Zapatero inclinado | Luz de la columna × hasta 330 mm de recorrido a 15° (342 mm de pendiente), con tope de 50 mm |
+| Zapatero con barras | 2 barras por nivel de luz − 2 mm: adelante a 60 mm del frente, atrás 200 mm más adentro y 70 mm más arriba |
+| Zapatero plano | Estantes sobre pernos: luz − holgura × profundidad del hueco |
 
 - La **profundidad** que cargás es la total, con el fondo incluido: con fondo clavado, los
   laterales miden la profundidad menos el espesor del fondo.
@@ -76,6 +80,8 @@ Todas las medidas son en milímetros.
   950 mm de alto para camisas y 1500 mm para vestidos o sobretodos. La corredera es la
   más larga que entra (250 a 600 mm, de a 50). El estante de arriba de un barral o de
   cajones queda fijo. Para pararlo armado hace falta más alto que la diagonal del lateral.
+- Zapateros: los niveles se reparten parejo en el hueco; se recomiendan unos 200 mm por
+  nivel inclinado, 180 con barras y 170 por fila plana. Avisa si quedan muy juntos.
 - Valores por defecto: placa de 2600 × 1830 × 18 mm, fondo de 3 mm, sierra de 4 mm,
   10 mm de refilado por borde, tapacanto de 22 × 0,45 mm. Todo se cambia en
   *Material y corte*.
@@ -105,10 +111,11 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
 - `src/lib/packing.ts`: optimización de cortes en placa (guillotina, con sierra y refilado).
 - `src/lib/doors.ts`: puertas con bisagras y corredizas (abajo y en el maletero).
 - `src/lib/resolve.ts` y `src/lib/templates.ts`: medidas del hueco e interiores típicos.
+- `src/lib/shoes.ts`: zapateros.
 - `src/lib/steps.ts`: pasos de armado.
 - `src/lib/cutlist.ts`: medidas de corte, tapacanto y textos para exportar.
 - `src/lib/shopping.ts`: lista de compras, precios y totales.
 - `src/components/`: interfaz en React.
 
 Placares y estanterías usan el mismo cálculo (`kind: 'placard' | 'estanteria'`): una caja
-con columnas, y cada hueco puede ser libre, barral o cajones.
+con columnas, y cada hueco puede ser libre, barral, cajones o zapatero.

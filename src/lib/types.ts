@@ -67,8 +67,14 @@ export type BackMode = 'clavado' | 'ranurado' | 'ninguno';
 export type ShelfType = 'fijo' | 'movil';
 export type FurnitureKind = 'estanteria' | 'placard';
 
+/** Zapatero: estantes inclinados con tope, dos barras por nivel o estantes planos. */
+export type ShoeRackStyle = 'inclinado' | 'barras' | 'plano';
+
 /** Qué lleva un hueco además de ser espacio libre. */
-export type CompartmentFill = { kind: 'barral' } | { kind: 'cajones'; count: number };
+export type CompartmentFill =
+  | { kind: 'barral' }
+  | { kind: 'cajones'; count: number }
+  | { kind: 'zapatero'; style: ShoeRackStyle; levels: number };
 
 export interface ColumnSpec {
   /** Luz interior de la columna. `null` = se reparte automáticamente. */
@@ -236,6 +242,34 @@ export interface DrawerResult {
   slideCenters: number[];
 }
 
+export interface ShoeLevel {
+  /**
+   * Inclinado: cara de abajo del estante adelante y atrás. Barras: centro de la barra de
+   * adelante y de la de atrás. Plano: cara de abajo del estante (las dos iguales).
+   * Todo desde el suelo.
+   */
+  front: number;
+  back: number;
+}
+
+export interface ShoeRackResult {
+  column: number;
+  style: ShoeRackStyle;
+  /** Luz de la columna y su borde izquierdo. */
+  x: number;
+  width: number;
+  bottom: number;
+  height: number;
+  /** Profundidad desde el frente del mueble hasta donde empieza el hueco. */
+  frontOffset: number;
+  levels: ShoeLevel[];
+  /** Inclinado y barras: recorrido horizontal y cuánto sube hacia atrás. */
+  run: number;
+  rise: number;
+  /** Alto libre por nivel (adelante). */
+  pitch: number;
+}
+
 export interface CompartmentResult {
   index: number;
   /** Piso del hueco (cara de arriba del estante o piso de abajo), desde el suelo. */
@@ -246,6 +280,7 @@ export interface CompartmentResult {
   fill: CompartmentFill | null;
   rod?: RodResult;
   drawers?: DrawerResult;
+  shoes?: ShoeRackResult;
 }
 
 export interface ColumnResult {
@@ -324,6 +359,7 @@ export interface ShelfUnitResult {
   diagonal: number;
   rods: RodResult[];
   drawers: DrawerResult[];
+  shoeRacks: ShoeRackResult[];
   /** Profundidad útil de los estantes (sin contar retiros por puertas o rieles). */
   shelfDepth: number;
   /** Lo que se retiran del frente estantes y divisores por los rieles de corredizas. */

@@ -49,7 +49,11 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   const rods = result.rods;
   const drawers = result.drawers;
   const drawerCount = drawers.reduce((n, d) => n + d.count, 0);
-  const rodSupports = rods.reduce((n, r) => n + r.supports, 0);
+  const shoeBars = result.shoeRacks.filter((z) => z.style === 'barras');
+  // Cada nivel de zapatero con barras lleva 2 barras y 4 soportes.
+  const barLengths = [...rods.map((r) => r.length), ...shoeBars.flatMap((z) => z.levels.flatMap(() => [z.width - 2, z.width - 2]))];
+  const rodSupports = rods.reduce((n, r) => n + r.supports, 0) + shoeBars.reduce((n, z) => n + z.levels.length * 4, 0);
+  const topes = result.shoeRacks.filter((z) => z.style === 'inclinado').reduce((n, z) => n + z.levels.length, 0);
   const color = m.color.trim();
 
   // --- Placas y cortes ---
@@ -163,14 +167,14 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     });
     add({ key: 'tope-corrediza', category: 'herrajes', name: 'Topes para riel', qty: 2, unit: 'u', note: 'Si el kit no los trae', defaultOn: false, optional: true });
   }
-  if (rods.length) {
+  if (barLengths.length) {
     const lengths = new Map<number, number>();
-    for (const r of rods) lengths.set(r.length, (lengths.get(r.length) ?? 0) + 1);
+    for (const l of barLengths) lengths.set(l, (lengths.get(l) ?? 0) + 1);
     add({
       key: 'barral',
       category: 'herrajes',
       name: 'Barral ovalado cromado',
-      qty: Math.round(rods.reduce((m, r) => m + r.length, 0)) / 1000,
+      qty: Math.round(barLengths.reduce((m, l) => m + l, 0)) / 1000,
       unit: 'm',
       note: `Cortado en ${[...lengths.entries()].map(([l, q]) => `${q} de ${mm(l)} mm`).join(', ')}`,
       defaultOn: true,
@@ -181,7 +185,7 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
       name: 'Soportes de barral',
       qty: rodSupports,
       unit: 'u',
-      note: 'Dos por barral, más uno central en los de más de 1 m',
+      note: shoeBars.length ? 'Dos por barral (y por barra de zapatero), más uno central en los de más de 1 m' : 'Dos por barral, más uno central en los de más de 1 m',
       defaultOn: true,
     });
   }
@@ -265,9 +269,9 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     key: 'tornillo-4x30',
     category: 'fijaciones',
     name: 'Tornillos 4 × 30 mm',
-    qty: drawerCount * 4,
+    qty: drawerCount * 4 + topes * 3,
     unit: 'u',
-    note: 'Para fijar los frentes de los cajones desde adentro',
+    note: [drawerCount ? 'Frentes de cajón desde adentro, 4 por cajón' : '', topes ? 'topes del zapatero, 3 por tope' : ''].filter(Boolean).join('; '),
     defaultOn: true,
   });
   add({

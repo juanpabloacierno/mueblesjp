@@ -1,21 +1,35 @@
+import { autoShoeLevels } from './shoes';
 import type { ColumnSpec } from './types';
 
-export type TemplateKey = 'estantes' | 'colgado-largo' | 'doble-colgado' | 'colgado-estantes' | 'cajonera-estantes' | 'cajonera-colgado' | 'zapatero';
+export type TemplateKey =
+  | 'estantes'
+  | 'colgado-largo'
+  | 'doble-colgado'
+  | 'colgado-estantes'
+  | 'colgado-zapatero'
+  | 'cajonera-estantes'
+  | 'cajonera-colgado'
+  | 'zapatero'
+  | 'zapatero-estantes';
 
 export const TEMPLATES: { key: TemplateKey; label: string; description: string }[] = [
   { key: 'colgado-largo', label: 'Colgado largo', description: 'Vestidos, sobretodos, camperas largas' },
   { key: 'doble-colgado', label: 'Doble colgado', description: 'Dos barrales para camisas y sacos' },
   { key: 'colgado-estantes', label: 'Colgado corto + estantes', description: 'Barral arriba, estantes abajo' },
+  { key: 'colgado-zapatero', label: 'Colgado corto + zapatero', description: 'Barral arriba, zapatero inclinado abajo' },
   { key: 'cajonera-estantes', label: 'Cajonera + estantes', description: '3 cajones abajo y estantes arriba' },
   { key: 'cajonera-colgado', label: 'Cajonera + colgado', description: '3 cajones abajo y barral arriba' },
   { key: 'estantes', label: 'Estantes', description: 'Ropa doblada, cada 33 cm' },
-  { key: 'zapatero', label: 'Zapatero', description: 'Estantes bajos, cada 18 cm' },
+  { key: 'zapatero', label: 'Zapatero', description: 'Toda la columna con estantes inclinados' },
+  { key: 'zapatero-estantes', label: 'Zapatero + estantes', description: '3 niveles de zapatos abajo, estantes arriba' },
 ];
 
 /** Alto libre de un hueco de colgado corto (camisas y sacos). */
 export const SHORT_HANGING = 1000;
 /** Alto del hueco de una cajonera de 3 cajones. */
 export const DRAWER_BLOCK = 560;
+/** Alto del hueco de un zapatero inclinado de 3 niveles. */
+export const SHOE_BLOCK = 640;
 
 type Interior = Pick<ColumnSpec, 'shelves' | 'shelfType' | 'gaps' | 'fill'>;
 
@@ -33,7 +47,22 @@ export function applyTemplate(key: TemplateKey, height: number, t: number): Inte
     case 'estantes':
       return { shelves: shelvesFor(height, 330, t), shelfType: 'movil', gaps: [], fill: [] };
     case 'zapatero':
-      return { shelves: shelvesFor(height, 180, t), shelfType: 'movil', gaps: [], fill: [] };
+      return { shelves: 0, shelfType: 'fijo', gaps: [], fill: [{ kind: 'zapatero', style: 'inclinado', levels: autoShoeLevels('inclinado', height, t) }] };
+    case 'zapatero-estantes': {
+      const above = height - SHOE_BLOCK - t;
+      const k = 1 + shelvesFor(Math.max(0, above), 330, t);
+      return { shelves: k, shelfType: 'movil', gaps: [SHOE_BLOCK], fill: [{ kind: 'zapatero', style: 'inclinado', levels: 3 }] };
+    }
+    case 'colgado-zapatero': {
+      const below = height - SHORT_HANGING - t;
+      if (below < 220) return { shelves: 0, shelfType: 'fijo', gaps: [], fill: [{ kind: 'barral' }] };
+      return {
+        shelves: 1,
+        shelfType: 'fijo',
+        gaps: [null, SHORT_HANGING],
+        fill: [{ kind: 'zapatero', style: 'inclinado', levels: autoShoeLevels('inclinado', below, t) }, { kind: 'barral' }],
+      };
+    }
     case 'colgado-largo':
       // Si sobra alto, un estante arriba del barral para guardar cosas.
       return height > 1850

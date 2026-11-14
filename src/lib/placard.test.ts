@@ -48,10 +48,11 @@ describe('placard empotrado con corredizas', () => {
     expect(piece('Fondo de cajón')).toMatchObject({ qty: 3, length: 500, width: 547, material: 'fondo' });
   });
 
-  it('colgado corto arriba con estantes abajo', () => {
+  it('colgado corto arriba con zapatero abajo', () => {
     const col = r.columns[2];
-    expect(col.gaps).toEqual([268, 267, 267, 1000]);
-    expect(col.compartments[3].rod).toMatchObject({ y: 1894, hanging: 950, length: 570 });
+    expect(col.gaps).toEqual([838, 1000]);
+    expect(col.compartments[0].shoes).toMatchObject({ style: 'inclinado', levels: [{ front: 108 }, { front: 313 }, { front: 517 }, { front: 722 }] });
+    expect(col.compartments[1].rod).toMatchObject({ y: 1894, hanging: 950, length: 570 });
   });
 
   it('corredizas abajo y en el maletero', () => {
@@ -81,7 +82,8 @@ describe('placard empotrado con corredizas', () => {
     expect(get('soporte-barral')?.qty).toBe(4);
     expect(get('corredera|500')).toMatchObject({ qty: 3, unit: 'juego' });
     expect(get('tirador-cajon')?.qty).toBe(3);
-    expect(get('tornillo-4x30')?.qty).toBe(12);
+    // 4 por frente de cajón y 3 por tope de zapatero.
+    expect(get('tornillo-4x30')?.qty).toBe(3 * 4 + 4 * 3);
     expect(get('riel-superior')?.qty).toBe(3.508);
     expect(get('ruedas-corrediza')?.qty).toBe(4);
     expect(get('tornillo-3.5x16')?.qty).toBe(52 + 36 + 12);
@@ -90,7 +92,21 @@ describe('placard empotrado con corredizas', () => {
 
   it('pasos de armado en orden, con medidas', () => {
     const steps = buildSteps(unit, r, summarize(unit, r.pieces));
-    expect(steps.map((s) => s.key)).toEqual(['medir', 'cortes', 'marcar', 'perforar', 'caja', 'escuadra', 'divisores', 'barrales', 'cajones', 'puertas', 'pared', 'terminar']);
+    expect(steps.map((s) => s.key)).toEqual([
+      'medir',
+      'cortes',
+      'marcar',
+      'perforar',
+      'caja',
+      'escuadra',
+      'divisores',
+      'barrales',
+      'cajones',
+      'zapatero',
+      'puertas',
+      'pared',
+      'terminar',
+    ]);
     expect(steps.find((s) => s.key === 'barrales')?.detail).toContain('1894 mm');
     // No entra parado en el hueco: se arma parado en el lugar.
     expect(steps.find((s) => s.key === 'caja')?.title).toBe('Armá la caja parada, en el lugar');
@@ -157,6 +173,80 @@ describe('plantillas de columna', () => {
     expect(applyTemplate('colgado-largo', 1900, 18)).toMatchObject({ shelves: 1, gaps: [null, 300] });
     expect(applyTemplate('colgado-largo', 1700, 18)).toMatchObject({ shelves: 0 });
     expect(applyTemplate('cajonera-colgado', 1856, 18)).toMatchObject({ shelves: 2, fill: [{ kind: 'cajones', count: 3 }, null, { kind: 'barral' }] });
-    expect(applyTemplate('zapatero', 1000, 18).shelves).toBe(4);
+    expect(applyTemplate('zapatero', 1856, 18)).toMatchObject({ shelves: 0, fill: [{ kind: 'zapatero', style: 'inclinado', levels: 9 }] });
+    expect(applyTemplate('colgado-zapatero', 1856, 18)).toEqual({
+      shelves: 1,
+      shelfType: 'fijo',
+      gaps: [null, 1000],
+      fill: [{ kind: 'zapatero', style: 'inclinado', levels: 4 }, { kind: 'barral' }],
+    });
+    expect(applyTemplate('zapatero-estantes', 1856, 18)).toMatchObject({ gaps: [640], fill: [{ kind: 'zapatero', levels: 3 }] });
+  });
+});
+
+describe('zapateros', () => {
+  function withShoes(style: 'inclinado' | 'barras' | 'plano', levels = 4) {
+    const unit = preset('placard-corredizo');
+    // Columna 3: zapatero abajo (838 mm libres) y colgado corto arriba.
+    unit.columns[2] = { width: null, shelves: 1, shelfType: 'movil', gaps: [null, 1000], fill: [{ kind: 'zapatero', style, levels }, { kind: 'barral' }] };
+    const r = computeShelfUnit(unit);
+    return { unit, r, rack: r.columns[2].compartments[0].shoes!, piece: (name: string) => r.pieces.find((p) => p.name === name) };
+  }
+
+  it('inclinado: niveles, subida y piezas con tope', () => {
+    const { r, rack, piece } = withShoes('inclinado');
+    expect(r.columns[2].compartments[0]).toMatchObject({ bottom: 88, height: 838, depth: 537 });
+    expect(rack).toMatchObject({ style: 'inclinado', run: 330, rise: 88, frontOffset: 50, pitch: 204 });
+    expect(rack.levels).toEqual([
+      { front: 108, back: 196 },
+      { front: 313, back: 401 },
+      { front: 517, back: 605 },
+      { front: 722, back: 810 },
+    ]);
+    expect(r.columns[2].shelves[0].type).toBe('fijo');
+    expect(piece('Estante zapatero inclinado')).toMatchObject({ qty: 4, length: 572, width: 342, edges: { long: 0, short: 0 } });
+    expect(piece('Tope de zapatero')).toMatchObject({ qty: 4, length: 572, width: 50, edges: { long: 1, short: 0 } });
+    expect(r.warnings.filter((w) => w.text.includes('zapatero'))).toEqual([]);
+  });
+
+  it('inclinado: compras y pasos de armado', () => {
+    const { unit, r } = withShoes('inclinado');
+    const plain = preset('placard-corredizo');
+    plain.columns[2] = { ...plain.columns[2], fill: [null, { kind: 'barral' }] };
+    expect(r.counts.screws - computeShelfUnit(plain).counts.screws).toBe(16);
+    const s = summarize(unit, r.pieces);
+    const items = buildShoppingList(unit, r, s);
+    expect(items.find((i) => i.key === 'tornillo-4x30')?.qty).toBe(3 * 4 + 4 * 3);
+    const step = buildSteps(unit, r, s).find((x) => x.key === 'zapatero');
+    expect(step?.detail).toContain('108 → 196');
+  });
+
+  it('barras: dos barras por nivel y 4 soportes', () => {
+    const { unit, r, rack } = withShoes('barras');
+    expect(rack.levels.map((l) => [l.front, l.back])).toEqual([
+      [128, 198],
+      [328, 398],
+      [527, 597],
+      [727, 797],
+    ]);
+    expect(r.pieces.some((p) => p.name.includes('zapatero'))).toBe(false);
+    const items = buildShoppingList(unit, r, summarize(unit, r.pieces));
+    // Barrales de colgar (571 y 570) + 8 barras de 570.
+    expect(items.find((i) => i.key === 'barral')?.qty).toBe((571 + 570 + 8 * 570) / 1000);
+    expect(items.find((i) => i.key === 'soporte-barral')?.qty).toBe(4 + 16);
+  });
+
+  it('plano: filas de zapatos sobre pernos', () => {
+    const { r, rack, piece } = withShoes('plano');
+    expect(rack.pitch).toBe(196);
+    expect(rack.levels.map((l) => l.front)).toEqual([284, 498, 712]);
+    expect(piece('Estante zapatero')).toMatchObject({ qty: 3, length: 570, width: 537 });
+    // Columna 2: 3 estantes móviles. Columna 3: 3 estantes zapateros. 4 pernos cada uno.
+    expect(r.counts.shelfPins).toBe((3 + 3) * 4);
+  });
+
+  it('avisa si los niveles quedan muy juntos', () => {
+    const { r } = withShoes('inclinado', 6);
+    expect(r.warnings.some((w) => w.text.includes('usá menos niveles'))).toBe(true);
   });
 });

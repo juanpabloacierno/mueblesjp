@@ -1,6 +1,7 @@
 import type { Summary } from './cutlist';
 import { CUP_EDGE_DISTANCE, PLATE_FRONT_DISTANCE } from './doors';
 import { mm } from './format';
+import { BAR_FRONT, BAR_SPACING, TOPE_HEIGHT } from './shoes';
 import type { ShelfUnit, ShelfUnitResult } from './types';
 
 export interface Step {
@@ -51,6 +52,7 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
   const marks = ['las alturas de los estantes fijos'];
   if (result.rods.length) marks.push('los barrales');
   if (result.drawers.length) marks.push('las correderas');
+  if (result.shoeRacks.length) marks.push('los niveles del zapatero');
   steps.push({
     key: 'marcar',
     title: 'Marcá laterales y divisores',
@@ -123,6 +125,34 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
         centers,
       )} mm del suelo, enganchá las cajas y fijá cada frente desde adentro con tornillos 4 × 30, dejando 3 mm de luz entre frentes.`,
     });
+  }
+
+  const racks = result.shoeRacks;
+  if (racks.length) {
+    const parts: string[] = [];
+    const inclined = racks.filter((z) => z.style === 'inclinado');
+    const bars = racks.filter((z) => z.style === 'barras');
+    const flat = racks.filter((z) => z.style === 'plano' && z.levels.length);
+    if (inclined.length) {
+      const marks = inclined.flatMap((z) => z.levels.map((l) => `${mm(l.front)} → ${mm(l.back)}`));
+      parts.push(
+        `Estantes inclinados: en cada costado trazá una línea desde la altura de adelante hasta la de atrás (${marks.join(', ')} mm del suelo, ${mm(
+          inclined[0].run,
+        )} mm de recorrido). Atornillá cada estante con 2 tornillos 4 × 50 por costado y después el tope de ${TOPE_HEIGHT} mm al frente con 3 tornillos 4 × 30.`,
+      );
+    }
+    if (bars.length) {
+      const marks = bars.flatMap((z) => z.levels.map((l) => `${mm(l.front)} y ${mm(l.back)}`));
+      parts.push(
+        `Barras: atornillá los soportes de la barra de adelante a ${BAR_FRONT} mm del frente del hueco y los de atrás ${BAR_SPACING} mm más atrás, a ${marks.join(
+          '; ',
+        )} mm del suelo. Cortá cada barra 2 mm más corta que la luz.`,
+      );
+    }
+    if (flat.length) {
+      parts.push('Estantes planos: hacé los agujeros para los pernos a las alturas de la tabla y apoyá los estantes.');
+    }
+    steps.push({ key: 'zapatero', title: 'Armá el zapatero', detail: parts.join(' ') });
   }
 
   if (hinged) {

@@ -4,7 +4,8 @@ import { mm } from '../lib/format';
 import { columnHasDoors } from '../lib/doors';
 import { resolveUnit } from '../lib/resolve';
 import { TEMPLATES, applyTemplate, type TemplateKey } from '../lib/templates';
-import type { ColumnSpec, CompartmentFill, DoorSpec, ShelfUnit, ShelfUnitResult } from '../lib/types';
+import { autoShoeLevels } from '../lib/shoes';
+import type { ColumnSpec, CompartmentFill, DoorSpec, ShelfUnit, ShelfUnitResult, ShoeRackStyle } from '../lib/types';
 import { NumberField, Segmented, Stepper, Switch, TextField } from './ui';
 
 export type Updater = (fn: (draft: ShelfUnit) => void) => void;
@@ -308,7 +309,7 @@ function ColumnWidthInput({ index, spec, computed, update }: { index: number; sp
   );
 }
 
-type FillKey = 'libre' | 'barral' | 'cajones';
+type FillKey = 'libre' | 'barral' | 'cajones' | 'zapatero';
 
 function fillKey(f: CompartmentFill | null | undefined): FillKey {
   return f ? f.kind : 'libre';
@@ -430,14 +431,33 @@ function ShelfEditor({
                   value={key}
                   onChange={(e) => {
                     const v = e.target.value as FillKey;
+                    if (v === 'zapatero') {
+                      setFill(j, { kind: 'zapatero', style: 'inclinado', levels: autoShoeLevels('inclinado', gaps[j] ?? 600, thickness) });
+                      return;
+                    }
                     setFill(j, v === 'libre' ? null : v === 'barral' ? { kind: 'barral' } : { kind: 'cajones', count: 3 });
                   }}
                 >
                   <option value="libre">Libre</option>
                   <option value="barral">Barral</option>
                   <option value="cajones">Cajones</option>
+                  <option value="zapatero">Zapatero</option>
                 </select>
-                {f?.kind === 'cajones' ? (
+                {f?.kind === 'zapatero' ? (
+                  <select
+                    id={`f-shoes-${index}-${j}`}
+                    className="input"
+                    aria-label={`Niveles del zapatero del hueco ${j + 1}`}
+                    value={f.levels}
+                    onChange={(e) => setFill(j, { ...f, levels: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 12 }, (_, x) => x + 1).map((c) => (
+                      <option key={c} value={c}>
+                        {c} {c === 1 ? 'nivel' : 'niv.'}
+                      </option>
+                    ))}
+                  </select>
+                ) : f?.kind === 'cajones' ? (
                   <select
                     id={`f-drawers-${index}-${j}`}
                     className="input"
@@ -454,13 +474,29 @@ function ShelfEditor({
                 ) : (
                   <span />
                 )}
+                {f?.kind === 'zapatero' && (
+                  <div className="hueco-sub">
+                    <Segmented
+                      value={f.style}
+                      onChange={(style: ShoeRackStyle) =>
+                        // Al cambiar de tipo, recalcula los niveles para el alto del hueco.
+                        setFill(j, { kind: 'zapatero', style, levels: autoShoeLevels(style, gaps[j] ?? 600, thickness) })
+                      }
+                      options={[
+                        { value: 'inclinado', label: 'Inclinado' },
+                        { value: 'barras', label: 'Barras' },
+                        { value: 'plano', label: 'Plano' },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
         <span className="field-hint">
-          Alto vacío = automático. El barral va a 5 cm del techo del hueco; los cajones llenan el hueco con frentes iguales. El estante de arriba de un barral o de
-          cajones queda fijo.
+          Alto vacío = automático. El barral va a 5 cm del techo del hueco; los cajones y el zapatero llenan el hueco en partes iguales. El estante de arriba de un
+          barral, cajones o zapatero queda fijo.
         </span>
       </div>
     </>

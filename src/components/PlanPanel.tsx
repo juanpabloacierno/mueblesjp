@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { CUP_EDGE_DISTANCE, PLATE_FRONT_DISTANCE } from '../lib/doors';
 import { mm } from '../lib/format';
+import { SHOE_LABEL } from '../lib/shoes';
 import type { ShelfUnit, ShelfUnitResult } from '../lib/types';
 import { FRONT_PAD, FrontView, SIDE_PAD, SideView, sideExtra } from './FrontView';
 import { Segmented } from './ui';
@@ -70,6 +71,8 @@ export function PlanPanel({ unit, result }: Props) {
   const maxHeight = typeof window !== 'undefined' ? Math.max(360, window.innerHeight * 0.72) : 700;
   const layout = layoutViews(unit, width || 600, maxHeight);
   const [doorView, setDoorView] = useState<'con' | 'sin'>('con');
+  const [sideColumn, setSideColumn] = useState(0);
+  const sideCol = Math.min(sideColumn, result.columns.length - 1);
   const doors = result.doors.doors;
   const showDoors = doors.length > 0 && doorView === 'con';
   const depths = [...new Set(result.columns.flatMap((c) => c.shelves.map((sh) => sh.depth)))].sort((a, b) => b - a);
@@ -102,8 +105,25 @@ export function PlanPanel({ unit, result }: Props) {
                 <figcaption>Frente</figcaption>
               </figure>
               <figure style={{ width: layout.sidePx }}>
-                <SideView unit={unit} result={result} fs={layout.fs} scale={layout.scale} showDoors={showDoors} />
-                <figcaption>Corte lateral</figcaption>
+                <SideView unit={unit} result={result} fs={layout.fs} scale={layout.scale} showDoors={showDoors} column={sideCol} />
+                <figcaption>
+                  Corte lateral
+                  {result.columns.length > 1 && (
+                    <span className="col-pick" role="group" aria-label="Columna del corte lateral">
+                      {result.columns.map((c) => (
+                        <button
+                          key={c.index}
+                          type="button"
+                          aria-pressed={c.index === sideCol}
+                          aria-label={`Corte por la columna ${c.index + 1}`}
+                          onClick={() => setSideColumn(c.index)}
+                        >
+                          {c.index + 1}
+                        </button>
+                      ))}
+                    </span>
+                  )}
+                </figcaption>
               </figure>
             </>
           )}
@@ -347,7 +367,13 @@ export function PlanPanel({ unit, result }: Props) {
                       {col.gaps.flatMap((g, j) => {
                         const s = col.shelves[j];
                         const comp = col.compartments[j];
-                        const what = comp?.drawers ? ` · ${comp.drawers.count} ${comp.drawers.count === 1 ? 'cajón' : 'cajones'}` : comp?.rod ? ' · colgado' : '';
+                        const what = comp?.drawers
+                          ? ` · ${comp.drawers.count} ${comp.drawers.count === 1 ? 'cajón' : 'cajones'}`
+                          : comp?.rod
+                            ? ' · colgado'
+                            : comp?.shoes
+                              ? ` · ${SHOE_LABEL[comp.shoes.style].toLowerCase()}`
+                              : '';
                         const rows = [
                           <tr key={`g${j}`} className="gap-row">
                             <td>
@@ -359,6 +385,34 @@ export function PlanPanel({ unit, result }: Props) {
                             <td />
                           </tr>,
                         ];
+                        if (comp?.shoes) {
+                          const z = comp.shoes;
+                          const base = result.interior.baseY;
+                          z.levels.forEach((l, k) => {
+                            const same = l.front === l.back;
+                            rows.push(
+                              <tr key={`z${j}-${k}`}>
+                                <td>
+                                  {z.style === 'barras' ? `Barras nivel ${k + 1}` : z.style === 'plano' ? `Estante zapatero ${k + 1}` : `Zapatero nivel ${k + 1}`}
+                                  {k === 0 && (
+                                    <span className="piece-notes">
+                                      {z.style === 'inclinado'
+                                        ? `Cara de abajo adelante → atrás · ${mm(z.pitch)} mm por nivel`
+                                        : z.style === 'barras'
+                                          ? `Centro de la barra de adelante / de atrás · ${mm(z.pitch)} mm por nivel`
+                                          : `${mm(z.pitch)} mm por fila`}
+                                    </span>
+                                  )}
+                                </td>
+                                <td />
+                                <td className="n">{same ? mm(l.front) : `${mm(l.front)} ${z.style === 'barras' ? '/' : '→'} ${mm(l.back)}`}</td>
+                                <td className="n">
+                                  {same ? mm(l.front - base) : `${mm(l.front - base)} ${z.style === 'barras' ? '/' : '→'} ${mm(l.back - base)}`}
+                                </td>
+                              </tr>,
+                            );
+                          });
+                        }
                         if (comp?.rod) {
                           rows.push(
                             <tr key={`r${j}`}>

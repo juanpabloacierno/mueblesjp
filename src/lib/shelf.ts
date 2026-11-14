@@ -1,9 +1,13 @@
 import { distribute } from './distribute';
-import { HINGE_LABEL, computeDoors, shelfBehindInsetDoor } from './doors';
+import { HINGE_LABEL, compartmentBehindInsetDoor, computeDoors, shelfBehindInsetDoor } from './doors';
 import { mm, pieceCode } from './format';
+import { resolveUnit } from './resolve';
 import type {
   ColumnResult,
+  CompartmentResult,
   DividerPosition,
+  DrawerResult,
+  RodResult,
   DoorsResult,
   Edges,
   FastenerCounts,
@@ -53,10 +57,45 @@ function fitsBoard(a: number, b: number, L: number, W: number): boolean {
   return (a <= L && b <= W) || (a <= W && b <= L);
 }
 
-const EMPTY_DOORS: DoorsResult = { doors: [], extraDepth: 0, swing: 0, hingeCounts: { recta: 0, codo9: 0, codo18: 0 }, trackLength: 0 };
+const EMPTY_DOORS: DoorsResult = { doors: [], extraDepth: 0, swing: 0, hingeCounts: { recta: 0, codo9: 0, codo18: 0 }, trackLength: 0, trackSets: 0 };
+
+/** Largos comerciales de correderas telescópicas. */
+export const SLIDE_LENGTHS = [250, 300, 350, 400, 450, 500, 550, 600];
+/** Luz entre frentes de cajón. */
+export const DRAWER_GAP = 3;
+/** Lugar que ocupa cada corredera telescópica a cada lado de la caja. */
+export const SLIDE_SPACE = 13;
+/** Distancia del centro del barral al techo del hueco. */
+export const ROD_DROP = 50;
+/** Profundidad libre mínima para colgar perchas. */
+export const HANGING_DEPTH = 520;
+
+/** Cajones dentro de un hueco: frentes embutidos con 3 mm de luz y correderas telescópicas. */
+export function layoutDrawers(column: number, x: number, width: number, bottom: number, height: number, depth: number, count: number, t: number): DrawerResult | string {
+  const n = Math.max(1, Math.floor(count));
+  const frontH = Math.floor((height - (n + 1) * DRAWER_GAP) / n);
+  if (frontH < 80) return `${n} cajones en un hueco de ${mm(height)} mm quedan de ${mm(frontH)} mm de alto: usá menos cajones o un hueco más alto.`;
+  const slide = [...SLIDE_LENGTHS].reverse().find((l) => l <= depth - t - 10);
+  if (!slide) return `no hay profundidad para correderas (${mm(depth)} mm libres; la más corta pide ${SLIDE_LENGTHS[0] + t + 10} mm).`;
+  const boxH = Math.min(250, Math.max(60, Math.floor((frontH - 30) / 10) * 10));
+  const fronts = Array.from({ length: n }, (_, i) => bottom + DRAWER_GAP + i * (frontH + DRAWER_GAP));
+  return {
+    column,
+    count: n,
+    frontW: width - 2 * DRAWER_GAP,
+    frontH,
+    fronts,
+    x: x + DRAWER_GAP,
+    boxW: width - 2 * SLIDE_SPACE,
+    boxH,
+    slide,
+    slideCenters: fronts.map((f) => Math.round(f + 10 + boxH / 2)),
+  };
+}
 const EMPTY_COUNTS: FastenerCounts = { screwsPerJoint: 0, joints: 0, screws: 0, visibleScrews: 0, shelfPins: 0, backNails: 0 };
 
-export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
+export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
+  const unit = resolveUnit(input);
   const m = unit.material;
   const t = m.thickness;
   const tb = m.backThickness;
@@ -76,6 +115,12 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   const interiorHeight = topY - baseY;
   const interiorWidth = W - 2 * t;
   const n = Math.max(1, unit.columns.length);
+  const mal = unit.maletero.enabled ? unit.maletero : null;
+  const maleteroShelfBottom = mal ? topY - mal.height - t : null;
+  const columnsTop = maleteroShelfBottom ?? topY;
+  const columnHeight = columnsTop - baseY;
+  const sideTop = unit.top === 'sobre' ? H - t : H;
+  const diagonal = Math.ceil(Math.hypot(sideTop, carcassDepth));
 
   const empty: ShelfUnitResult = {
     pieces: [],
@@ -88,6 +133,12 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     doors: EMPTY_DOORS,
     counts: EMPTY_COUNTS,
     warnings,
+    size: { width: W, height: H, depth: D },
+    columnsTop,
+    maletero: null,
+    diagonal,
+    rods: [],
+    drawers: [],
   };
 
   // --- Validaciones que impiden calcular ---
@@ -103,6 +154,12 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
       text: frontInset
         ? `La profundidad (${mm(D)} mm) no alcanza para los rieles de ${mm(frontInset)} mm: quedan ${mm(shelfDepth - frontInset)} mm para los estantes.`
         : `La profundidad (${mm(D)} mm) no alcanza: quedan ${mm(shelfDepth)} mm útiles.`,
+    });
+  }
+  if (mal && (mal.height < 100 || columnHeight < 200)) {
+    warnings.push({
+      level: 'error',
+      text: mal.height < 100 ? `El maletero de ${mm(mal.height)} mm es muy bajo.` : `Con un maletero de ${mm(mal.height)} mm no queda lugar abajo: achicalo.`,
     });
   }
   if (backMode === 'ranurado' && unit.back.grooveDepth >= t) {
@@ -141,10 +198,10 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     const spec = unit.sameShelves ? unit.columns[0] : unit.columns[i];
     const k = Math.max(0, Math.floor(spec.shelves));
     const gapSpecs = Array.from({ length: k + 1 }, (_, j) => spec.gaps[j] ?? null);
-    const gapDist = distribute(interiorHeight - k * t, gapSpecs);
+    const gapDist = distribute(columnHeight - k * t, gapSpecs);
     const label = n > 1 ? `Columna ${i + 1}: ` : '';
     if (gapDist.overflow) {
-      warnings.push({ level: 'error', text: `${label}las alturas fijas de los huecos no entran en el alto interior (${mm(interiorHeight)} mm).` });
+      warnings.push({ level: 'error', text: `${label}las alturas fijas de los huecos no entran en el alto interior (${mm(columnHeight)} mm).` });
       return empty;
     }
     if (gapDist.mismatch !== 0) {
@@ -157,17 +214,35 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     const gaps = gapDist.values;
     const shelves: ShelfPosition[] = [];
     let y = baseY;
+    const fills = Array.from({ length: k + 1 }, (_, j) => spec.fill?.[j] ?? null);
     for (let j = 0; j < k; j++) {
       y += gaps[j];
       const depth = shelfDepth - frontInset - (shelfBehindInsetDoor(unit.doors, i, j, k) ? insetDoorRecess : 0);
-      shelves.push({ index: j, bottom: y, top: y + t, bottomFromBase: y - baseY, type: spec.shelfType, depth });
+      // Arriba de cajones o de un barral el estante va fijo.
+      const type = fills[j] ? 'fijo' : spec.shelfType;
+      shelves.push({ index: j, bottom: y, top: y + t, bottomFromBase: y - baseY, type, depth });
       y += t;
     }
+    const compartments: CompartmentResult[] = gaps.map((g, j) => {
+      const bottom = j === 0 ? baseY : shelves[j - 1].top;
+      const depth = interiorDepth - frontInset - (compartmentBehindInsetDoor(unit.doors, i, j, k) ? insetDoorRecess : 0);
+      const comp: CompartmentResult = { index: j, bottom, height: g, depth, fill: fills[j] };
+      const fill = fills[j];
+      if (fill?.kind === 'barral') {
+        const rodY = bottom + g - ROD_DROP;
+        comp.rod = { column: i, y: rodY, length: widths[i] - 2, hanging: rodY - bottom, supports: widths[i] > 1000 ? 3 : 2 };
+      } else if (fill?.kind === 'cajones') {
+        const d = layoutDrawers(i, x, widths[i], bottom, g, depth, fill.count, t);
+        if (typeof d === 'string') warnings.push({ level: 'aviso', text: `${label}${d}` });
+        else comp.drawers = d;
+      }
+      return comp;
+    });
     const minGap = Math.min(...gaps);
     if (minGap < 60) {
       warnings.push({ level: 'aviso', text: `${label}hay un hueco de solo ${mm(minGap)} mm de alto.` });
     }
-    columns.push({ index: i, x, width: widths[i], gaps, shelves });
+    columns.push({ index: i, x, width: widths[i], gaps, shelves, compartments });
     x += widths[i];
     if (i < n - 1) {
       dividers.push({ index: i, left: x, leftFromInside: x - t });
@@ -176,7 +251,7 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   }
 
   // --- Puertas ---
-  const doorCalc = computeDoors({ unit, columns, baseY, topY, zh, interiorWidth, interiorHeight });
+  const doorCalc = computeDoors({ unit, columns, baseY, topY, zh, interiorWidth, maleteroShelfBottom });
   warnings.push(...doorCalc.warnings);
   const doors = doorCalc.result;
 
@@ -220,11 +295,31 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     add({
       name: 'Divisor',
       qty: n - 1,
-      length: interiorHeight,
+      length: columnHeight,
       width: (backMode === 'ranurado' ? interiorDepth : carcassDepth) - frontInset,
       edges: { long: 1, short: 0 },
       notes,
     });
+  }
+  if (mal) {
+    add({
+      name: 'Estante maletero',
+      qty: 1,
+      length: interiorWidth,
+      width: backMode === 'ranurado' ? interiorDepth : carcassDepth,
+      edges: { long: 1, short: 0 },
+      notes: ['Fijo, de lateral a lateral'],
+    });
+    if (mal.dividers && n > 1) {
+      add({
+        name: 'Divisor de maletero',
+        qty: n - 1,
+        length: mal.height,
+        width: (backMode === 'ranurado' ? interiorDepth : carcassDepth) - frontInset,
+        edges: { long: 1, short: 0 },
+        notes: ['Alineado con los divisores de abajo'],
+      });
+    }
   }
   columns.forEach((col) => {
     for (const s of col.shelves) {
@@ -240,10 +335,40 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
       });
     }
   });
+  for (const col of columns) {
+    for (const comp of col.compartments) {
+      const d = comp.drawers;
+      if (!d) continue;
+      const cols = [col.index + 1];
+      add({ name: 'Frente de cajón', qty: d.count, length: d.frontW, width: d.frontH, edges: { long: 2, short: 2 }, cols });
+      add({ name: 'Lateral de cajón', qty: d.count * 2, length: d.slide, width: d.boxH, edges: { long: 1, short: 0 }, notes: ['Tapacanto en el canto de arriba'], cols });
+      add({
+        name: 'Frente y contrafrente de cajón',
+        qty: d.count * 2,
+        length: d.boxW - 2 * t,
+        width: d.boxH,
+        edges: { long: 1, short: 0 },
+        notes: ['Van entre los laterales de la caja'],
+        cols,
+      });
+      raw.push({
+        name: 'Fondo de cajón',
+        qty: d.count,
+        length: d.slide,
+        width: d.boxW,
+        thickness: tb,
+        material: 'fondo',
+        edges: { long: 0, short: 0 },
+        canRotate: true,
+        notes: ['Clavado abajo de la caja'],
+        cols,
+      });
+    }
+  }
   for (const d of doors.doors) {
     const isSliding = d.track !== null;
     add({
-      name: isSliding ? 'Puerta corrediza' : 'Puerta',
+      name: (isSliding ? 'Puerta corrediza' : 'Puerta') + (d.zone === 'maletero' ? ' de maletero' : ''),
       qty: 1,
       length: d.h,
       width: d.w,
@@ -296,7 +421,13 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   if (unit.plinth.enabled) {
     panels.push({ role: 'zocalo', x: t, y: 0, w: interiorWidth, h: zh, recessed: unit.plinth.setback > 0 });
   }
-  for (const d of dividers) panels.push({ role: 'divisor', x: d.left, y: baseY, w: t, h: interiorHeight, recessed: frontInset > 0 });
+  for (const d of dividers) panels.push({ role: 'divisor', x: d.left, y: baseY, w: t, h: columnHeight, recessed: frontInset > 0 });
+  if (mal && maleteroShelfBottom !== null) {
+    panels.push({ role: 'maletero', x: t, y: maleteroShelfBottom, w: interiorWidth, h: t });
+    if (mal.dividers) {
+      for (const d of dividers) panels.push({ role: 'divisor-maletero', x: d.left, y: maleteroShelfBottom + t, w: t, h: mal.height, recessed: frontInset > 0 });
+    }
+  }
   for (const col of columns) {
     for (const s of col.shelves) {
       panels.push({
@@ -331,6 +462,46 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
       break;
     }
   }
+  const rods: RodResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.rod ? [comp.rod] : [])));
+  const drawers: DrawerResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.drawers ? [comp.drawers] : [])));
+  for (const col of columns) {
+    const label = n > 1 ? `Columna ${col.index + 1}: ` : '';
+    for (const comp of col.compartments) {
+      if (!comp.rod) continue;
+      if (comp.rod.hanging < 850) {
+        warnings.push({
+          level: 'aviso',
+          text: `${label}el barral deja solo ${mm(comp.rod.hanging)} mm para colgar. Las camisas piden unos 950 mm y los vestidos o sobretodos 1500 mm.`,
+        });
+      }
+      if (comp.depth < HANGING_DEPTH) {
+        warnings.push({
+          level: 'aviso',
+          text: `${label}para colgar perchas hacen falta al menos ${HANGING_DEPTH} mm de profundidad libre (ideal 550 a 600) y hay ${mm(comp.depth)} mm.`,
+        });
+      }
+      if (comp.rod.length > 1000) {
+        warnings.push({ level: 'info', text: `${label}el barral mide ${mm(comp.rod.length)} mm: poné un soporte central para que no se combe.` });
+      }
+    }
+    if (unit.doors.type === 'batiente' && col.compartments.some((c) => c.drawers) && (unit.doors.columns[col.index] ?? true)) {
+      warnings.push({
+        level: 'info',
+        text: `${label}cajones detrás de puertas con bisagras: poné un suplemento de 20 mm a cada lado (o achicá los cajones) para que no choquen con las bisagras.`,
+      });
+    }
+  }
+  if (input.niche.enabled && diagonal > input.niche.height) {
+    warnings.push({
+      level: 'aviso',
+      text: `La diagonal del lateral mide ${mm(diagonal)} mm y el hueco ${mm(input.niche.height)} mm: armado no se puede parar. Armalo parado en el lugar o achicá el alto.`,
+    });
+  } else if (H > 2000) {
+    warnings.push({
+      level: 'info',
+      text: `Para pararlo ya armado hacen falta ${mm(diagonal)} mm de alto libre (la diagonal del lateral). Medí el techo antes de armarlo acostado.`,
+    });
+  }
   if (H > 1200) {
     warnings.push({
       level: H / D > 5 ? 'aviso' : 'info',
@@ -347,8 +518,14 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     shelfDepth,
     frontInset,
     doors,
-    counts: countFasteners(unit, columns, dividers, carcassDepth, interiorWidth, interiorHeight),
+    counts: countFasteners(unit, columns, dividers, carcassDepth, interiorWidth, columnHeight, drawers),
     warnings,
+    size: { width: W, height: H, depth: D },
+    columnsTop,
+    maletero: mal && maleteroShelfBottom !== null ? { shelfBottom: maleteroShelfBottom, shelfTop: maleteroShelfBottom + t, height: mal.height } : null,
+    diagonal,
+    rods,
+    drawers,
   };
 }
 
@@ -465,7 +642,8 @@ function countFasteners(
   dividers: DividerPosition[],
   carcassDepth: number,
   interiorWidth: number,
-  interiorHeight: number,
+  columnHeight: number,
+  drawers: DrawerResult[],
 ): FastenerCounts {
   const spj = screwsPerJoint(carcassDepth);
   const n = columns.length;
@@ -473,17 +651,27 @@ function countFasteners(
   const movable = columns.reduce((s, c) => s + c.shelves.filter((sh) => sh.type === 'movil').length, 0);
   const plinthPieces = unit.plinth.enabled ? (unit.back.mode === 'clavado' ? 1 : 2) : 0;
 
-  const joints = 2 + 2 + dividers.length * 2 + fixed.length * 2;
-  const screws = joints * spj + plinthPieces * 2 * 2;
+  const mal = unit.maletero.enabled;
+  const malDividers = mal && unit.maletero.dividers ? dividers.length : 0;
+  const joints = 2 + 2 + dividers.length * 2 + fixed.length * 2 + (mal ? 2 : 0) + malDividers * 2;
+  const drawerCount = drawers.reduce((s, d) => s + d.count, 0);
+  // Cada caja de cajón: 4 uniones con 2 tornillos.
+  const screws = joints * spj + plinthPieces * 2 * 2 + drawerCount * 8;
   // Cabezas a la vista: atraviesan los laterales o el techo.
   const edgeShelfJoints = n === 1 ? fixed.length * 2 : fixed.filter((c) => c.index === 0 || c.index === n - 1).length;
-  const visibleScrews = (2 + 2 + edgeShelfJoints + dividers.length) * spj + (unit.plinth.enabled ? 4 : 0);
+  const visibleScrews = (2 + 2 + edgeShelfJoints + dividers.length + (mal ? 2 : 0)) * spj + (unit.plinth.enabled ? 4 : 0);
 
   let backNails = 0;
   if (unit.back.mode === 'clavado') {
     const perimeter = 2 * (unit.width + unit.height);
-    const inner = fixed.reduce((s, c) => s + c.width, 0) + dividers.length * interiorHeight + (unit.plinth.enabled ? interiorWidth : 0);
+    const inner =
+      fixed.reduce((s, c) => s + c.width, 0) +
+      dividers.length * columnHeight +
+      (unit.plinth.enabled ? interiorWidth : 0) +
+      (mal ? interiorWidth + malDividers * unit.maletero.height : 0);
     backNails = Math.ceil(perimeter / 150 + inner / 200);
   }
+  // Fondos de cajón clavados cada 10 cm.
+  backNails += drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);
   return { screwsPerJoint: spj, joints: joints + plinthPieces * 2, screws, visibleScrews, shelfPins: movable * 4, backNails };
 }

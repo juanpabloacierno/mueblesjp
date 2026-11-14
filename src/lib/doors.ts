@@ -1,5 +1,5 @@
 import { mm } from './format';
-import type { ColumnResult, Door, DoorSpec, DoorsResult, HingeType, ShelfUnit, Warning } from './types';
+import type { ColumnResult, Door, DoorSpec, DoorsResult, HingeType, ShelfPosition, ShelfUnit, Warning } from './types';
 
 /** Ancho a partir del cual una columna lleva dos puertas en modo automático. */
 export const MAX_SINGLE_DOOR = 600;
@@ -40,6 +40,13 @@ export function shelfBehindInsetDoor(spec: DoorSpec, column: number, shelfIndex:
   return shelfIndex < spec.upToShelf - 1;
 }
 
+/** El hueco `j` (desde 0) de una columna queda detrás de una puerta embutida. */
+export function compartmentBehindInsetDoor(spec: DoorSpec, column: number, index: number, shelvesInColumn: number): boolean {
+  if (spec.type !== 'batiente' || spec.mount !== 'embutida' || !columnHasDoors(spec, column)) return false;
+  if (spec.upToShelf === null || spec.upToShelf > shelvesInColumn) return true;
+  return index < spec.upToShelf;
+}
+
 interface Context {
   unit: ShelfUnit;
   columns: ColumnResult[];
@@ -47,7 +54,25 @@ interface Context {
   topY: number;
   zh: number;
   interiorWidth: number;
-  interiorHeight: number;
+  /** Cara de abajo del estante maletero o `null` si no hay maletero. */
+  maleteroShelfBottom: number | null;
+}
+
+interface ZoneColumn {
+  index: number;
+  x: number;
+  width: number;
+  shelves: ShelfPosition[];
+}
+
+interface Zone {
+  name: 'principal' | 'maletero';
+  columns: ZoneColumn[];
+  /** Límites de puertas superpuestas (cubren cantos) y embutidas (dentro del hueco). */
+  overlay: [number, number];
+  inset: [number, number];
+  /** Solo en la zona principal: respeta columnas sin puertas y "hasta el estante". */
+  main: boolean;
 }
 
 const NO_DOORS: DoorsResult = {
@@ -56,32 +81,82 @@ const NO_DOORS: DoorsResult = {
   swing: 0,
   hingeCounts: { recta: 0, codo9: 0, codo18: 0 },
   trackLength: 0,
+  trackSets: 0,
 };
+
+function zones(ctx: Context): Zone[] {
+  const { unit, columns, baseY, topY, zh, maleteroShelfBottom } = ctx;
+  const t = unit.material.thickness;
+  const top = unit.top === 'entre' ? unit.height : unit.height - t;
+  const main: Zone = {
+    name: 'principal',
+    columns,
+    overlay: [zh, maleteroShelfBottom === null ? top : maleteroShelfBottom + t / 2],
+    inset: [baseY, maleteroShelfBottom ?? topY],
+    main: true,
+  };
+  if (maleteroShelfBottom === null) return [main];
+  const malCols: ZoneColumn[] = unit.maletero.dividers
+    ? columns.map((c) => ({ index: c.index, x: c.x, width: c.width, shelves: [] }))
+    : [{ index: 0, x: t, width: ctx.interiorWidth, shelves: [] }];
+  return [
+    main,
+    {
+      name: 'maletero',
+      columns: malCols,
+      overlay: [maleteroShelfBottom + t / 2, top],
+      inset: [maleteroShelfBottom + t, topY],
+      main: false,
+    },
+  ];
+}
 
 export function computeDoors(ctx: Context): { result: DoorsResult; warnings: Warning[] } {
   const spec = ctx.unit.doors;
-  if (spec.type === 'ninguna') return { result: NO_DOORS, warnings: [] };
-  return spec.type === 'batiente' ? hinged(ctx) : sliding(ctx);
+  if (spec.type === 'ninguna') return { result: { ...NO_DOORS, doors: [] }, warnings: [] };
+  const result: DoorsResult = { ...NO_DOORS, doors: [], hingeCounts: { recta: 0, codo9: 0, codo18: 0 } };
+  const warnings: Warning[] = [];
+  for (const zone of zones(ctx)) {
+    const part = spec.type === 'batiente' ? hinged(ctx, zone) : sliding(ctx, zone);
+    for (const d of part.doors) result.doors.push({ ...d, index: result.doors.length });
+    warnings.push(...part.warnings);
+    for (const k of Object.keys(result.hingeCounts) as HingeType[]) result.hingeCounts[k] += part.hingeCounts[k];
+    if (part.trackLength) {
+      result.trackLength = part.trackLength;
+      result.trackSets += 1;
+    }
+  }
+  const t = ctx.unit.material.thickness;
+  result.extraDepth = spec.type === 'batiente' && spec.mount === 'superpuesta' && result.doors.length ? t : 0;
+  result.swing = spec.type === 'batiente' ? result.doors.reduce((m, d) => Math.max(m, d.w), 0) : 0;
+  return { result, warnings };
 }
 
-function hinged({ unit, columns, baseY, topY, zh }: Context): { result: DoorsResult; warnings: Warning[] } {
+interface ZoneDoors {
+  doors: Door[];
+  warnings: Warning[];
+  hingeCounts: Record<HingeType, number>;
+  trackLength: number;
+}
+
+function hinged({ unit }: Context, zone: Zone): ZoneDoors {
   const spec = unit.doors;
   const t = unit.material.thickness;
-  const H = unit.height;
   const g = spec.gap;
-  const n = columns.length;
+  const n = zone.columns.length;
   const overlay = spec.mount === 'superpuesta';
   const warnings: Warning[] = [];
   const doors: Door[] = [];
   const counts: Record<HingeType, number> = { recta: 0, codo9: 0, codo18: 0 };
-  const label = (i: number) => (n > 1 ? `Columna ${i + 1}: ` : '');
+  const prefix = zone.main ? '' : 'Maletero, ';
+  const label = (i: number) => (n > 1 ? `${prefix}columna ${i + 1}: ` : zone.main ? '' : 'Maletero: ');
 
-  for (const col of columns) {
+  for (const col of zone.columns) {
     const i = col.index;
-    if (!columnHasDoors(spec, i)) continue;
+    if (zone.main && !columnHasDoors(spec, i)) continue;
 
-    let limit = spec.upToShelf !== null ? col.shelves[spec.upToShelf - 1] : undefined;
-    if (spec.upToShelf !== null && !limit) {
+    const limit = zone.main && spec.upToShelf !== null ? col.shelves[spec.upToShelf - 1] : undefined;
+    if (zone.main && spec.upToShelf !== null && !limit) {
       warnings.push({ level: 'aviso', text: `${label(i)}no hay estante ${spec.upToShelf}, así que la puerta cubre todo el alto.` });
     }
     if (limit && limit.type === 'movil') {
@@ -95,13 +170,13 @@ function hinged({ unit, columns, baseY, topY, zh }: Context): { result: DoorsRes
     if (overlay) {
       left = col.x - (i === 0 ? t : t / 2);
       right = col.x + col.width + (i === n - 1 ? t : t / 2);
-      bottom = zh;
-      top = limit ? limit.top : unit.top === 'entre' ? H : H - t;
+      [bottom, top] = zone.overlay;
+      if (limit) top = limit.top;
     } else {
       left = col.x;
       right = col.x + col.width;
-      bottom = baseY;
-      top = limit ? limit.bottom : topY;
+      [bottom, top] = zone.inset;
+      if (limit) top = limit.bottom;
     }
     const cover = right - left;
     const k = spec.perColumn || (cover > MAX_SINGLE_DOOR ? 2 : 1);
@@ -111,10 +186,12 @@ function hinged({ unit, columns, baseY, topY, zh }: Context): { result: DoorsRes
       warnings.push({ level: 'error', text: `${label(i)}no hay lugar para una puerta (quedaría de ${mm(w)} × ${mm(h)} mm).` });
       continue;
     }
-    if (k === 1 && w > MAX_SINGLE_DOOR) {
+    if (w > MAX_SINGLE_DOOR) {
       warnings.push({
         level: 'aviso',
-        text: `${label(i)}la puerta mide ${mm(w)} mm de ancho. Con más de ${MAX_SINGLE_DOOR} mm pesa mucho para las bisagras y barre mucho lugar al abrir: mejor 2 puertas.`,
+        text: `${label(i)}cada puerta mide ${mm(w)} mm de ancho. Con más de ${MAX_SINGLE_DOOR} mm pesa mucho para las bisagras y barre mucho lugar al abrir: ${
+          k === 1 ? 'mejor 2 puertas' : 'agregá un divisor'
+        }.`,
       });
     }
 
@@ -128,43 +205,39 @@ function hinged({ unit, columns, baseY, topY, zh }: Context): { result: DoorsRes
       const type: HingeType = overlay ? (onSide ? 'recta' : 'codo9') : 'codo18';
       const hinges = hingePositions(h);
       counts[type] += hinges.length;
-      doors.push({ index: doors.length, column: i, x, y, w, h, hingeSide: side, hingeType: type, hinges, track: null });
+      doors.push({ index: 0, zone: zone.name, column: zone.main || unit.maletero.dividers ? i : null, x, y, w, h, hingeSide: side, hingeType: type, hinges, track: null });
     }
   }
-
-  return {
-    result: {
-      doors,
-      extraDepth: overlay && doors.length ? t : 0,
-      swing: doors.reduce((m, d) => Math.max(m, d.w), 0),
-      hingeCounts: counts,
-      trackLength: 0,
-    },
-    warnings,
-  };
+  return { doors, warnings, hingeCounts: counts, trackLength: 0 };
 }
 
-function sliding({ unit, baseY, interiorWidth, interiorHeight }: Context): { result: DoorsResult; warnings: Warning[] } {
+function sliding({ unit, interiorWidth }: Context, zone: Zone): ZoneDoors {
   const spec = unit.doors;
   const t = unit.material.thickness;
   const n = Math.max(2, Math.floor(spec.leaves));
   const warnings: Warning[] = [];
+  const empty: ZoneDoors = { doors: [], warnings, hingeCounts: { recta: 0, codo9: 0, codo18: 0 }, trackLength: 0 };
+  const [bottom, top] = zone.inset;
   const w = Math.floor((interiorWidth + (n - 1) * spec.overlap) / n);
-  const h = Math.floor(interiorHeight - spec.heightDeduction);
+  const h = Math.floor(top - bottom - spec.heightDeduction);
+  const where = zone.main ? '' : ' del maletero';
   if (h < 80 || w < 80) {
-    warnings.push({ level: 'error', text: 'No hay lugar para las puertas corredizas con estas medidas.' });
-    return { result: { ...NO_DOORS }, warnings };
+    warnings.push({ level: 'error', text: `No hay lugar para las puertas corredizas${where} con estas medidas.` });
+    return empty;
   }
-  if (interiorWidth < 600) {
-    warnings.push({ level: 'aviso', text: `Con ${mm(interiorWidth)} mm de ancho interior, las corredizas dejan abrir muy poco a la vez: conviene usar bisagras.` });
-  } else if (w < 300) {
-    warnings.push({ level: 'aviso', text: `Las hojas corredizas quedan de ${mm(w)} mm: muy angostas. Probá con menos hojas.` });
+  if (zone.main) {
+    if (interiorWidth < 600) {
+      warnings.push({ level: 'aviso', text: `Con ${mm(interiorWidth)} mm de ancho interior, las corredizas dejan abrir muy poco a la vez: conviene usar bisagras.` });
+    } else if (w < 300) {
+      warnings.push({ level: 'aviso', text: `Las hojas corredizas quedan de ${mm(w)} mm: muy angostas. Probá con menos hojas.` });
+    }
   }
   const doors: Door[] = Array.from({ length: n }, (_, j) => ({
     index: j,
+    zone: zone.name,
     column: null,
     x: t + j * (w - spec.overlap),
-    y: baseY + spec.heightDeduction / 2,
+    y: bottom + spec.heightDeduction / 2,
     w,
     h,
     hingeSide: null,
@@ -172,8 +245,5 @@ function sliding({ unit, baseY, interiorWidth, interiorHeight }: Context): { res
     hinges: [],
     track: j % 2 === 0 ? 'trasero' : 'delantero',
   }));
-  return {
-    result: { doors, extraDepth: 0, swing: 0, hingeCounts: { recta: 0, codo9: 0, codo18: 0 }, trackLength: interiorWidth },
-    warnings,
-  };
+  return { ...empty, doors, trackLength: interiorWidth };
 }

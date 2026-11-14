@@ -14,7 +14,7 @@ export interface AppState {
 }
 
 export function initialState(): AppState {
-  const sample = createFromPreset(PRESETS[0]);
+  const sample = createFromPreset(PRESETS.find((p) => p.key === 'biblioteca')!);
   sample.name = 'Biblioteca (ejemplo)';
   return {
     projects: [sample],

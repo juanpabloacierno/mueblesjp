@@ -158,6 +158,18 @@ export function PlanPanel({ unit, result }: Props) {
             )}
             <dt>Alto interior, de piso a techo</dt>
             <dd>{mm(result.interior.height)}</dd>
+            {result.maletero && (
+              <>
+                <dt>Estante maletero, cara de abajo desde el suelo</dt>
+                <dd>{mm(result.maletero.shelfBottom)}</dd>
+              </>
+            )}
+            {unit.height > 1200 && (
+              <>
+                <dt>Alto libre para pararlo armado (diagonal)</dt>
+                <dd>{mm(result.diagonal)}</dd>
+              </>
+            )}
             <dt>Profundidad de los estantes</dt>
             <dd>{shelfDepthLabel}</dd>
             {unit.plinth.enabled && (
@@ -181,10 +193,10 @@ export function PlanPanel({ unit, result }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {doors.map((d, i) => (
+                    {doors.map((d) => (
                       <tr key={d.index}>
                         <td>
-                          Puerta {i + 1}
+                          {d.zone === 'maletero' ? 'Maletero' : 'Puerta'} {doors.filter((x) => x.zone === d.zone).indexOf(d) + 1}
                           <span className="piece-notes">
                             {result.columns.length > 1 && d.column !== null ? `Col. ${d.column + 1} · ` : ''}
                             {d.hingeSide === 'izquierda' ? 'izq.' : 'der.'} · {HINGE_SHORT[d.hingeType!]}
@@ -222,9 +234,11 @@ export function PlanPanel({ unit, result }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {doors.map((d, i) => (
+                    {doors.map((d) => (
                       <tr key={d.index}>
-                        <td>Hoja {i + 1}</td>
+                        <td>
+                          {d.zone === 'maletero' ? 'Maletero, hoja' : 'Hoja'} {doors.filter((x) => x.zone === d.zone).indexOf(d) + 1}
+                        </td>
                         <td className="n">
                           {mm(d.w)} × {mm(d.h)}
                         </td>
@@ -237,6 +251,45 @@ export function PlanPanel({ unit, result }: Props) {
               <p className="field-hint" style={{ margin: '6px 0 0' }}>
                 Rieles de {mm(result.doors.trackLength)} mm arriba y abajo. Las hojas se superponen {mm(unit.doors.overlap)} mm. Estantes y divisores van{' '}
                 {mm(result.frontInset)} mm más atrás para dejarlas pasar.
+              </p>
+            </div>
+          )}
+
+          {result.drawers.length > 0 && (
+            <div className="space-block">
+              <h4>Cajones</h4>
+              <div className="table-wrap">
+                <table className="compact">
+                  <thead>
+                    <tr>
+                      <th>Cajonera</th>
+                      <th className="n">Frente</th>
+                      <th className="n">Caja (an × al × largo)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.drawers.map((d) => (
+                      <tr key={`${d.column}-${d.fronts[0]}`}>
+                        <td>
+                          {d.count} × {result.columns.length > 1 ? `col. ${d.column + 1}` : 'cajones'}
+                          <span className="piece-notes">
+                            Correderas de {d.slide} mm, centro a {d.slideCenters.map((c) => mm(c)).join(' · ')} del suelo
+                          </span>
+                        </td>
+                        <td className="n">
+                          {mm(d.frontW)} × {mm(d.frontH)}
+                        </td>
+                        <td className="n">
+                          {mm(d.boxW)} × {mm(d.boxH)} × {d.slide}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="field-hint" style={{ margin: '6px 0 0' }}>
+                Frentes embutidos con 3 mm de luz. La caja va 13 mm más angosta de cada lado para las correderas telescópicas y apoya 10 mm arriba del borde de
+                abajo del frente.
               </p>
             </div>
           )}
@@ -275,7 +328,7 @@ export function PlanPanel({ unit, result }: Props) {
               <h4>
                 {result.columns.length > 1 ? `Columna ${col.index + 1}` : 'Huecos y estantes'} · <span className="num">luz {mm(col.width)} mm</span>
               </h4>
-              {col.shelves.length === 0 ? (
+              {col.shelves.length === 0 && !col.compartments[0]?.fill ? (
                 <p className="field-hint" style={{ margin: 0 }}>
                   Sin estantes: un hueco de {mm(col.gaps[0])} mm de alto.
                 </p>
@@ -293,14 +346,34 @@ export function PlanPanel({ unit, result }: Props) {
                     <tbody>
                       {col.gaps.flatMap((g, j) => {
                         const s = col.shelves[j];
+                        const comp = col.compartments[j];
+                        const what = comp?.drawers ? ` · ${comp.drawers.count} ${comp.drawers.count === 1 ? 'cajón' : 'cajones'}` : comp?.rod ? ' · colgado' : '';
                         const rows = [
                           <tr key={`g${j}`} className="gap-row">
-                            <td>Hueco {j + 1}</td>
+                            <td>
+                              Hueco {j + 1}
+                              {what}
+                            </td>
                             <td className="n">{mm(g)}</td>
                             <td />
                             <td />
                           </tr>,
                         ];
+                        if (comp?.rod) {
+                          rows.push(
+                            <tr key={`r${j}`}>
+                              <td>
+                                Barral <span className="muted">centro</span>
+                                <span className="piece-notes">
+                                  {mm(comp.rod.hanging)} mm para colgar · {mm(comp.rod.length)} mm de largo
+                                </span>
+                              </td>
+                              <td />
+                              <td className="n">{mm(comp.rod.y)}</td>
+                              <td className="n">{mm(comp.rod.y - result.interior.baseY)}</td>
+                            </tr>,
+                          );
+                        }
                         if (s) {
                           rows.push(
                             <tr key={`s${j}`}>

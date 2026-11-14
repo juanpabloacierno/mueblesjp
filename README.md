@@ -1,9 +1,9 @@
 # MueblesJP · Despiece de melamina
 
-App web para diseñar muebles de melamina y saber exactamente qué cortar. Hoy arma
-**estanterías, bibliotecas y estantes**; los **placares** vienen después.
+App web para diseñar muebles de melamina y saber exactamente qué cortar: **placares**
+(empotrados o sueltos), **estanterías, bibliotecas, muebles bajos y estantes de pared**.
 
-Cargás las medidas exteriores del mueble y la app te da:
+Cargás las medidas del mueble (o del hueco, si va empotrado) y la app te da:
 
 - **Plano con cotas**: vista de frente y corte lateral, con la luz libre de cada hueco y
   de cada columna.
@@ -17,10 +17,16 @@ Cargás las medidas exteriores del mueble y la app te da:
   las columnas que elijas) o corredizas. Calcula la medida de cada puerta, qué bisagra va
   (recta, codo 9 o codo 18), a qué altura va cada bisagra y cuánto lugar hace falta
   adelante para abrirlas.
+- **Placares**: medidas del hueco con holguras, maletero arriba con sus puertas, y en cada
+  hueco estantes, **barral** o **cajones**. Hay interiores típicos para armar rápido
+  (colgado largo, doble colgado, cajonera + estantes, zapatero…). Avisa si falta alto o
+  profundidad para colgar y si el mueble armado no se va a poder parar en el hueco.
 - **Lista de compras**: todo lo que puede hacer falta, agrupado en placas y cortes,
   herrajes, tornillos y fijaciones, insumos y herramientas. Viene tildado lo necesario;
   los opcionales (minifix, tarugos, amortiguadores, herramientas…) se tildan a mano.
   Cargás el precio de cada ítem una vez y sirve para todos los muebles.
+- **Armado**: los pasos en orden con las medidas de tu mueble (marcar, perforar, armar la
+  caja, escuadrar, barrales, cajones, puertas), para ir tildando en el taller.
 - **Avisos**: estantes demasiado largos que se van a pandear, muebles altos que hay que
   fijar a la pared, piezas que no entran en la placa, etc.
 
@@ -45,6 +51,11 @@ Todas las medidas son en milímetros.
 | Puerta superpuesta | Tapa el lateral entero y medio divisor: ancho cubierto ÷ puertas − luz (3 mm) |
 | Puerta embutida | (Luz de la columna − luces) ÷ puertas; alto libre − 2 luces |
 | Puerta corrediza | (Ancho interior + solapes) ÷ hojas; alto libre − descuento del kit |
+| Mueble empotrado | Hueco − 5 mm por costado, − 20 mm arriba, − 10 mm atrás |
+| Estante maletero | Ancho − 2 espesores; las columnas y divisores llegan hasta él |
+| Barral | Luz de la columna − 2 mm, con el centro a 50 mm del techo del hueco |
+| Frente de cajón | Luz − 6 mm × (alto del hueco − 3 mm por luz) ÷ cajones |
+| Caja de cajón | Luz − 26 mm (correderas telescópicas) × frente − 30 mm, largo de la corredera |
 
 - La **profundidad** que cargás es la total, con el fondo incluido: con fondo clavado, los
   laterales miden la profundidad menos el espesor del fondo.
@@ -61,6 +72,10 @@ Todas las medidas son en milímetros.
   con embutidas los estantes de atrás se acortan espesor + 2 mm.
 - Corredizas: estantes y divisores se retiran del frente lo que ocupan los rieles
   (50 mm por defecto). El descuento de alto depende del kit: revisalo en sus instrucciones.
+- Placares: para colgar hacen falta unos 520 mm de profundidad libre (ideal 550–600),
+  950 mm de alto para camisas y 1500 mm para vestidos o sobretodos. La corredera es la
+  más larga que entra (250 a 600 mm, de a 50). El estante de arriba de un barral o de
+  cajones queda fijo. Para pararlo armado hace falta más alto que la diagonal del lateral.
 - Valores por defecto: placa de 2600 × 1830 × 18 mm, fondo de 3 mm, sierra de 4 mm,
   10 mm de refilado por borde, tapacanto de 22 × 0,45 mm. Todo se cambia en
   *Material y corte*.
@@ -88,11 +103,12 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
 
 - `src/lib/shelf.ts`: geometría de la estantería, piezas, posiciones, herrajes y avisos.
 - `src/lib/packing.ts`: optimización de cortes en placa (guillotina, con sierra y refilado).
-- `src/lib/doors.ts`: puertas con bisagras y corredizas.
+- `src/lib/doors.ts`: puertas con bisagras y corredizas (abajo y en el maletero).
+- `src/lib/resolve.ts` y `src/lib/templates.ts`: medidas del hueco e interiores típicos.
+- `src/lib/steps.ts`: pasos de armado.
 - `src/lib/cutlist.ts`: medidas de corte, tapacanto y textos para exportar.
 - `src/lib/shopping.ts`: lista de compras, precios y totales.
 - `src/components/`: interfaz en React.
 
-Para sumar placares, la idea es agregar un nuevo `kind` de mueble que reutilice la caja
-(laterales, techo, piso, zócalo, fondo, divisores) y las puertas, y sume cajones, barral
-y maletero sobre las mismas columnas.
+Placares y estanterías usan el mismo cálculo (`kind: 'placard' | 'estanteria'`): una caja
+con columnas, y cada hueco puede ser libre, barral o cajones.

@@ -84,7 +84,7 @@ describe('lista de compras', () => {
   });
 
   it('pasa los precios de la versión anterior a la lista de precios', () => {
-    const old = createFromPreset(PRESETS[0]) as ShelfUnit & { prices?: unknown };
+    const old = createFromPreset(PRESETS.find((p) => p.key === 'biblioteca')!) as ShelfUnit & { prices?: unknown };
     old.prices = { board: 55000, backBoard: 0, edgePerMeter: 900, cutPerBoard: 0 };
     const state = parseState({ projects: [old], activeId: old.id });
     expect(state.priceList[boardKey(old.material)]).toBe(55000);

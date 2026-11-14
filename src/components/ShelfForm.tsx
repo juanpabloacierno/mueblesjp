@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { column } from '../lib/defaults';
 import { mm } from '../lib/format';
 import { columnHasDoors } from '../lib/doors';
-import type { ColumnSpec, DoorSpec, ShelfUnit, ShelfUnitResult } from '../lib/types';
+import { resolveUnit } from '../lib/resolve';
+import { TEMPLATES, applyTemplate, type TemplateKey } from '../lib/templates';
+import type { ColumnSpec, CompartmentFill, DoorSpec, ShelfUnit, ShelfUnitResult } from '../lib/types';
 import { NumberField, Segmented, Stepper, Switch, TextField } from './ui';
 
 export type Updater = (fn: (draft: ShelfUnit) => void) => void;
@@ -77,14 +79,56 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
 
   return (
     <div>
-      <Section title="Medidas exteriores">
+      <Section title={unit.niche.enabled ? 'Medidas del hueco' : 'Medidas exteriores'}>
         <TextField id="f-name" label="Nombre del mueble" value={unit.name} onChange={(v) => update((d) => void (d.name = v))} />
-        <div className="grid-3">
-          <NumberField id="f-width" label="Ancho" value={unit.width} min={1} onChange={(v) => v !== null && update((d) => void (d.width = v))} />
-          <NumberField id="f-height" label="Alto" value={unit.height} min={1} onChange={(v) => v !== null && update((d) => void (d.height = v))} />
-          <NumberField id="f-depth" label="Profundidad" value={unit.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.depth = v))} />
-        </div>
-        <span className="field-hint">Medidas totales del mueble terminado, con el fondo incluido. Es el lugar que ocupa en la pared.</span>
+        <Switch
+          id="f-niche"
+          label="Va empotrado en un hueco de pared"
+          checked={unit.niche.enabled}
+          onChange={(v) =>
+            update((d) => {
+              if (v) {
+                d.niche = { ...d.niche, enabled: true, width: d.width + 2 * d.niche.sideGap, height: d.height + d.niche.topGap, depth: d.depth + d.niche.backGap };
+              } else {
+                const r = resolveUnit(d);
+                d.width = r.width;
+                d.height = r.height;
+                d.depth = r.depth;
+                d.niche.enabled = false;
+              }
+            })
+          }
+        />
+        {unit.niche.enabled ? (
+          <>
+            <div className="grid-3">
+              <NumberField id="f-niche-w" label="Ancho hueco" value={unit.niche.width} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.width = v))} />
+              <NumberField id="f-niche-h" label="Alto hueco" value={unit.niche.height} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.height = v))} />
+              <NumberField id="f-niche-d" label="Prof. hueco" value={unit.niche.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.depth = v))} />
+            </div>
+            <div className="grid-3">
+              <NumberField id="f-niche-sg" label="Luz por costado" value={unit.niche.sideGap} onChange={(v) => v !== null && update((d) => void (d.niche.sideGap = v))} />
+              <NumberField id="f-niche-tg" label="Luz arriba" value={unit.niche.topGap} onChange={(v) => v !== null && update((d) => void (d.niche.topGap = v))} />
+              <NumberField id="f-niche-bg" label="Luz atrás" value={unit.niche.backGap} onChange={(v) => v !== null && update((d) => void (d.niche.backGap = v))} />
+            </div>
+            <span className="field-hint">
+              Cargá la medida más chica del hueco (las paredes nunca están derechas). El mueble queda de{' '}
+              <strong className="num">
+                {mm(result.size.width)} × {mm(result.size.height)} × {mm(result.size.depth)}
+              </strong>{' '}
+              mm.
+            </span>
+          </>
+        ) : (
+          <>
+            <div className="grid-3">
+              <NumberField id="f-width" label="Ancho" value={unit.width} min={1} onChange={(v) => v !== null && update((d) => void (d.width = v))} />
+              <NumberField id="f-height" label="Alto" value={unit.height} min={1} onChange={(v) => v !== null && update((d) => void (d.height = v))} />
+              <NumberField id="f-depth" label="Profundidad" value={unit.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.depth = v))} />
+            </div>
+            <span className="field-hint">Medidas totales del mueble terminado, con el fondo incluido. Es el lugar que ocupa en la pared.</span>
+          </>
+        )}
       </Section>
 
       <Section title="Estructura">
@@ -130,6 +174,23 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
             <NumberField id="f-groove-o" label="Distancia al borde trasero" value={unit.back.grooveOffset} onChange={(v) => v !== null && update((d) => void (d.back.grooveOffset = v))} />
           </div>
         )}
+
+        <Switch id="f-maletero" label="Maletero arriba (estante de lado a lado)" checked={unit.maletero.enabled} onChange={(v) => update((d) => void (d.maletero.enabled = v))} />
+        {unit.maletero.enabled && (
+          <>
+            <NumberField
+              id="f-maletero-h"
+              label="Alto libre del maletero"
+              value={unit.maletero.height}
+              min={1}
+              onChange={(v) => v !== null && update((d) => void (d.maletero.height = v))}
+              hint={result.maletero ? `Estante maletero: cara de abajo a ${mm(result.maletero.shelfBottom)} mm del suelo. Las columnas llegan hasta ahí.` : undefined}
+            />
+            {n > 1 && (
+              <Switch id="f-maletero-div" label="Divisores también en el maletero" checked={unit.maletero.dividers} onChange={(v) => update((d) => void (d.maletero.dividers = v))} />
+            )}
+          </>
+        )}
       </Section>
 
       <Section title="Columnas y estantes">
@@ -164,7 +225,7 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
                 d.sameShelves = v;
                 if (!v) {
                   const first = d.columns[0];
-                  d.columns = d.columns.map((c) => ({ ...c, shelves: first.shelves, shelfType: first.shelfType, gaps: [...first.gaps] }));
+                  d.columns = d.columns.map((c) => ({ ...c, shelves: first.shelves, shelfType: first.shelfType, gaps: [...first.gaps], fill: [...(first.fill ?? [])] }));
                 }
               })
             }
@@ -172,7 +233,17 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
         )}
 
         {shelfEditors.map((i) => (
-          <ShelfEditor key={i} index={i} title={unit.sameShelves || n === 1 ? null : `Columna ${i + 1}`} spec={unit.columns[i]} gaps={result.columns[i]?.gaps ?? []} update={update} />
+          <ShelfEditor
+            key={i}
+            index={i}
+            title={unit.sameShelves || n === 1 ? null : `Columna ${i + 1}`}
+            spec={unit.columns[i]}
+            gaps={result.columns[i]?.gaps ?? []}
+            columnHeight={result.columnsTop - result.interior.baseY}
+            thickness={m.thickness}
+            placard={unit.kind === 'placard'}
+            update={update}
+          />
         ))}
       </Section>
 
@@ -237,10 +308,67 @@ function ColumnWidthInput({ index, spec, computed, update }: { index: number; sp
   );
 }
 
-function ShelfEditor({ index, title, spec, gaps, update }: { index: number; title: string | null; spec: ColumnSpec; gaps: number[]; update: Updater }) {
+type FillKey = 'libre' | 'barral' | 'cajones';
+
+function fillKey(f: CompartmentFill | null | undefined): FillKey {
+  return f ? f.kind : 'libre';
+}
+
+function ShelfEditor({
+  index,
+  title,
+  spec,
+  gaps,
+  columnHeight,
+  thickness,
+  placard,
+  update,
+}: {
+  index: number;
+  title: string | null;
+  spec: ColumnSpec;
+  gaps: number[];
+  columnHeight: number;
+  thickness: number;
+  placard: boolean;
+  update: Updater;
+}) {
   const k = spec.shelves;
+  const setFill = (j: number, f: CompartmentFill | null) =>
+    update((d) => {
+      const c = d.columns[index];
+      const arr = Array.from({ length: c.shelves + 1 }, (_, x) => c.fill?.[x] ?? null);
+      arr[j] = f;
+      while (arr.length && arr[arr.length - 1] === null) arr.pop();
+      c.fill = arr;
+    });
   const body = (
     <>
+      <div className="field">
+        <label className="field-label" htmlFor={`f-tpl-${index}`}>
+          Armado rápido
+        </label>
+        <select
+          id={`f-tpl-${index}`}
+          className="input"
+          value=""
+          onChange={(e) => {
+            const key = e.target.value as TemplateKey;
+            if (!key) return;
+            update((d) => {
+              const c = d.columns[index];
+              Object.assign(c, applyTemplate(key, columnHeight, thickness));
+            });
+          }}
+        >
+          <option value="">{placard ? 'Elegí un interior típico…' : 'Elegí una distribución…'}</option>
+          {TEMPLATES.map((tpl) => (
+            <option key={tpl.key} value={tpl.key}>
+              {tpl.label}: {tpl.description}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="row" style={{ alignItems: 'flex-end' }}>
         <Stepper
           label="Estantes"
@@ -252,6 +380,7 @@ function ShelfEditor({ index, title, spec, gaps, update }: { index: number; titl
               const c = d.columns[index];
               c.shelves = v;
               c.gaps = c.gaps.slice(0, v + 1);
+              c.fill = (c.fill ?? []).slice(0, v + 1);
             })
           }
         />
@@ -270,22 +399,69 @@ function ShelfEditor({ index, title, spec, gaps, update }: { index: number; titl
         )}
       </div>
       <div className="field">
-        <span className="field-label">Alto libre de cada hueco, de abajo hacia arriba</span>
-        <div className="gap-grid">
-          {Array.from({ length: k + 1 }, (_, j) => (
-            <label key={j} className="gap-item" htmlFor={`f-gap-${index}-${j}`}>
-              <span>Hueco {j + 1}</span>
-              <GapInput id={`f-gap-${index}-${j}`} value={spec.gaps[j] ?? null} placeholder={gaps[j] !== undefined ? mm(gaps[j]) : ''} onChange={(v) => update((d) => {
-                const c = d.columns[index];
-                const arr = Array.from({ length: c.shelves + 1 }, (_, x) => c.gaps[x] ?? null);
-                arr[j] = v;
-                while (arr.length && arr[arr.length - 1] === null) arr.pop();
-                c.gaps = arr;
-              })} />
-            </label>
-          ))}
+        <span className="field-label">Huecos, de abajo hacia arriba</span>
+        <div className="hueco-list">
+          {Array.from({ length: k + 1 }, (_, j) => {
+            const f = spec.fill?.[j] ?? null;
+            const key = fillKey(f);
+            return (
+              <div key={j} className="hueco-row">
+                <label className="hueco-label" htmlFor={`f-gap-${index}-${j}`}>
+                  Hueco {j + 1}
+                </label>
+                <GapInput
+                  id={`f-gap-${index}-${j}`}
+                  value={spec.gaps[j] ?? null}
+                  placeholder={gaps[j] !== undefined ? mm(gaps[j]) : ''}
+                  onChange={(v) =>
+                    update((d) => {
+                      const c = d.columns[index];
+                      const arr = Array.from({ length: c.shelves + 1 }, (_, x) => c.gaps[x] ?? null);
+                      arr[j] = v;
+                      while (arr.length && arr[arr.length - 1] === null) arr.pop();
+                      c.gaps = arr;
+                    })
+                  }
+                />
+                <select
+                  id={`f-fill-${index}-${j}`}
+                  className="input"
+                  aria-label={`Contenido del hueco ${j + 1}`}
+                  value={key}
+                  onChange={(e) => {
+                    const v = e.target.value as FillKey;
+                    setFill(j, v === 'libre' ? null : v === 'barral' ? { kind: 'barral' } : { kind: 'cajones', count: 3 });
+                  }}
+                >
+                  <option value="libre">Libre</option>
+                  <option value="barral">Barral</option>
+                  <option value="cajones">Cajones</option>
+                </select>
+                {f?.kind === 'cajones' ? (
+                  <select
+                    id={`f-drawers-${index}-${j}`}
+                    className="input"
+                    aria-label={`Cantidad de cajones del hueco ${j + 1}`}
+                    value={f.count}
+                    onChange={(e) => setFill(j, { kind: 'cajones', count: Number(e.target.value) })}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span />
+                )}
+              </div>
+            );
+          })}
         </div>
-        <span className="field-hint">Vacío = automático. Fijá solo los huecos que necesitás (p. ej. uno alto para carpetas).</span>
+        <span className="field-hint">
+          Alto vacío = automático. El barral va a 5 cm del techo del hueco; los cajones llenan el hueco con frentes iguales. El estante de arriba de un barral o de
+          cajones queda fijo.
+        </span>
       </div>
     </>
   );

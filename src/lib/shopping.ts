@@ -45,7 +45,11 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   const doors = result.doors.doors;
   const hinged = unit.doors.type === 'batiente' && doors.length > 0;
   const sliding = unit.doors.type === 'corrediza' && doors.length > 0;
-  const tall = unit.height > 1200;
+  const tall = result.size.height > 1200;
+  const rods = result.rods;
+  const drawers = result.drawers;
+  const drawerCount = drawers.reduce((n, d) => n + d.count, 0);
+  const rodSupports = rods.reduce((n, r) => n + r.supports, 0);
   const color = m.color.trim();
 
   // --- Placas y cortes ---
@@ -134,8 +138,9 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     });
   }
   if (sliding) {
-    const meters = Math.round(result.doors.trackLength) / 1000;
-    const trackNote = `1 tramo de ${mm(result.doors.trackLength)} mm (se vende en tiras de 2 o 3 m)`;
+    const sets = Math.max(1, result.doors.trackSets);
+    const meters = (Math.round(result.doors.trackLength) * sets) / 1000;
+    const trackNote = `${sets} ${sets === 1 ? 'tramo' : 'tramos'} de ${mm(result.doors.trackLength)} mm${sets > 1 ? ' (abajo y en el maletero)' : ''}. Se vende en tiras de 2 o 3 m.`;
     add({ key: 'riel-superior', category: 'herrajes', name: 'Riel superior doble para corredizas', qty: meters, unit: 'm', note: trackNote, defaultOn: true });
     add({ key: 'riel-inferior', category: 'herrajes', name: 'Riel inferior doble para corredizas', qty: meters, unit: 'm', note: trackNote, defaultOn: true });
     add({
@@ -158,6 +163,42 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     });
     add({ key: 'tope-corrediza', category: 'herrajes', name: 'Topes para riel', qty: 2, unit: 'u', note: 'Si el kit no los trae', defaultOn: false, optional: true });
   }
+  if (rods.length) {
+    const lengths = new Map<number, number>();
+    for (const r of rods) lengths.set(r.length, (lengths.get(r.length) ?? 0) + 1);
+    add({
+      key: 'barral',
+      category: 'herrajes',
+      name: 'Barral ovalado cromado',
+      qty: Math.round(rods.reduce((m, r) => m + r.length, 0)) / 1000,
+      unit: 'm',
+      note: `Cortado en ${[...lengths.entries()].map(([l, q]) => `${q} de ${mm(l)} mm`).join(', ')}`,
+      defaultOn: true,
+    });
+    add({
+      key: 'soporte-barral',
+      category: 'herrajes',
+      name: 'Soportes de barral',
+      qty: rodSupports,
+      unit: 'u',
+      note: 'Dos por barral, más uno central en los de más de 1 m',
+      defaultOn: true,
+    });
+  }
+  const slideCounts = new Map<number, number>();
+  for (const d of drawers) slideCounts.set(d.slide, (slideCounts.get(d.slide) ?? 0) + d.count);
+  for (const [length, qty] of [...slideCounts.entries()].sort((a, b) => a[0] - b[0])) {
+    add({
+      key: `corredera|${length}`,
+      category: 'herrajes',
+      name: `Correderas telescópicas de ${length} mm`,
+      qty,
+      unit: 'juego',
+      note: 'Un par por cajón. Mejor con cierre suave.',
+      defaultOn: true,
+    });
+  }
+  add({ key: 'tirador-cajon', category: 'herrajes', name: 'Tirador para cajón', qty: drawerCount, unit: 'u', note: 'Con sus tornillos', defaultOn: true });
   add({
     key: 'perno-estante',
     category: 'herrajes',
@@ -182,7 +223,7 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
       key: 'regaton',
       category: 'herrajes',
       name: 'Regatones o patas niveladoras',
-      qty: unit.width > 1200 ? 6 : 4,
+      qty: result.size.width > 1200 ? 6 : 4,
       unit: 'u',
       note: 'Protegen la base y nivelan el mueble',
       defaultOn: true,
@@ -201,23 +242,41 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     defaultOn: true,
   });
   const hingeScrews = Object.values(result.doors.hingeCounts).reduce((s, v) => s + v, 0) * 4;
-  const trackScrews = sliding ? 2 * (Math.ceil(result.doors.trackLength / 150) + 1) : 0;
+  const trackScrews = sliding ? 2 * Math.max(1, result.doors.trackSets) * (Math.ceil(result.doors.trackLength / 150) + 1) : 0;
+  const slideScrews = drawerCount * 12;
+  const supportScrews = rodSupports * 3;
   add({
     key: 'tornillo-3.5x16',
     category: 'fijaciones',
     name: 'Tornillos 3,5 × 16 mm',
-    qty: hingeScrews + trackScrews,
+    qty: hingeScrews + trackScrews + slideScrews + supportScrews,
     unit: 'u',
-    note: [hingeScrews ? '4 por bisagra' : '', trackScrews ? 'rieles cada 15 cm' : ''].filter(Boolean).join(', '),
+    note: [
+      hingeScrews ? '4 por bisagra' : '',
+      trackScrews ? 'rieles cada 15 cm' : '',
+      slideScrews ? '12 por par de correderas' : '',
+      supportScrews ? '3 por soporte de barral' : '',
+    ]
+      .filter(Boolean)
+      .join(', '),
+    defaultOn: true,
+  });
+  add({
+    key: 'tornillo-4x30',
+    category: 'fijaciones',
+    name: 'Tornillos 4 × 30 mm',
+    qty: drawerCount * 4,
+    unit: 'u',
+    note: 'Para fijar los frentes de los cajones desde adentro',
     defaultOn: true,
   });
   add({
     key: 'clavo-fondo',
     category: 'fijaciones',
-    name: 'Clavos de 1" o grapas para el fondo',
+    name: drawerCount ? 'Clavos de 1" o grapas para fondos' : 'Clavos de 1" o grapas para el fondo',
     qty: c.backNails,
     unit: 'u',
-    note: 'Cada 15 cm en el borde, sobre estantes fijos y divisores',
+    note: drawerCount ? 'Fondo del mueble cada 15 cm y fondos de cajón cada 10 cm' : 'Cada 15 cm en el borde, sobre estantes fijos y divisores',
     defaultOn: true,
   });
   add({
@@ -259,6 +318,19 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     defaultOn: false,
     optional: true,
   });
+
+  if (unit.niche.enabled) {
+    add({
+      key: 'tapajunta',
+      category: 'insumos',
+      name: 'Tapajunta o varilla de terminación',
+      qty: Math.ceil((2 * result.size.height + result.size.width) / 100) / 10,
+      unit: 'm',
+      note: 'Para tapar la luz entre el mueble y la pared',
+      defaultOn: false,
+      optional: true,
+    });
+  }
 
   // --- Insumos ---
   add({

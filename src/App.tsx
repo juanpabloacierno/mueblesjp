@@ -4,6 +4,9 @@ import { CutList } from './components/CutList';
 import { PlanPanel } from './components/PlanPanel';
 import { ShelfForm, type Updater } from './components/ShelfForm';
 import { ShoppingPanel } from './components/ShoppingPanel';
+import { StepsPanel } from './components/StepsPanel';
+import { resolveUnit } from './lib/resolve';
+import { buildSteps } from './lib/steps';
 import { downloadFile } from './components/ui';
 import { summarize } from './lib/cutlist';
 import { buildShoppingList, shoppingTotals } from './lib/shopping';
@@ -13,13 +16,14 @@ import { computeShelfUnit } from './lib/shelf';
 import { loadState, parseState, saveState, type AppState } from './lib/storage';
 import type { Warning } from './lib/types';
 
-type Tab = 'medidas' | 'plano' | 'despiece' | 'placas' | 'compras';
+type Tab = 'medidas' | 'plano' | 'despiece' | 'placas' | 'compras' | 'armado';
 
 const RESULT_TABS: { key: Exclude<Tab, 'medidas'>; label: string }[] = [
   { key: 'plano', label: 'Plano y espacios' },
   { key: 'despiece', label: 'Despiece' },
   { key: 'placas', label: 'Placas' },
   { key: 'compras', label: 'Compras' },
+  { key: 'armado', label: 'Armado' },
 ];
 
 function useIsWide() {
@@ -73,10 +77,13 @@ export default function App() {
   }, [toast]);
 
   const unit = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
-  const result = useMemo(() => computeShelfUnit(unit), [unit]);
-  const summary = useMemo(() => summarize(unit, result.pieces), [unit, result]);
-  const shopping = useMemo(() => buildShoppingList(unit, result, summary), [unit, result, summary]);
-  const total = shoppingTotals(unit, shopping, state.priceList).total;
+  // Medidas reales (en empotrados, el hueco menos las holguras) para todo lo que se calcula y dibuja.
+  const built = useMemo(() => resolveUnit(unit), [unit]);
+  const result = useMemo(() => computeShelfUnit(built), [built]);
+  const summary = useMemo(() => summarize(built, result.pieces), [built, result]);
+  const shopping = useMemo(() => buildShoppingList(built, result, summary), [built, result, summary]);
+  const steps = useMemo(() => buildSteps(built, result, summary), [built, result, summary]);
+  const total = shoppingTotals(built, shopping, state.priceList).total;
 
   const update: Updater = useCallback(
     (fn) =>
@@ -115,7 +122,7 @@ export default function App() {
     setState((s) => {
       const rest = s.projects.filter((p) => p.id !== s.activeId);
       if (rest.length === 0) {
-        const fresh = createFromPreset(PRESETS[0], s.defaults.material);
+        const fresh = createFromPreset(PRESETS.find((p) => p.key === 'biblioteca')!, s.defaults.material);
         return { ...s, projects: [fresh], activeId: fresh.id };
       }
       return { ...s, projects: rest, activeId: rest[rest.length - 1].id };
@@ -174,16 +181,17 @@ export default function App() {
               </button>
               {menu === 'nuevo' && (
                 <div className="popover" role="menu">
-                  {PRESETS.map((p) => (
-                    <button key={p.key} type="button" role="menuitem" onClick={() => addFromPreset(p.key)}>
-                      <strong>{p.label}</strong>
-                      <span>{p.description}</span>
-                    </button>
+                  {(['placard', 'estanteria'] as const).map((kind) => (
+                    <div key={kind} role="group" aria-label={kind === 'placard' ? 'Placares' : 'Estanterías y muebles'}>
+                      <div className="popover-group">{kind === 'placard' ? 'Placares' : 'Estanterías y muebles'}</div>
+                      {PRESETS.filter((p) => (p.unit.kind ?? 'estanteria') === kind).map((p) => (
+                        <button key={p.key} type="button" role="menuitem" onClick={() => addFromPreset(p.key)}>
+                          <strong>{p.label}</strong>
+                          <span>{p.description}</span>
+                        </button>
+                      ))}
+                    </div>
                   ))}
-                  <button type="button" role="menuitem" disabled style={{ opacity: 0.6, cursor: 'default' }}>
-                    <strong>Placard</strong>
-                    <span>Próximamente</span>
-                  </button>
                 </div>
               )}
             </div>
@@ -294,7 +302,7 @@ export default function App() {
           <div className="results-head">
             <h2>{unit.name || 'Sin nombre'}</h2>
             <span className="dims">
-              {mm(unit.width)} × {mm(unit.height)} × {mm(unit.depth + result.doors.extraDepth)} mm
+              {mm(result.size.width)} × {mm(result.size.height)} × {mm(result.size.depth + result.doors.extraDepth)} mm
             </span>
           </div>
 
@@ -358,17 +366,17 @@ export default function App() {
           </div>
 
           <div className={`tab-panel ${activeResultTab === 'plano' ? '' : 'is-inactive'}`} role="tabpanel">
-            {hasPieces ? <PlanPanel unit={unit} result={result} /> : <p className="empty-note">Corregí los errores de arriba para ver el plano.</p>}
+            {hasPieces ? <PlanPanel unit={built} result={result} /> : <p className="empty-note">Corregí los errores de arriba para ver el plano.</p>}
           </div>
           <div className={`tab-panel ${activeResultTab === 'despiece' ? '' : 'is-inactive'}`} role="tabpanel">
-            <CutList unit={unit} summary={summary} pieces={result.pieces} notify={notify} />
+            <CutList unit={built} summary={summary} pieces={result.pieces} notify={notify} />
           </div>
           <div className={`tab-panel ${activeResultTab === 'placas' ? '' : 'is-inactive'}`} role="tabpanel">
-            <BoardsView unit={unit} summary={summary} />
+            <BoardsView unit={built} summary={summary} />
           </div>
           <div className={`tab-panel ${activeResultTab === 'compras' ? '' : 'is-inactive'}`} role="tabpanel">
             <ShoppingPanel
-              unit={unit}
+              unit={built}
               items={shopping}
               prices={state.priceList}
               notify={notify}
@@ -382,6 +390,15 @@ export default function App() {
               }
               setChecked={(key, value) => update((d) => void (d.shopping[key] = value))}
               resetChecks={() => update((d) => void (d.shopping = {}))}
+            />
+          </div>
+          <div className={`tab-panel ${activeResultTab === 'armado' ? '' : 'is-inactive'}`} role="tabpanel">
+            <StepsPanel
+              unit={built}
+              steps={steps}
+              notify={notify}
+              setDone={(key, value) => update((d) => void (d.progress[key] = value))}
+              reset={() => update((d) => void (d.progress = {}))}
             />
           </div>
         </section>

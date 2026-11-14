@@ -192,12 +192,21 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
         <rect
           key={`bg-${col.index}`}
           x={col.x}
-          y={Y(result.interior.topY)}
+          y={Y(result.columnsTop)}
           width={col.width}
-          height={result.interior.height}
+          height={result.columnsTop - result.interior.baseY}
           fill={hasBack ? 'var(--back)' : 'url(#wall)'}
         />
       ))}
+      {result.maletero && (
+        <rect
+          x={t}
+          y={Y(result.interior.topY)}
+          width={result.interior.width}
+          height={result.maletero.height}
+          fill={hasBack ? 'var(--back)' : 'url(#wall)'}
+        />
+      )}
 
       {/* Suelo */}
       <line x1={-pad * 0.6} y1={H} x2={W + pad * 0.6} y2={H} stroke="var(--muted)" strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
@@ -229,6 +238,75 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
           ),
       )}
 
+      {/* Barrales con perchas vistas de canto */}
+      {result.rods.map((r) => {
+        const col = result.columns[r.column];
+        const count = Math.min(8, Math.max(2, Math.floor(col.width / 120)));
+        return (
+          <g key={`rod-${r.column}-${r.y}`}>
+            {Array.from({ length: count }, (_, k) => {
+              const hx = col.x + ((k + 0.5) * col.width) / count;
+              const top = Y(r.y) - 8;
+              return (
+                <g key={k} stroke="var(--muted)" strokeWidth={1} fill="none" vectorEffect="non-scaling-stroke">
+                  <path d={`M ${hx} ${top} c 0 -22 22 -22 22 -4`} vectorEffect="non-scaling-stroke" />
+                  <line x1={hx} y1={top} x2={hx} y2={top + Math.min(160, r.hanging * 0.18)} vectorEffect="non-scaling-stroke" />
+                </g>
+              );
+            })}
+            <rect x={col.x + 2} y={Y(r.y) - 8} width={col.width - 4} height={16} rx={8} fill="var(--panel-stroke)" />
+            {[col.x, col.x + col.width - 10].map((sx) => (
+              <rect key={sx} x={sx} y={Y(r.y) - 22} width={10} height={44} rx={2} fill="var(--muted)" />
+            ))}
+          </g>
+        );
+      })}
+
+      {/* Frentes de cajones */}
+      {result.drawers.flatMap((d) =>
+        d.fronts.map((fy, k) => {
+          const handleW = Math.min(128, d.frontW * 0.3);
+          return (
+            <g key={`drw-${d.column}-${fy}`}>
+              <rect
+                x={d.x}
+                y={Y(fy + d.frontH)}
+                width={d.frontW}
+                height={d.frontH}
+                fill="var(--door)"
+                stroke="var(--panel-stroke)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+              <rect x={d.x + d.frontW / 2 - handleW / 2} y={Y(fy + d.frontH - 30)} width={handleW} height={12} rx={6} fill="var(--panel-stroke)" />
+              {k === 0 && d.frontH > fs * 1.8 && (
+                <text x={d.x + d.frontW / 2} y={Y(fy + d.frontH / 2) + fs * 0.25} fontSize={Math.min(fs * 0.75, d.frontH * 0.3)} textAnchor="middle" style={{ fill: 'var(--muted)' }}>
+                  {d.count} × {mm(d.frontW)} × {mm(d.frontH)}
+                </text>
+              )}
+            </g>
+          );
+        }),
+      )}
+
+      {/* Alto libre del maletero */}
+      {result.maletero && (
+        <g>
+          <rect
+            x={W / 2 - fs * 1.35}
+            y={Y(result.maletero.shelfTop + result.maletero.height / 2) - fs * 0.62}
+            width={fs * 2.7}
+            height={fs * 1.24}
+            rx={fs * 0.2}
+            fill="var(--surface)"
+            opacity={0.92}
+          />
+          <text x={W / 2} y={Y(result.maletero.shelfTop + result.maletero.height / 2) + fs * 0.36} fontSize={fs} textAnchor="middle" style={{ fill: 'var(--dim)', fontWeight: 500 }}>
+            {mm(result.maletero.height)}
+          </text>
+        </g>
+      )}
+
       {/* Alturas libres dentro de cada hueco */}
       {result.columns.map((col) => {
         let y = result.interior.baseY;
@@ -239,6 +317,7 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
           y += g + t;
           const yTop = y0 + g;
           const small = g < fs * 2.2;
+          if (col.compartments[j]?.drawers) return null;
           return (
             <g key={`gap-${col.index}-${j}`}>
               {showLine && !small && (
@@ -357,6 +436,49 @@ export function SideView({ unit, result, fs, scale, showDoors }: Props) {
           vectorEffect="non-scaling-stroke"
         />
       )}
+      {/* Estante maletero */}
+      {result.maletero && (
+        <rect
+          x={0}
+          y={Y(result.maletero.shelfTop)}
+          width={carcassDepth}
+          height={t}
+          fill="var(--panel)"
+          stroke="var(--panel-stroke)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+      {/* Barrales y cajones de la primera columna */}
+      {(result.columns[0]?.compartments ?? []).map((c) => {
+        const front = result.interior.depth - c.depth;
+        if (c.rod) {
+          return <ellipse key={`r${c.index}`} cx={front + c.depth / 2} cy={Y(c.rod.y)} rx={15} ry={8} fill="var(--panel-stroke)" />;
+        }
+        if (c.drawers) {
+          const d = c.drawers;
+          return (
+            <g key={`d${c.index}`}>
+              {d.fronts.map((fy) => (
+                <g key={fy}>
+                  <rect x={front} y={Y(fy + d.frontH)} width={t} height={d.frontH} fill="var(--door)" stroke="var(--panel-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <rect
+                    x={front + t}
+                    y={Y(fy + 10 + d.boxH)}
+                    width={d.slide}
+                    height={d.boxH}
+                    fill="none"
+                    stroke="var(--panel-stroke)"
+                    strokeWidth={0.8}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              ))}
+            </g>
+          );
+        }
+        return null;
+      })}
       {/* Estantes de la primera columna (apoyados contra el fondo) */}
       {shelfY.map((s) => (
         <rect

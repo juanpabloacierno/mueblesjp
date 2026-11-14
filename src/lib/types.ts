@@ -65,6 +65,10 @@ export interface DoorSpec {
 }
 export type BackMode = 'clavado' | 'ranurado' | 'ninguno';
 export type ShelfType = 'fijo' | 'movil';
+export type FurnitureKind = 'estanteria' | 'placard';
+
+/** Qué lleva un hueco además de ser espacio libre. */
+export type CompartmentFill = { kind: 'barral' } | { kind: 'cajones'; count: number };
 
 export interface ColumnSpec {
   /** Luz interior de la columna. `null` = se reparte automáticamente. */
@@ -73,10 +77,35 @@ export interface ColumnSpec {
   shelfType: ShelfType;
   /** Alturas libres de los huecos desde abajo. `null` = automática. */
   gaps: (number | null)[];
+  /** Contenido de cada hueco desde abajo. `null` = libre (estantes). */
+  fill: (CompartmentFill | null)[];
+}
+
+/** Mueble empotrado: se cargan las medidas del hueco y se descuentan holguras. */
+export interface NicheSpec {
+  enabled: boolean;
+  width: number;
+  height: number;
+  depth: number;
+  /** Holgura en cada costado. */
+  sideGap: number;
+  /** Holgura arriba (también ayuda a pararlo). */
+  topGap: number;
+  /** Holgura atrás por paredes desparejas. */
+  backGap: number;
+}
+
+/** Maletero: estante fijo de lado a lado arriba, con puertas propias. */
+export interface MaleteroSpec {
+  enabled: boolean;
+  /** Alto libre del maletero. */
+  height: number;
+  /** Divisores en el maletero alineados con los de abajo. */
+  dividers: boolean;
 }
 
 export interface ShelfUnit {
-  kind: 'estanteria';
+  kind: FurnitureKind;
   id: string;
   name: string;
   width: number;
@@ -94,9 +123,13 @@ export interface ShelfUnit {
   /** Retiro de los estantes respecto del frente. */
   shelfSetback: number;
   doors: DoorSpec;
+  niche: NicheSpec;
+  maletero: MaleteroSpec;
   material: Material;
   /** Ítems de la lista de compras marcados o desmarcados a mano (clave → comprar). */
   shopping: Record<string, boolean>;
+  /** Pasos de armado ya hechos. */
+  progress: Record<string, boolean>;
   updatedAt: number;
 }
 
@@ -152,6 +185,8 @@ export type PanelRole =
   | 'divisor'
   | 'estante-fijo'
   | 'estante-movil'
+  | 'maletero'
+  | 'divisor-maletero'
   | 'puerta';
 
 /** Panel visto de frente (para dibujar el plano). y = 0 es el suelo. */
@@ -174,6 +209,45 @@ export interface ShelfPosition {
   depth: number;
 }
 
+export interface RodResult {
+  column: number;
+  /** Centro del barral desde el suelo. */
+  y: number;
+  length: number;
+  /** Largo libre para colgar: del barral al piso del hueco. */
+  hanging: number;
+  supports: number;
+}
+
+export interface DrawerResult {
+  column: number;
+  count: number;
+  /** Frente (tapa) terminado. */
+  frontW: number;
+  frontH: number;
+  /** Borde de abajo de cada frente, desde el suelo. */
+  fronts: number[];
+  x: number;
+  /** Caja del cajón: ancho exterior, alto de los costados y largo (= corredera). */
+  boxW: number;
+  boxH: number;
+  slide: number;
+  /** Centro de cada corredera desde el suelo (para marcar laterales y divisores). */
+  slideCenters: number[];
+}
+
+export interface CompartmentResult {
+  index: number;
+  /** Piso del hueco (cara de arriba del estante o piso de abajo), desde el suelo. */
+  bottom: number;
+  height: number;
+  /** Profundidad útil del hueco. */
+  depth: number;
+  fill: CompartmentFill | null;
+  rod?: RodResult;
+  drawers?: DrawerResult;
+}
+
 export interface ColumnResult {
   index: number;
   /** Cara izquierda de la luz interior, desde el borde exterior izquierdo. */
@@ -182,6 +256,7 @@ export interface ColumnResult {
   /** Alturas libres de cada hueco, de abajo hacia arriba. */
   gaps: number[];
   shelves: ShelfPosition[];
+  compartments: CompartmentResult[];
 }
 
 export interface DividerPosition {
@@ -201,6 +276,7 @@ export interface Warning {
 
 export interface Door extends Rect {
   index: number;
+  zone: 'principal' | 'maletero';
   /** Columna que cierra (`null` en corredizas, que cubren todo el ancho). */
   column: number | null;
   hingeSide: 'izquierda' | 'derecha' | null;
@@ -219,6 +295,8 @@ export interface DoorsResult {
   hingeCounts: Record<HingeType, number>;
   /** Largo de cada riel (superior e inferior) en corredizas. */
   trackLength: number;
+  /** Juegos de rieles (uno abajo y otro en el maletero). */
+  trackSets: number;
 }
 
 /** Cantidades de uniones y fijaciones para la lista de compras. */
@@ -232,11 +310,20 @@ export interface FastenerCounts {
 }
 
 export interface ShelfUnitResult {
+  /** Medidas reales del mueble (en empotrados, el hueco menos las holguras). */
+  size: { width: number; height: number; depth: number };
   pieces: Piece[];
   panels: FrontPanel[];
   columns: ColumnResult[];
   dividers: DividerPosition[];
   interior: { width: number; height: number; depth: number; baseY: number; topY: number };
+  /** Techo de la zona de columnas: cara de abajo del estante maletero, o del techo. */
+  columnsTop: number;
+  maletero: { shelfBottom: number; shelfTop: number; height: number } | null;
+  /** Diagonal del lateral: alto libre que hace falta para parar el mueble armado. */
+  diagonal: number;
+  rods: RodResult[];
+  drawers: DrawerResult[];
   /** Profundidad útil de los estantes (sin contar retiros por puertas o rieles). */
   shelfDepth: number;
   /** Lo que se retiran del frente estantes y divisores por los rieles de corredizas. */

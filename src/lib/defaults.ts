@@ -1,5 +1,5 @@
 import { newId } from './format';
-import type { ColumnSpec, DoorSpec, Material, ShelfUnit } from './types';
+import type { ColumnSpec, DoorSpec, FurnitureKind, MaleteroSpec, Material, NicheSpec, ShelfUnit } from './types';
 
 export const DEFAULT_MATERIAL: Material = {
   color: 'Blanco',
@@ -30,13 +30,31 @@ export const DEFAULT_DOORS: DoorSpec = {
   trackDepth: 50,
 };
 
-export function column(shelves: number, shelfType: ColumnSpec['shelfType'] = 'movil', width: number | null = null, gaps: (number | null)[] = []): ColumnSpec {
-  return { width, shelves, shelfType, gaps };
+export const DEFAULT_NICHE: NicheSpec = { enabled: false, width: 1800, height: 2400, depth: 600, sideGap: 5, topGap: 20, backGap: 10 };
+export const DEFAULT_MALETERO: MaleteroSpec = { enabled: false, height: 400, dividers: false };
+
+export function column(
+  shelves: number,
+  shelfType: ColumnSpec['shelfType'] = 'movil',
+  width: number | null = null,
+  gaps: (number | null)[] = [],
+  fill: ColumnSpec['fill'] = [],
+): ColumnSpec {
+  return { width, shelves, shelfType, gaps, fill };
 }
 
-type PresetUnit = Omit<ShelfUnit, 'id' | 'material' | 'updatedAt' | 'kind' | 'movableClearance' | 'shelfSetback' | 'shopping' | 'doors'> & {
+type PresetUnit = Omit<
+  ShelfUnit,
+  'id' | 'material' | 'updatedAt' | 'kind' | 'movableClearance' | 'shelfSetback' | 'shopping' | 'progress' | 'doors' | 'niche' | 'maletero'
+> & {
+  kind?: FurnitureKind;
   doors?: Partial<DoorSpec>;
+  niche?: Partial<NicheSpec>;
+  maletero?: Partial<MaleteroSpec>;
 };
+
+const BARRAL = { kind: 'barral' as const };
+const CAJONES_3 = { kind: 'cajones' as const, count: 3 };
 
 export interface Preset {
   key: string;
@@ -48,6 +66,68 @@ export interface Preset {
 const CLAVADO = { mode: 'clavado' as const, grooveDepth: 8, grooveOffset: 12 };
 
 export const PRESETS: Preset[] = [
+  {
+    key: 'placard-corredizo',
+    label: 'Placard con corredizas',
+    description: 'Empotrado 180 × 240, 3 cuerpos y maletero',
+    unit: {
+      kind: 'placard',
+      name: 'Placard dormitorio',
+      width: 1790,
+      height: 2380,
+      depth: 590,
+      niche: { enabled: true, width: 1800, height: 2400, depth: 600 },
+      top: 'entre',
+      plinth: { enabled: true, height: 70, setback: 0 },
+      back: CLAVADO,
+      sameShelves: false,
+      columns: [
+        column(0, 'fijo', null, [], [BARRAL]),
+        column(4, 'movil', null, [560], [CAJONES_3]),
+        column(3, 'movil', null, [null, null, null, 1000], [null, null, null, BARRAL]),
+      ],
+      maletero: { enabled: true, height: 400 },
+      doors: { type: 'corrediza', leaves: 2 },
+    },
+  },
+  {
+    key: 'placard-batiente',
+    label: 'Placard con puertas de abrir',
+    description: '120 × 220, colgado y cajonera, maletero',
+    unit: {
+      kind: 'placard',
+      name: 'Placard con puertas',
+      width: 1200,
+      height: 2200,
+      depth: 580,
+      top: 'entre',
+      plinth: { enabled: true, height: 70, setback: 0 },
+      back: CLAVADO,
+      sameShelves: false,
+      columns: [column(0, 'fijo', null, [], [BARRAL]), column(3, 'movil', null, [560], [CAJONES_3])],
+      maletero: { enabled: true, height: 350, dividers: true },
+      doors: { type: 'batiente', mount: 'superpuesta' },
+    },
+  },
+  {
+    key: 'interior-placard',
+    label: 'Interior de placard',
+    description: 'Para un hueco con frente ya hecho',
+    unit: {
+      kind: 'placard',
+      name: 'Interior de placard',
+      width: 1490,
+      height: 2480,
+      depth: 590,
+      niche: { enabled: true, width: 1500, height: 2500, depth: 600 },
+      top: 'entre',
+      plinth: { enabled: true, height: 70, setback: 0 },
+      back: CLAVADO,
+      sameShelves: false,
+      columns: [column(1, 'fijo', null, [], [BARRAL, BARRAL]), column(4, 'movil', null, [560], [CAJONES_3])],
+      maletero: { enabled: true, height: 450, dividers: true },
+    },
+  },
   {
     key: 'biblioteca',
     label: 'Biblioteca',
@@ -183,23 +263,26 @@ export const PRESETS: Preset[] = [
 ];
 
 export function createFromPreset(preset: Preset, material: Material = DEFAULT_MATERIAL): ShelfUnit {
-  const { doors, ...rest } = structuredClone(preset.unit);
+  const { doors, niche, maletero, kind, ...rest } = structuredClone(preset.unit);
   return {
-    kind: 'estanteria',
     id: newId(),
     ...rest,
+    kind: kind ?? 'estanteria',
     movableClearance: 2,
     shelfSetback: 0,
     doors: { ...DEFAULT_DOORS, ...doors },
+    niche: { ...DEFAULT_NICHE, ...niche },
+    maletero: { ...DEFAULT_MALETERO, ...maletero },
     material: { ...material },
     shopping: {},
+    progress: {},
     updatedAt: Date.now(),
   };
 }
 
 /** Completa campos faltantes de muebles guardados con versiones anteriores. */
 export function normalizeUnit(raw: Partial<ShelfUnit> & { prices?: unknown }): ShelfUnit {
-  const base = createFromPreset(PRESETS[0]);
+  const base = createFromPreset(PRESETS.find((p) => p.key === 'biblioteca')!);
   const { prices: _legacy, ...data } = raw;
   return {
     ...base,
@@ -207,10 +290,13 @@ export function normalizeUnit(raw: Partial<ShelfUnit> & { prices?: unknown }): S
     plinth: { ...base.plinth, ...raw.plinth },
     back: { ...base.back, ...raw.back },
     doors: { ...DEFAULT_DOORS, ...raw.doors },
+    niche: { ...DEFAULT_NICHE, ...raw.niche },
+    maletero: { ...DEFAULT_MALETERO, ...raw.maletero },
     material: { ...DEFAULT_MATERIAL, ...raw.material },
     shopping: { ...raw.shopping },
-    columns: (raw.columns?.length ? raw.columns : base.columns).map((c) => ({ ...column(0), ...c, gaps: c.gaps ?? [] })),
-    kind: 'estanteria',
+    progress: { ...raw.progress },
+    columns: (raw.columns?.length ? raw.columns : base.columns).map((c) => ({ ...column(0), ...c, gaps: c.gaps ?? [], fill: c.fill ?? [] })),
+    kind: raw.kind === 'placard' ? 'placard' : 'estanteria',
     id: raw.id ?? base.id,
   };
 }

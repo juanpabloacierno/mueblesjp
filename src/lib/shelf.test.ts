@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRESETS, column, createFromPreset } from './defaults';
 import { computeShelfUnit, splitBack } from './shelf';
 import { cutSize, summarize } from './cutlist';
+import { buildShoppingList } from './shopping';
 import type { ShelfUnit } from './types';
 
 function preset(key: string): ShelfUnit {
@@ -74,7 +75,8 @@ describe('biblioteca 800 × 1800 × 300, laterales enteros, zócalo y fondo clav
 
   it('pide fijarlo a la pared', () => {
     expect(r.warnings.some((w) => w.text.includes('pared'))).toBe(true);
-    expect(r.hardware.some((h) => h.name.includes('Escuadras'))).toBe(true);
+    const list = buildShoppingList(unit, r, summarize(unit, r.pieces));
+    expect(list.find((i) => i.key === 'escuadra-pared')).toMatchObject({ qty: 2, defaultOn: true });
   });
 });
 
@@ -166,7 +168,7 @@ describe('fondo', () => {
   it('sin fondo no hay pieza de fondo ni clavos', () => {
     const r = computeShelfUnit(preset('pared'));
     expect(r.pieces.some((p) => p.material === 'fondo')).toBe(false);
-    expect(r.hardware.some((h) => h.name.includes('Clavos'))).toBe(false);
+    expect(r.counts.backNails).toBe(0);
   });
 
   it('divide un fondo grande en el centro de los divisores', () => {

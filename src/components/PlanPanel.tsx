@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { CUP_EDGE_DISTANCE, PLATE_FRONT_DISTANCE } from '../lib/doors';
 import { mm } from '../lib/format';
 import type { ShelfUnit, ShelfUnitResult } from '../lib/types';
-import { FRONT_PAD, FrontView, SIDE_PAD, SideView } from './FrontView';
+import { FRONT_PAD, FrontView, SIDE_PAD, SideView, sideExtra } from './FrontView';
+import { Segmented } from './ui';
 
 interface Props {
   unit: ShelfUnit;
@@ -23,6 +25,8 @@ function useElementWidth<T extends HTMLElement>() {
   return [ref, width] as const;
 }
 
+const HINGE_SHORT = { recta: 'bisagra recta', codo9: 'bisagra codo 9', codo18: 'bisagra codo 18' } as const;
+
 const TARGET_FONT_PX = 12;
 const VIEW_GAP_PX = 16;
 
@@ -34,7 +38,7 @@ export function layoutViews(unit: ShelfUnit, containerWidth: number, maxHeight: 
   const big = Math.max(unit.width, unit.height);
   const sizes = (fs: number) => ({
     front: unit.width + 2 * FRONT_PAD.side * fs,
-    side: unit.depth + 2 * SIDE_PAD.side * fs,
+    side: unit.depth + 2 * SIDE_PAD.side * fs + sideExtra(unit),
     height: unit.height + (FRONT_PAD.top + FRONT_PAD.bottom) * fs,
   });
   const solve = (sideBySide: boolean) => {
@@ -65,6 +69,11 @@ export function PlanPanel({ unit, result }: Props) {
   const [viewsRef, width] = useElementWidth<HTMLDivElement>();
   const maxHeight = typeof window !== 'undefined' ? Math.max(360, window.innerHeight * 0.72) : 700;
   const layout = layoutViews(unit, width || 600, maxHeight);
+  const [doorView, setDoorView] = useState<'con' | 'sin'>('con');
+  const doors = result.doors.doors;
+  const showDoors = doors.length > 0 && doorView === 'con';
+  const depths = [...new Set(result.columns.flatMap((c) => c.shelves.map((sh) => sh.depth)))].sort((a, b) => b - a);
+  const shelfDepthLabel = depths.length ? depths.map((d) => mm(d)).join(' / ') : mm(result.shelfDepth - result.frontInset);
 
   return (
     <div className="plan-grid">
@@ -73,15 +82,27 @@ export function PlanPanel({ unit, result }: Props) {
           <h3>Plano</h3>
           <p>Medidas en mm. Los números verdes son luces libres.</p>
         </div>
+        {doors.length > 0 && (
+          <div className="no-print" style={{ maxWidth: 280, marginBottom: 12 }}>
+            <Segmented
+              value={doorView}
+              onChange={setDoorView}
+              options={[
+                { value: 'con', label: 'Con puertas' },
+                { value: 'sin', label: 'Sin puertas' },
+              ]}
+            />
+          </div>
+        )}
         <div ref={viewsRef} className={`views ${layout.sideBySide ? '' : 'stacked'}`}>
           {width > 0 && (
             <>
               <figure style={{ width: layout.frontPx }}>
-                <FrontView unit={unit} result={result} fs={layout.fs} scale={layout.scale} />
+                <FrontView unit={unit} result={result} fs={layout.fs} scale={layout.scale} showDoors={showDoors} />
                 <figcaption>Frente</figcaption>
               </figure>
               <figure style={{ width: layout.sidePx }}>
-                <SideView unit={unit} result={result} fs={layout.fs} scale={layout.scale} />
+                <SideView unit={unit} result={result} fs={layout.fs} scale={layout.scale} showDoors={showDoors} />
                 <figcaption>Corte lateral</figcaption>
               </figure>
             </>
@@ -101,6 +122,12 @@ export function PlanPanel({ unit, result }: Props) {
               <i className="swatch" style={{ background: 'var(--panel)', borderStyle: 'dashed' }} /> Estante móvil
             </span>
           )}
+          {showDoors && unit.doors.type === 'batiente' && (
+            <span>
+              <i className="swatch" style={{ borderRadius: '50%', width: 11, height: 11, borderColor: 'var(--edge)', background: 'transparent' }} /> Bisagra · la punta
+              de la línea marca el lado de las bisagras
+            </span>
+          )}
         </div>
       </div>
 
@@ -113,12 +140,26 @@ export function PlanPanel({ unit, result }: Props) {
           <dl className="kv">
             <dt>Lugar que ocupa (an × al × prof.)</dt>
             <dd>
-              {mm(unit.width)} × {mm(unit.height)} × {mm(unit.depth)}
+              {mm(unit.width)} × {mm(unit.height)} × {mm(unit.depth + result.doors.extraDepth)}
             </dd>
+            {result.doors.extraDepth > 0 && (
+              <>
+                <dt>Profundidad sin puertas · con puertas</dt>
+                <dd>
+                  {mm(unit.depth)} · {mm(unit.depth + result.doors.extraDepth)}
+                </dd>
+              </>
+            )}
+            {result.doors.swing > 0 && (
+              <>
+                <dt>Lugar libre adelante para abrir las puertas</dt>
+                <dd>{mm(result.doors.swing)}</dd>
+              </>
+            )}
             <dt>Alto interior, de piso a techo</dt>
             <dd>{mm(result.interior.height)}</dd>
             <dt>Profundidad de los estantes</dt>
-            <dd>{mm(result.shelfDepth)}</dd>
+            <dd>{shelfDepthLabel}</dd>
             {unit.plinth.enabled && (
               <>
                 <dt>Cara de arriba del piso, desde el suelo</dt>
@@ -126,6 +167,79 @@ export function PlanPanel({ unit, result }: Props) {
               </>
             )}
           </dl>
+
+          {doors.length > 0 && unit.doors.type === 'batiente' && (
+            <div className="space-block">
+              <h4>Puertas y bisagras</h4>
+              <div className="table-wrap">
+                <table className="compact">
+                  <thead>
+                    <tr>
+                      <th>Puerta</th>
+                      <th className="n">Ancho × alto</th>
+                      <th className="n">Bisagras, desde abajo de la puerta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doors.map((d, i) => (
+                      <tr key={d.index}>
+                        <td>
+                          Puerta {i + 1}
+                          <span className="piece-notes">
+                            {result.columns.length > 1 && d.column !== null ? `Col. ${d.column + 1} · ` : ''}
+                            {d.hingeSide === 'izquierda' ? 'izq.' : 'der.'} · {HINGE_SHORT[d.hingeType!]}
+                          </span>
+                        </td>
+                        <td className="n">
+                          {mm(d.w)} × {mm(d.h)}
+                        </td>
+                        <td className="n">
+                          {d.hinges.map((p) => mm(p)).join(' · ')}
+                          <span className="piece-notes">desde el suelo: {d.hinges.map((p) => mm(Math.round(d.y + p))).join(' · ')}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="field-hint" style={{ margin: '6px 0 0' }}>
+                Cazoleta de 35 mm: centro a {CUP_EDGE_DISTANCE} mm del borde de la puerta y 12 mm de profundidad. La base va en el lateral o divisor, a{' '}
+                {PLATE_FRONT_DISTANCE} mm del frente y a la misma altura que cada bisagra. Revisá la plantilla de tus bisagras.
+              </p>
+            </div>
+          )}
+
+          {doors.length > 0 && unit.doors.type === 'corrediza' && (
+            <div className="space-block">
+              <h4>Puertas corredizas</h4>
+              <div className="table-wrap">
+                <table className="compact">
+                  <thead>
+                    <tr>
+                      <th>Hoja</th>
+                      <th className="n">Ancho × alto</th>
+                      <th className="n">Riel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doors.map((d, i) => (
+                      <tr key={d.index}>
+                        <td>Hoja {i + 1}</td>
+                        <td className="n">
+                          {mm(d.w)} × {mm(d.h)}
+                        </td>
+                        <td className="n">{d.track === 'trasero' ? 'de atrás' : 'de adelante'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="field-hint" style={{ margin: '6px 0 0' }}>
+                Rieles de {mm(result.doors.trackLength)} mm arriba y abajo. Las hojas se superponen {mm(unit.doors.overlap)} mm. Estantes y divisores van{' '}
+                {mm(result.frontInset)} mm más atrás para dejarlas pasar.
+              </p>
+            </div>
+          )}
 
           {result.dividers.length > 0 && (
             <div className="space-block">

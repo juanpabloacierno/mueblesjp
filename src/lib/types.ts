@@ -28,7 +28,8 @@ export interface Material {
   subtractEdge: boolean;
 }
 
-export interface Prices {
+/** Precios de la versión anterior (antes de la lista de compras). Solo para migrar. */
+export interface LegacyPrices {
   board: number;
   backBoard: number;
   edgePerMeter: number;
@@ -36,6 +37,32 @@ export interface Prices {
 }
 
 export type TopMode = 'entre' | 'sobre';
+export type DoorType = 'ninguna' | 'batiente' | 'corrediza';
+/** Superpuesta: la puerta tapa el canto del mueble. Embutida: va adentro del hueco. */
+export type DoorMount = 'superpuesta' | 'embutida';
+/** Bisagras cazoleta 35 mm: recta (codo 0), codo 9 (media tapa), codo 18 (embutida). */
+export type HingeType = 'recta' | 'codo9' | 'codo18';
+
+export interface DoorSpec {
+  type: DoorType;
+  mount: DoorMount;
+  /** Puertas por columna: 0 = automático (2 si la columna es ancha). */
+  perColumn: 0 | 1 | 2;
+  /** Columnas con puertas (por índice). Si falta un valor, la columna lleva puertas. */
+  columns: boolean[];
+  /** Las puertas cubren desde abajo hasta este estante (1 = el primero). `null` = todo el alto. */
+  upToShelf: number | null;
+  /** Luz entre puertas y bordes. */
+  gap: number;
+  /** Corredizas: cantidad de hojas. */
+  leaves: number;
+  /** Corredizas: cuánto se superponen dos hojas vecinas. */
+  overlap: number;
+  /** Corredizas: alto de puerta = alto libre − este valor (depende del kit). */
+  heightDeduction: number;
+  /** Corredizas: profundidad que ocupan los rieles; estantes y divisores van detrás. */
+  trackDepth: number;
+}
 export type BackMode = 'clavado' | 'ranurado' | 'ninguno';
 export type ShelfType = 'fijo' | 'movil';
 
@@ -66,8 +93,10 @@ export interface ShelfUnit {
   movableClearance: number;
   /** Retiro de los estantes respecto del frente. */
   shelfSetback: number;
+  doors: DoorSpec;
   material: Material;
-  prices: Prices;
+  /** Ítems de la lista de compras marcados o desmarcados a mano (clave → comprar). */
+  shopping: Record<string, boolean>;
   updatedAt: number;
 }
 
@@ -122,7 +151,8 @@ export type PanelRole =
   | 'zocalo'
   | 'divisor'
   | 'estante-fijo'
-  | 'estante-movil';
+  | 'estante-movil'
+  | 'puerta';
 
 /** Panel visto de frente (para dibujar el plano). y = 0 es el suelo. */
 export interface FrontPanel extends Rect {
@@ -140,6 +170,8 @@ export interface ShelfPosition {
   /** Cara inferior medida desde la cara superior del piso del mueble. */
   bottomFromBase: number;
   type: ShelfType;
+  /** Profundidad del estante (menor detrás de puertas embutidas o rieles). */
+  depth: number;
 }
 
 export interface ColumnResult {
@@ -167,11 +199,36 @@ export interface Warning {
   text: string;
 }
 
-export interface HardwareItem {
-  name: string;
-  qty: number;
-  unit: string;
-  notes?: string;
+export interface Door extends Rect {
+  index: number;
+  /** Columna que cierra (`null` en corredizas, que cubren todo el ancho). */
+  column: number | null;
+  hingeSide: 'izquierda' | 'derecha' | null;
+  hingeType: HingeType | null;
+  /** Centro de cada bisagra medido desde el borde de abajo de la puerta. */
+  hinges: number[];
+  track: 'trasero' | 'delantero' | null;
+}
+
+export interface DoorsResult {
+  doors: Door[];
+  /** Profundidad que suman las puertas por delante del mueble. */
+  extraDepth: number;
+  /** Lugar libre necesario al frente para abrir (ancho de la puerta más ancha). */
+  swing: number;
+  hingeCounts: Record<HingeType, number>;
+  /** Largo de cada riel (superior e inferior) en corredizas. */
+  trackLength: number;
+}
+
+/** Cantidades de uniones y fijaciones para la lista de compras. */
+export interface FastenerCounts {
+  screwsPerJoint: number;
+  joints: number;
+  screws: number;
+  visibleScrews: number;
+  shelfPins: number;
+  backNails: number;
 }
 
 export interface ShelfUnitResult {
@@ -180,8 +237,11 @@ export interface ShelfUnitResult {
   columns: ColumnResult[];
   dividers: DividerPosition[];
   interior: { width: number; height: number; depth: number; baseY: number; topY: number };
-  /** Profundidad útil de los estantes. */
+  /** Profundidad útil de los estantes (sin contar retiros por puertas o rieles). */
   shelfDepth: number;
+  /** Lo que se retiran del frente estantes y divisores por los rieles de corredizas. */
+  frontInset: number;
+  doors: DoorsResult;
+  counts: FastenerCounts;
   warnings: Warning[];
-  hardware: HardwareItem[];
 }

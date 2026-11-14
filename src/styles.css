@@ -13,6 +13,8 @@
   --panel: #ffffff;
   --panel-stroke: #2b3631;
   --panel-shade: #e7ebe8;
+  --door: #f6f8f7;
+  --door-back: #e4e9e6;
   --core: #d8c39c;
   --core-line: #b99c6c;
   --back: #e9dcc3;
@@ -47,6 +49,8 @@
     --panel: #2b3631;
     --panel-stroke: #c7d2cc;
     --panel-shade: #222b27;
+    --door: #36433d;
+    --door-back: #2a3430;
     --core: #4f412b;
     --core-line: #6a5739;
     --back: #3a3326;
@@ -75,6 +79,8 @@
   --panel: #2b3631;
   --panel-stroke: #c7d2cc;
   --panel-shade: #222b27;
+  --door: #36433d;
+  --door-back: #2a3430;
   --core: #4f412b;
   --core-line: #6a5739;
   --back: #3a3326;
@@ -1263,6 +1269,12 @@ tr.gap-row td.n {
 }
 
 @media (max-width: 480px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stat:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
   .grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1327,5 +1339,136 @@ tr.gap-row td.n {
   }
   .drawing {
     max-height: 60vh;
+  }
+}
+
+/* ---------- Puertas (formulario) ---------- */
+
+.chip-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.chip-check input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.chip-check:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---------- Lista de compras ---------- */
+
+.shop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shop-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 92px 150px 104px;
+  gap: 6px 12px;
+  align-items: center;
+  padding-block: 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+.shop-row:last-child {
+  border-bottom: 0;
+}
+
+.shop-row > input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.shop-name {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.shop-name > span:first-child {
+  font-weight: 500;
+}
+
+.shop-row.off .shop-name > span:first-child,
+.shop-row.off .shop-qty,
+.shop-row.off .shop-sub {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.shop-qty,
+.shop-sub {
+  text-align: right;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.price-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.price-input > span {
+  position: absolute;
+  left: 9px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.price-input .input {
+  min-height: 32px;
+  padding: 4px 8px 4px 20px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+@media (max-width: 640px) {
+  .shop-row {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+  }
+  .price-input {
+    grid-column: 2;
+    max-width: 180px;
+  }
+  .shop-sub {
+    grid-column: 3;
   }
 }

@@ -13,8 +13,14 @@ Cargás las medidas exteriores del mueble y la app te da:
   Se copia en un toque para mandarla por WhatsApp al aserradero, o se descarga en CSV.
 - **Placas**: cómo entran las piezas en las placas (cortes de lado a lado, como una
   seccionadora), cuántas placas comprar y qué sobrantes quedan.
-- **Compras**: placas, metros de tapacanto, tornillos, soportes, clavos para el fondo y,
-  si cargás precios, el costo de materiales.
+- **Puertas**: con bisagras (superpuestas o embutidas, en todo el alto o solo abajo, en
+  las columnas que elijas) o corredizas. Calcula la medida de cada puerta, qué bisagra va
+  (recta, codo 9 o codo 18), a qué altura va cada bisagra y cuánto lugar hace falta
+  adelante para abrirlas.
+- **Lista de compras**: todo lo que puede hacer falta, agrupado en placas y cortes,
+  herrajes, tornillos y fijaciones, insumos y herramientas. Viene tildado lo necesario;
+  los opcionales (minifix, tarugos, amortiguadores, herramientas…) se tildan a mano.
+  Cargás el precio de cada ítem una vez y sirve para todos los muebles.
 - **Avisos**: estantes demasiado largos que se van a pandear, muebles altos que hay que
   fijar a la pared, piezas que no entran en la placa, etc.
 
@@ -36,6 +42,9 @@ Todas las medidas son en milímetros.
 | Estantes móviles | Luz de la columna − holgura (2 mm por defecto) |
 | Fondo clavado | Ancho − 2 × alto − 2 (queda 1 mm adentro de cada borde) |
 | Fondo en ranura | Luz interior + 2 × (profundidad de ranura − 1) en cada sentido |
+| Puerta superpuesta | Tapa el lateral entero y medio divisor: ancho cubierto ÷ puertas − luz (3 mm) |
+| Puerta embutida | (Luz de la columna − luces) ÷ puertas; alto libre − 2 luces |
+| Puerta corrediza | (Ancho interior + solapes) ÷ hojas; alto libre − descuento del kit |
 
 - La **profundidad** que cargás es la total, con el fondo incluido: con fondo clavado, los
   laterales miden la profundidad menos el espesor del fondo.
@@ -46,6 +55,12 @@ Todas las medidas son en milímetros.
 - El tapacanto se indica con la medida de cada lado (`1 × 764` = un lado de 764 mm). Con
   tapacanto grueso (PVC de 1 o 2 mm) activá *Descontar el tapacanto* para que la pieza
   terminada mida justo.
+- Puertas con bisagras: 2 por columna si la columna mide más de 60 cm. Bisagras por
+  puerta según el alto (2 hasta 90 cm, 3 hasta 160 cm, 4 hasta 2 m), a 100 mm de los
+  bordes. Recta en los laterales, codo 9 en los divisores, codo 18 si son embutidas;
+  con embutidas los estantes de atrás se acortan espesor + 2 mm.
+- Corredizas: estantes y divisores se retiran del frente lo que ocupan los rieles
+  (50 mm por defecto). El descuento de alto depende del kit: revisalo en sus instrucciones.
 - Valores por defecto: placa de 2600 × 1830 × 18 mm, fondo de 3 mm, sierra de 4 mm,
   10 mm de refilado por borde, tapacanto de 22 × 0,45 mm. Todo se cambia en
   *Material y corte*.
@@ -73,9 +88,11 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
 
 - `src/lib/shelf.ts`: geometría de la estantería, piezas, posiciones, herrajes y avisos.
 - `src/lib/packing.ts`: optimización de cortes en placa (guillotina, con sierra y refilado).
-- `src/lib/cutlist.ts`: medidas de corte, tapacanto, costos y textos para exportar.
+- `src/lib/doors.ts`: puertas con bisagras y corredizas.
+- `src/lib/cutlist.ts`: medidas de corte, tapacanto y textos para exportar.
+- `src/lib/shopping.ts`: lista de compras, precios y totales.
 - `src/components/`: interfaz en React.
 
 Para sumar placares, la idea es agregar un nuevo `kind` de mueble que reutilice la caja
-(laterales, techo, piso, zócalo, fondo, divisores) y sume puertas, cajones, barral y
-maletero sobre las mismas columnas.
+(laterales, techo, piso, zócalo, fondo, divisores) y las puertas, y sume cajones, barral
+y maletero sobre las mismas columnas.

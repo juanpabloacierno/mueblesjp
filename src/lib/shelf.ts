@@ -1,11 +1,13 @@
 import { distribute } from './distribute';
+import { HINGE_LABEL, computeDoors, shelfBehindInsetDoor } from './doors';
 import { mm, pieceCode } from './format';
 import type {
   ColumnResult,
   DividerPosition,
+  DoorsResult,
   Edges,
+  FastenerCounts,
   FrontPanel,
-  HardwareItem,
   Piece,
   PieceMaterial,
   ShelfPosition,
@@ -51,6 +53,9 @@ function fitsBoard(a: number, b: number, L: number, W: number): boolean {
   return (a <= L && b <= W) || (a <= W && b <= L);
 }
 
+const EMPTY_DOORS: DoorsResult = { doors: [], extraDepth: 0, swing: 0, hingeCounts: { recta: 0, codo9: 0, codo18: 0 }, trackLength: 0 };
+const EMPTY_COUNTS: FastenerCounts = { screwsPerJoint: 0, joints: 0, screws: 0, visibleScrews: 0, shelfPins: 0, backNails: 0 };
+
 export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   const m = unit.material;
   const t = m.thickness;
@@ -63,6 +68,7 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   const carcassDepth = backMode === 'clavado' ? D - tb : D;
   const backInset = backMode === 'ranurado' ? unit.back.grooveOffset + tb : 0;
   const interiorDepth = carcassDepth - backInset;
+  const frontInset = unit.doors.type === 'corrediza' ? unit.doors.trackDepth : 0;
   const shelfDepth = interiorDepth - unit.shelfSetback;
   const sideHeight = unit.top === 'sobre' ? H - t : H;
   const baseY = zh + t;
@@ -78,8 +84,10 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     dividers: [],
     interior: { width: interiorWidth, height: interiorHeight, depth: interiorDepth, baseY, topY },
     shelfDepth,
+    frontInset,
+    doors: EMPTY_DOORS,
+    counts: EMPTY_COUNTS,
     warnings,
-    hardware: [],
   };
 
   // --- Validaciones que impiden calcular ---
@@ -89,8 +97,13 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   if (interiorHeight < 20) {
     warnings.push({ level: 'error', text: `El alto (${mm(H)} mm) es muy chico para el zócalo, el piso y el techo.` });
   }
-  if (shelfDepth < 20) {
-    warnings.push({ level: 'error', text: `La profundidad (${mm(D)} mm) no alcanza: quedan ${mm(shelfDepth)} mm útiles.` });
+  if (shelfDepth - frontInset < 20) {
+    warnings.push({
+      level: 'error',
+      text: frontInset
+        ? `La profundidad (${mm(D)} mm) no alcanza para los rieles de ${mm(frontInset)} mm: quedan ${mm(shelfDepth - frontInset)} mm para los estantes.`
+        : `La profundidad (${mm(D)} mm) no alcanza: quedan ${mm(shelfDepth)} mm útiles.`,
+    });
   }
   if (backMode === 'ranurado' && unit.back.grooveDepth >= t) {
     warnings.push({ level: 'error', text: `La ranura (${mm(unit.back.grooveDepth)} mm) no puede ser tan profunda como la melamina (${mm(t)} mm).` });
@@ -122,6 +135,7 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
 
   const columns: ColumnResult[] = [];
   const dividers: DividerPosition[] = [];
+  const insetDoorRecess = t + 2;
   let x = t;
   for (let i = 0; i < n; i++) {
     const spec = unit.sameShelves ? unit.columns[0] : unit.columns[i];
@@ -145,7 +159,8 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     let y = baseY;
     for (let j = 0; j < k; j++) {
       y += gaps[j];
-      shelves.push({ index: j, bottom: y, top: y + t, bottomFromBase: y - baseY, type: spec.shelfType });
+      const depth = shelfDepth - frontInset - (shelfBehindInsetDoor(unit.doors, i, j, k) ? insetDoorRecess : 0);
+      shelves.push({ index: j, bottom: y, top: y + t, bottomFromBase: y - baseY, type: spec.shelfType, depth });
       y += t;
     }
     const minGap = Math.min(...gaps);
@@ -159,6 +174,11 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
       x += t;
     }
   }
+
+  // --- Puertas ---
+  const doorCalc = computeDoors({ unit, columns, baseY, topY, zh, interiorWidth, interiorHeight });
+  warnings.push(...doorCalc.warnings);
+  const doors = doorCalc.result;
 
   // --- Piezas ---
   const canRotate = !m.hasGrain;
@@ -194,33 +214,44 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     }
   }
   if (n > 1) {
+    const notes = ['Veta vertical'];
+    if (backMode === 'ranurado') notes.push('Termina contra el fondo');
+    if (frontInset) notes.push(`Retirado ${mm(frontInset)} mm del frente por los rieles`);
     add({
       name: 'Divisor',
       qty: n - 1,
       length: interiorHeight,
-      width: backMode === 'ranurado' ? interiorDepth : carcassDepth,
+      width: (backMode === 'ranurado' ? interiorDepth : carcassDepth) - frontInset,
       edges: { long: 1, short: 0 },
-      notes: ['Veta vertical', ...(backMode === 'ranurado' ? ['Termina contra el fondo'] : [])],
+      notes,
     });
   }
   columns.forEach((col) => {
-    const fixed = col.shelves.filter((s) => s.type === 'fijo').length;
-    const movable = col.shelves.length - fixed;
-    if (fixed > 0) {
-      add({ name: 'Estante fijo', qty: fixed, length: col.width, width: shelfDepth, edges: { long: 1, short: 0 }, cols: [col.index + 1] });
-    }
-    if (movable > 0) {
+    for (const s of col.shelves) {
+      const fixed = s.type === 'fijo';
       add({
-        name: 'Estante móvil',
-        qty: movable,
-        length: col.width - unit.movableClearance,
-        width: shelfDepth,
+        name: fixed ? 'Estante fijo' : 'Estante móvil',
+        qty: 1,
+        length: fixed ? col.width : col.width - unit.movableClearance,
+        width: s.depth,
         edges: { long: 1, short: 0 },
-        notes: [`${mm(unit.movableClearance)} mm de holgura`],
+        notes: fixed ? [] : [`${mm(unit.movableClearance)} mm de holgura`],
         cols: [col.index + 1],
       });
     }
   });
+  for (const d of doors.doors) {
+    const isSliding = d.track !== null;
+    add({
+      name: isSliding ? 'Puerta corrediza' : 'Puerta',
+      qty: 1,
+      length: d.h,
+      width: d.w,
+      edges: { long: 2, short: 2 },
+      notes: isSliding ? [`Solape ${mm(unit.doors.overlap)} mm`, 'Veta vertical'] : [`Bisagra ${HINGE_LABEL[d.hingeType!]}`, 'Veta vertical'],
+      cols: d.column !== null ? [d.column + 1] : [],
+    });
+  }
 
   // --- Fondo ---
   if (backMode !== 'ninguno') {
@@ -265,10 +296,17 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
   if (unit.plinth.enabled) {
     panels.push({ role: 'zocalo', x: t, y: 0, w: interiorWidth, h: zh, recessed: unit.plinth.setback > 0 });
   }
-  for (const d of dividers) panels.push({ role: 'divisor', x: d.left, y: baseY, w: t, h: interiorHeight });
+  for (const d of dividers) panels.push({ role: 'divisor', x: d.left, y: baseY, w: t, h: interiorHeight, recessed: frontInset > 0 });
   for (const col of columns) {
     for (const s of col.shelves) {
-      panels.push({ role: s.type === 'fijo' ? 'estante-fijo' : 'estante-movil', x: col.x, y: s.bottom, w: col.width, h: t });
+      panels.push({
+        role: s.type === 'fijo' ? 'estante-fijo' : 'estante-movil',
+        x: col.x,
+        y: s.bottom,
+        w: col.width,
+        h: t,
+        recessed: s.depth < shelfDepth,
+      });
     }
   }
 
@@ -307,8 +345,10 @@ export function computeShelfUnit(unit: ShelfUnit): ShelfUnitResult {
     dividers,
     interior: { width: interiorWidth, height: interiorHeight, depth: interiorDepth, baseY, topY },
     shelfDepth,
+    frontInset,
+    doors,
+    counts: countFasteners(unit, columns, dividers, carcassDepth, interiorWidth, interiorHeight),
     warnings,
-    hardware: computeHardware(unit, columns, dividers, carcassDepth, interiorWidth, interiorHeight),
   };
 }
 
@@ -402,7 +442,7 @@ function mergePieces(raw: RawPiece[], columnCount: number): Piece[] {
   return merged.map((p, i) => {
     const notes = [...p.notes];
     if (columnCount > 1 && p.cols.length > 0 && p.cols.length < columnCount) {
-      notes.unshift(`${p.cols.length === 1 ? 'Columna' : 'Columnas'} ${p.cols.join(', ')}`);
+      notes.unshift(`${p.cols.length === 1 ? 'Columna' : 'Columnas'} ${p.cols.sort((a, b) => a - b).join(', ')}`);
     }
     return {
       code: pieceCode(i),
@@ -419,61 +459,31 @@ function mergePieces(raw: RawPiece[], columnCount: number): Piece[] {
   });
 }
 
-function computeHardware(
+function countFasteners(
   unit: ShelfUnit,
   columns: ColumnResult[],
   dividers: DividerPosition[],
   carcassDepth: number,
   interiorWidth: number,
   interiorHeight: number,
-): HardwareItem[] {
-  const items: HardwareItem[] = [];
+): FastenerCounts {
   const spj = screwsPerJoint(carcassDepth);
-  const fixedShelves = columns.flatMap((c) => c.shelves.filter((s) => s.type === 'fijo').map((s) => ({ col: c, s })));
-  const movableCount = columns.reduce((s, c) => s + c.shelves.filter((sh) => sh.type === 'movil').length, 0);
+  const n = columns.length;
+  const fixed = columns.flatMap((c) => c.shelves.filter((s) => s.type === 'fijo').map(() => c));
+  const movable = columns.reduce((s, c) => s + c.shelves.filter((sh) => sh.type === 'movil').length, 0);
   const plinthPieces = unit.plinth.enabled ? (unit.back.mode === 'clavado' ? 1 : 2) : 0;
 
-  const carcassJoints = 2 + 2 + dividers.length * 2 + fixedShelves.length * 2;
-  const screws = carcassJoints * spj + plinthPieces * 2 * 2;
-  items.push({
-    name: 'Tornillos para aglomerado 4 × 50 mm',
-    qty: screws,
-    unit: 'u',
-    notes: `${spj} por unión. Hacé agujero guía. También sirven confirmat 7 × 50.`,
-  });
-
+  const joints = 2 + 2 + dividers.length * 2 + fixed.length * 2;
+  const screws = joints * spj + plinthPieces * 2 * 2;
   // Cabezas a la vista: atraviesan los laterales o el techo.
-  const n = columns.length;
-  const edgeShelfJoints =
-    n === 1
-      ? fixedShelves.length * 2
-      : fixedShelves.filter(({ col }) => col.index === 0 || col.index === n - 1).length;
-  const visible = (2 + 2 + edgeShelfJoints + dividers.length) * spj + (unit.plinth.enabled ? 4 : 0);
-  items.push({ name: 'Tapatornillos adhesivos', qty: visible, unit: 'u', notes: 'Del color de la melamina' });
+  const edgeShelfJoints = n === 1 ? fixed.length * 2 : fixed.filter((c) => c.index === 0 || c.index === n - 1).length;
+  const visibleScrews = (2 + 2 + edgeShelfJoints + dividers.length) * spj + (unit.plinth.enabled ? 4 : 0);
 
-  if (movableCount > 0) {
-    items.push({ name: 'Soportes para estante (pernos)', qty: movableCount * 4, unit: 'u', notes: '4 por estante móvil' });
-  }
-
+  let backNails = 0;
   if (unit.back.mode === 'clavado') {
     const perimeter = 2 * (unit.width + unit.height);
-    const inner =
-      fixedShelves.reduce((s, { col }) => s + col.width, 0) +
-      dividers.length * interiorHeight +
-      (unit.plinth.enabled ? interiorWidth : 0);
-    items.push({
-      name: 'Clavos 1" o grapas para el fondo',
-      qty: Math.ceil(perimeter / 150 + inner / 200),
-      unit: 'u',
-      notes: 'Cada 15 cm en el borde y sobre estantes fijos y divisores',
-    });
+    const inner = fixed.reduce((s, c) => s + c.width, 0) + dividers.length * interiorHeight + (unit.plinth.enabled ? interiorWidth : 0);
+    backNails = Math.ceil(perimeter / 150 + inner / 200);
   }
-
-  if (unit.height > 1200) {
-    items.push({ name: 'Escuadras para fijar a la pared', qty: 2, unit: 'u', notes: 'Con tarugos y tornillos según la pared' });
-  }
-  if (!unit.plinth.enabled) {
-    items.push({ name: 'Regatones o patas niveladoras', qty: unit.width > 1200 ? 6 : 4, unit: 'u' });
-  }
-  return items;
+  return { screwsPerJoint: spj, joints: joints + plinthPieces * 2, screws, visibleScrews, shelfPins: movable * 4, backNails };
 }

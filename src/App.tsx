@@ -6,8 +6,9 @@ import { ShelfForm, type Updater } from './components/ShelfForm';
 import { ShoppingPanel } from './components/ShoppingPanel';
 import { downloadFile } from './components/ui';
 import { summarize } from './lib/cutlist';
+import { buildShoppingList, shoppingTotals } from './lib/shopping';
 import { PRESETS, createFromPreset } from './lib/defaults';
-import { mm, newId, num } from './lib/format';
+import { mm, money, newId, num } from './lib/format';
 import { computeShelfUnit } from './lib/shelf';
 import { loadState, parseState, saveState, type AppState } from './lib/storage';
 import type { Warning } from './lib/types';
@@ -74,6 +75,8 @@ export default function App() {
   const unit = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
   const result = useMemo(() => computeShelfUnit(unit), [unit]);
   const summary = useMemo(() => summarize(unit, result.pieces), [unit, result]);
+  const shopping = useMemo(() => buildShoppingList(unit, result, summary), [unit, result, summary]);
+  const total = shoppingTotals(unit, shopping, state.priceList).total;
 
   const update: Updater = useCallback(
     (fn) =>
@@ -94,7 +97,7 @@ export default function App() {
 
   const addFromPreset = (key: string) => {
     const preset = PRESETS.find((p) => p.key === key)!;
-    const created = createFromPreset(preset, state.defaults.material, state.defaults.prices);
+    const created = createFromPreset(preset, state.defaults.material);
     setState((s) => ({ ...s, projects: [...s.projects, created], activeId: created.id }));
     setMenu(null);
     setTab(wide ? 'plano' : 'medidas');
@@ -112,7 +115,7 @@ export default function App() {
     setState((s) => {
       const rest = s.projects.filter((p) => p.id !== s.activeId);
       if (rest.length === 0) {
-        const fresh = createFromPreset(PRESETS[0], s.defaults.material, s.defaults.prices);
+        const fresh = createFromPreset(PRESETS[0], s.defaults.material);
         return { ...s, projects: [fresh], activeId: fresh.id };
       }
       return { ...s, projects: rest, activeId: rest[rest.length - 1].id };
@@ -281,8 +284,8 @@ export default function App() {
             result={result}
             update={update}
             onSaveDefaults={() => {
-              setState((s) => ({ ...s, defaults: { material: { ...unit.material }, prices: { ...unit.prices } } }));
-              notify('Guardado: los muebles nuevos usan este material y precios');
+              setState((s) => ({ ...s, defaults: { material: { ...unit.material } } }));
+              notify('Guardado: los muebles nuevos usan este material');
             }}
           />
         </aside>
@@ -291,7 +294,7 @@ export default function App() {
           <div className="results-head">
             <h2>{unit.name || 'Sin nombre'}</h2>
             <span className="dims">
-              {mm(unit.width)} × {mm(unit.height)} × {mm(unit.depth)} mm
+              {mm(unit.width)} × {mm(unit.height)} × {mm(unit.depth + result.doors.extraDepth)} mm
             </span>
           </div>
 
@@ -318,6 +321,20 @@ export default function App() {
                 <span className="stat-value">{totalPieces}</span>
                 <span className="stat-label">piezas a cortar</span>
               </div>
+              {result.doors.doors.length > 0 && (
+                <div className="stat">
+                  <span className="stat-value">{result.doors.doors.length}</span>
+                  <span className="stat-label">
+                    {unit.doors.type === 'corrediza' ? 'hojas corredizas' : result.doors.doors.length === 1 ? 'puerta con bisagras' : 'puertas con bisagras'}
+                  </span>
+                </div>
+              )}
+              {total > 0 && (
+                <div className="stat">
+                  <span className="stat-value">{money(total)}</span>
+                  <span className="stat-label">materiales tildados</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -350,7 +367,22 @@ export default function App() {
             <BoardsView unit={unit} summary={summary} />
           </div>
           <div className={`tab-panel ${activeResultTab === 'compras' ? '' : 'is-inactive'}`} role="tabpanel">
-            <ShoppingPanel unit={unit} result={result} summary={summary} notify={notify} />
+            <ShoppingPanel
+              unit={unit}
+              items={shopping}
+              prices={state.priceList}
+              notify={notify}
+              setPrice={(key, value) =>
+                setState((s) => {
+                  const priceList = { ...s.priceList };
+                  if (value && value > 0) priceList[key] = value;
+                  else delete priceList[key];
+                  return { ...s, priceList };
+                })
+              }
+              setChecked={(key, value) => update((d) => void (d.shopping[key] = value))}
+              resetChecks={() => update((d) => void (d.shopping = {}))}
+            />
           </div>
         </section>
       </main>

@@ -1,6 +1,6 @@
 import { mm, num } from './format';
 import { packPieces, type PackItem, type PackResult } from './packing';
-import type { CutSize, Furniture, Material, Piece, Prices, Warning } from './types';
+import type { CutSize, Furniture, Material, Piece, Warning } from './types';
 
 /** Medida de corte: la terminada menos el espesor del tapacanto en los lados que lo llevan. */
 export function cutSize(piece: Piece, material: Material): CutSize {
@@ -47,15 +47,7 @@ export interface Summary {
   edgeMeters: number;
   /** Metros a comprar (+10 %, redondeado hacia arriba). */
   edgeToBuy: number;
-  cost: CostLine[];
-  costTotal: number;
   warnings: Warning[];
-}
-
-export interface CostLine {
-  label: string;
-  qty: string;
-  amount: number;
 }
 
 function expand(pieces: Piece[], material: Material): PackItem[] {
@@ -105,17 +97,6 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
   const edgeMeters = edgeMm / 1000;
   const edgeToBuy = edgeMeters > 0 ? Math.ceil(edgeMeters * 1.1) : 0;
 
-  const prices: Prices = furniture.prices;
-  const cost: CostLine[] = [];
-  const boards = melPack.sheets.length;
-  const backBoards = backPack?.sheets.length ?? 0;
-  if (prices.board > 0 && boards) cost.push({ label: `Placa de melamina ${m.color}`.trim(), qty: `${boards}`, amount: boards * prices.board });
-  if (prices.backBoard > 0 && backBoards) cost.push({ label: 'Placa de fondo', qty: `${backBoards}`, amount: backBoards * prices.backBoard });
-  if (prices.edgePerMeter > 0 && edgeToBuy) cost.push({ label: 'Tapacanto', qty: `${edgeToBuy} m`, amount: edgeToBuy * prices.edgePerMeter });
-  if (prices.cutPerBoard > 0 && boards + backBoards) {
-    cost.push({ label: 'Servicio de corte', qty: `${boards + backBoards} placas`, amount: (boards + backBoards) * prices.cutPerBoard });
-  }
-
   const area = (list: Piece[]) => list.reduce((s, p) => s + p.length * p.width * p.qty, 0) / 1e6;
   return {
     melamina: {
@@ -136,8 +117,6 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
       : null,
     edgeMeters,
     edgeToBuy,
-    cost,
-    costTotal: cost.reduce((s, c) => s + c.amount, 0),
     warnings,
   };
 }

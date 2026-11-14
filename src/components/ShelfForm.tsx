@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { column } from '../lib/defaults';
 import { mm } from '../lib/format';
-import type { ColumnSpec, ShelfUnit, ShelfUnitResult } from '../lib/types';
+import { columnHasDoors } from '../lib/doors';
+import type { ColumnSpec, DoorSpec, ShelfUnit, ShelfUnitResult } from '../lib/types';
 import { NumberField, Segmented, Stepper, Switch, TextField } from './ui';
 
 export type Updater = (fn: (draft: ShelfUnit) => void) => void;
@@ -175,6 +176,8 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
         ))}
       </Section>
 
+      <DoorsForm unit={unit} result={result} update={update} />
+
       <Section title="Material y corte" collapsible defaultOpen={false}>
         <TextField id="f-color" label="Color o modelo de melamina" value={m.color} onChange={(v) => update((d) => void (d.material.color = v))} placeholder="Blanco, Roble, Gris humo…" />
         <div className="grid-3">
@@ -209,19 +212,9 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
         </div>
       </Section>
 
-      <Section title="Precios" collapsible defaultOpen={false}>
-        <span className="field-hint">Opcional. Con los precios de tu proveedor calcula el costo de materiales.</span>
-        <div className="grid-2">
-          <NumberField id="p-board" label="Placa de melamina" suffix="$" value={unit.prices.board || null} allowEmpty onChange={(v) => update((d) => void (d.prices.board = v ?? 0))} />
-          <NumberField id="p-back" label="Placa de fondo" suffix="$" value={unit.prices.backBoard || null} allowEmpty onChange={(v) => update((d) => void (d.prices.backBoard = v ?? 0))} />
-          <NumberField id="p-edge" label="Metro de tapacanto" suffix="$" value={unit.prices.edgePerMeter || null} allowEmpty onChange={(v) => update((d) => void (d.prices.edgePerMeter = v ?? 0))} hint="Con la colocación, si te lo pegan" />
-          <NumberField id="p-cut" label="Corte por placa" suffix="$" value={unit.prices.cutPerBoard || null} allowEmpty onChange={(v) => update((d) => void (d.prices.cutPerBoard = v ?? 0))} />
-        </div>
-      </Section>
-
       <section className="form-section">
         <button type="button" className="btn" onClick={onSaveDefaults}>
-          Usar este material y precios en muebles nuevos
+          Usar este material en muebles nuevos
         </button>
       </section>
     </div>
@@ -334,5 +327,120 @@ function GapInput({ id, value, placeholder, onChange }: { id: string; value: num
         if (Number.isFinite(v) && v > 0) onChange(v);
       }}
     />
+  );
+}
+
+function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUnitResult; update: Updater }) {
+  const d = unit.doors;
+  const n = unit.columns.length;
+  const t = unit.material.thickness;
+  const set = <K extends keyof DoorSpec>(key: K, value: DoorSpec[K]) => update((draft) => void (draft.doors[key] = value));
+  const refColumn = result.columns.find((c) => columnHasDoors(d, c.index)) ?? result.columns[0];
+  const shelves = refColumn?.shelves ?? [];
+
+  return (
+    <Section title="Puertas">
+      <Segmented
+        label="Tipo de puertas"
+        value={d.type}
+        onChange={(v) => set('type', v)}
+        options={[
+          { value: 'ninguna', label: 'Sin puertas' },
+          { value: 'batiente', label: 'Con bisagras' },
+          { value: 'corrediza', label: 'Corredizas' },
+        ]}
+        hint={
+          d.type === 'batiente'
+            ? 'Bisagras cazoleta de 35 mm. Necesitan lugar libre adelante para abrir.'
+            : d.type === 'corrediza'
+              ? 'No necesitan lugar para abrir, pero solo dejan ver una parte a la vez.'
+              : undefined
+        }
+      />
+
+      {d.type === 'batiente' && (
+        <>
+          <Segmented
+            label="Montaje"
+            value={d.mount}
+            onChange={(v) => set('mount', v)}
+            options={[
+              { value: 'superpuesta', label: 'Superpuestas' },
+              { value: 'embutida', label: 'Embutidas' },
+            ]}
+            hint={
+              d.mount === 'superpuesta'
+                ? `Tapan el canto del mueble. Bisagra recta en los laterales y codo 9 en los divisores. Suman ${mm(t)} mm al frente.`
+                : `Quedan dentro del hueco, al ras del frente. Bisagra codo 18; los estantes de atrás se acortan ${mm(t + 2)} mm.`
+            }
+          />
+          <Segmented
+            label="Puertas por columna"
+            value={String(d.perColumn) as '0' | '1' | '2'}
+            onChange={(v) => set('perColumn', Number(v) as 0 | 1 | 2)}
+            options={[
+              { value: '0', label: 'Automático' },
+              { value: '1', label: '1 puerta' },
+              { value: '2', label: '2 puertas' },
+            ]}
+            hint={d.perColumn === 0 ? 'Automático: 2 puertas si la columna mide más de 60 cm.' : undefined}
+          />
+          {n > 1 && (
+            <div className="field">
+              <span className="field-label">Columnas con puertas</span>
+              <div className="chip-checks">
+                {unit.columns.map((_, i) => (
+                  <label key={i} className="chip-check" htmlFor={`f-door-col-${i}`}>
+                    <input
+                      id={`f-door-col-${i}`}
+                      type="checkbox"
+                      checked={d.columns[i] ?? true}
+                      onChange={(e) =>
+                        update((draft) => {
+                          const cols = Array.from({ length: n }, (_, x) => draft.doors.columns[x] ?? true);
+                          cols[i] = e.target.checked;
+                          draft.doors.columns = cols;
+                        })
+                      }
+                    />
+                    Col. {i + 1}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="field">
+            <label className="field-label" htmlFor="f-door-up">
+              Alto de las puertas
+            </label>
+            <select id="f-door-up" className="input" value={d.upToShelf ?? ''} onChange={(e) => set('upToShelf', e.target.value === '' ? null : Number(e.target.value))}>
+              <option value="">Todo el alto</option>
+              {shelves.map((s) => (
+                <option key={s.index} value={s.index + 1}>
+                  Hasta el estante {s.index + 1} ({mm(s.top)} mm del suelo)
+                </option>
+              ))}
+            </select>
+            <span className="field-hint">Por ejemplo, una biblioteca con puertas solo abajo. Ese estante conviene que sea fijo.</span>
+          </div>
+          <NumberField id="f-door-gap" label="Luz entre puertas" value={d.gap} onChange={(v) => v !== null && set('gap', v)} hint="Separación entre puertas y con los bordes" />
+        </>
+      )}
+
+      {d.type === 'corrediza' && (
+        <>
+          <Stepper label="Hojas" value={d.leaves} min={2} max={4} onChange={(v) => set('leaves', v)} />
+          <div className="grid-3">
+            <NumberField id="f-slide-ov" label="Solape" value={d.overlap} onChange={(v) => v !== null && set('overlap', v)} />
+            <NumberField id="f-slide-ded" label="Descuento alto" value={d.heightDeduction} onChange={(v) => v !== null && set('heightDeduction', v)} />
+            <NumberField id="f-slide-depth" label="Lugar rieles" value={d.trackDepth} onChange={(v) => v !== null && set('trackDepth', v)} />
+          </div>
+          <span className="field-hint">
+            Alto de cada hoja = alto libre − descuento (revisalo en las instrucciones de tu kit). Estantes y divisores arrancan {mm(d.trackDepth)} mm más atrás para dejar
+            pasar las hojas.
+          </span>
+        </>
+      )}
+    </Section>
   );
 }

@@ -1961,3 +1961,52 @@ tr.gap-row td.n {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---------- Menú Nuevo y escritorios ---------- */
+
+/* Menú de modelos: ancho, en dos columnas de grupos, con scroll propio. */
+.popover.popover-presets {
+  display: block;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - var(--topbar-h, 64px) - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.preset-groups {
+  columns: 2;
+  column-gap: 8px;
+}
+
+.preset-group {
+  display: flex;
+  flex-direction: column;
+  break-inside: avoid;
+  padding-bottom: 6px;
+}
+
+@media (max-width: 700px) {
+  /* En el teléfono ocupa todo el ancho, debajo de la barra superior. */
+  .popover.popover-presets {
+    position: fixed;
+    top: calc(var(--topbar-h, 110px) + 4px);
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-height: calc(100dvh - var(--topbar-h, 110px) - 20px);
+  }
+  .preset-groups {
+    columns: 1;
+  }
+}
+
+.knee-modesty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.knee-card .field-hint {
+  margin: 0;
+}
+

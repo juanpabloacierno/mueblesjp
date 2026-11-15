@@ -199,7 +199,7 @@ export type PieceGroup = 'frente' | 'cuerpo' | 'interior';
 
 const GROUPS: [RegExp, PieceGroup][] = [
   [/^(Puerta|Frente de cajón)/, 'frente'],
-  [/^(Lateral|Techo|Piso|Zócalo|Estante maletero)$|^Zócalo trasero$/, 'cuerpo'],
+  [/^(Lateral|Lateral interior|Techo|Piso|Zócalo|Estante maletero|Faldón)$|^Zócalo trasero$/, 'cuerpo'],
 ];
 
 export function pieceGroup(name: string): PieceGroup {

@@ -207,15 +207,15 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
         </pattern>
       </defs>
 
-      {/* Fondo visto por los huecos */}
+      {/* Fondo visto por los huecos (el hueco para las piernas no tiene fondo: se ve la pared) */}
       {result.columns.map((col) => (
         <rect
           key={`bg-${col.index}`}
           x={col.x}
           y={Y(result.columnsTop)}
           width={col.width}
-          height={result.columnsTop - result.interior.baseY}
-          fill={hasBack ? 'var(--back)' : 'url(#wall)'}
+          height={col.knee ? result.columnsTop : result.columnsTop - result.interior.baseY}
+          fill={hasBack && !col.knee ? 'var(--back)' : 'url(#wall)'}
         />
       ))}
       {result.maletero && (
@@ -388,8 +388,48 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
         </g>
       )}
 
+      {/* Faldón: alto, escrito sobre la pieza */}
+      {result.knees.map((k) => {
+        if (!k.modesty) return null;
+        const size = Math.min(fs * 0.75, k.modesty.h * 0.3, k.width / 9);
+        // A un costado de la cota del alto libre, que pasa por el centro.
+        const lx = k.width > fs * 14 ? k.x + k.width * 0.27 : k.x + k.width / 2;
+        return (
+          <text
+            key={`faldon-${k.column}`}
+            x={lx}
+            y={Y(k.modesty.y + k.modesty.h / 2) + size * 0.35}
+            fontSize={size}
+            textAnchor="middle"
+            style={{ fill: 'var(--muted)' }}
+          >
+            {tr('faldón', 'modesty panel')} {mm(k.modesty.h)}
+          </text>
+        );
+      })}
+
+      {/* Hueco para las piernas: alto libre del suelo a la tapa */}
+      {result.knees.map((k) => {
+        const cx = k.x + k.width / 2;
+        // El número va en la parte libre, debajo del faldón.
+        const ly = (k.modesty ? k.modesty.y : k.height) / 2;
+        return (
+          <g key={`knee-${k.column}`}>
+            {k.width > fs * 2.2 && <Dim x1={cx} y1={Y(0)} x2={cx} y2={Y(k.height)} label="" fs={fs} side="center" />}
+            <rect x={cx - fs * 1.9} y={Y(ly) - fs * 0.62} width={fs * 3.8} height={fs * 2.3} rx={fs * 0.2} fill="var(--surface)" opacity={0.92} />
+            <text x={cx} y={Y(ly) + fs * 0.36} fontSize={fs} textAnchor="middle" style={{ fill: 'var(--dim)', fontWeight: 500 }}>
+              {mm(k.height)}
+            </text>
+            <text x={cx} y={Y(ly) + fs * 1.36} fontSize={fs * 0.75} textAnchor="middle" style={{ fill: 'var(--muted)' }}>
+              {tr('piernas', 'legs')}
+            </text>
+          </g>
+        );
+      })}
+
       {/* Alturas libres dentro de cada hueco */}
       {result.columns.map((col) => {
+        if (col.knee) return null;
         let y = result.interior.baseY;
         const cx = col.x + col.width / 2;
         const showLine = col.width > fs * 2.2;
@@ -436,7 +476,7 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
       <Dim x1={-pad * 0.55} y1={0} x2={-pad * 0.55} y2={H} label={`${mm(H)}`} fs={fs} />
 
       {/* Zócalo a la derecha */}
-      {unit.plinth.enabled && (
+      {unit.plinth.enabled && result.bases.length > 0 && (
         <Dim x1={W + pad * 0.35} y1={Y(unit.plinth.height)} x2={W + pad * 0.35} y2={H} label={mm(unit.plinth.height)} fs={fs * 0.85} side="right" />
       )}
 
@@ -476,9 +516,11 @@ export function SideView({ unit, result, fs, scale, showDoors, column = 0 }: Pro
   const backX = mode === 'clavado' ? carcassDepth : mode === 'ranurado' ? D - unit.back.grooveOffset - tb : null;
   const col = result.columns[column] ?? result.columns[0];
   const shelfY = col?.shelves ?? [];
-  const shelfDepth = shelfY[0]?.depth ?? result.shelfDepth - result.frontInset;
+  // Hueco para las piernas: sin piso, zócalo, fondo ni puerta; atrás, el faldón.
+  const knee = col?.knee ? result.knees.find((k) => k.column === col.index) : undefined;
+  const shelfDepth = knee ? col.compartments[0].depth : (shelfY[0]?.depth ?? result.shelfDepth - result.frontInset);
   const sideTop = unit.top === 'sobre' ? H - t : H;
-  const sideDoor = result.doors.doors.find((d) => d.column === 0 || d.column === null) ?? result.doors.doors[0];
+  const sideDoor = knee ? undefined : (result.doors.doors.find((d) => d.column === 0 || d.column === null) ?? result.doors.doors[0]);
 
   return (
     <svg
@@ -495,18 +537,33 @@ export function SideView({ unit, result, fs, scale, showDoors, column = 0 }: Pro
       {/* Techo */}
       <rect x={0} y={0} width={carcassDepth} height={t} fill="var(--panel)" stroke="var(--panel-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
       {/* Piso */}
-      <rect
-        x={0}
-        y={Y(result.interior.baseY)}
-        width={carcassDepth}
-        height={t}
-        fill="var(--panel)"
-        stroke="var(--panel-stroke)"
-        strokeWidth={1}
-        vectorEffect="non-scaling-stroke"
-      />
+      {!knee && (
+        <rect
+          x={0}
+          y={Y(result.interior.baseY)}
+          width={carcassDepth}
+          height={t}
+          fill="var(--panel)"
+          stroke="var(--panel-stroke)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+      {/* Faldón, atrás debajo de la tapa */}
+      {knee?.modesty && (
+        <rect
+          x={carcassDepth - t}
+          y={Y(knee.modesty.y + knee.modesty.h)}
+          width={t}
+          height={knee.modesty.h}
+          fill="var(--panel)"
+          stroke="var(--panel-stroke)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
       {/* Zócalo */}
-      {unit.plinth.enabled && (
+      {unit.plinth.enabled && !knee && (
         <rect
           x={unit.plinth.setback}
           y={Y(unit.plinth.height)}
@@ -623,7 +680,7 @@ export function SideView({ unit, result, fs, scale, showDoors, column = 0 }: Pro
         />
       ))}
       {/* Fondo */}
-      {backX !== null && (
+      {backX !== null && !knee && (
         <rect
           x={backX}
           y={mode === 'clavado' ? 1 : Y(result.interior.topY + unit.back.grooveDepth - 1)}

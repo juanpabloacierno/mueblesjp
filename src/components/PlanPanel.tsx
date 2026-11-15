@@ -3,7 +3,7 @@ import { CUP_EDGE_DISTANCE, PLATE_FRONT_DISTANCE } from '../lib/doors';
 import { mm } from '../lib/format';
 import { tr } from '../lib/i18n';
 import { SHOE_LABEL } from '../lib/shoes';
-import type { ShelfUnit, ShelfUnitResult } from '../lib/types';
+import type { KneeResult, ShelfUnit, ShelfUnitResult } from '../lib/types';
 import { FRONT_PAD, FrontView, SIDE_PAD, SideView, sideExtra } from './FrontView';
 import { Segmented } from './ui';
 
@@ -76,6 +76,47 @@ export function layoutViews(unit: ShelfUnit, containerWidth: number, maxHeight: 
   return { ...chosen, sideBySide: !useStacked, frontPx: s.front * chosen.scale, sidePx: s.side * chosen.scale };
 }
 
+/** Filas de la lista de espacios para un hueco para las piernas. */
+function KneeRows({ knee, label }: { knee: KneeResult; label: string }) {
+  return (
+    <>
+      <dt>
+        {tr('Hueco para las piernas (ancho × alto)', 'Knee space (width × height)')}
+        {label}
+      </dt>
+      <dd>
+        {mm(knee.width)} × {mm(knee.height)}
+      </dd>
+      {knee.modesty && (
+        <>
+          <dt>{tr('Faldón: alto · borde de abajo desde el suelo', 'Modesty panel: height · bottom edge from the floor')}</dt>
+          <dd>
+            {mm(knee.modesty.h)} · {mm(knee.modesty.y)}
+          </dd>
+        </>
+      )}
+    </>
+  );
+}
+
+/** Texto del hueco para las piernas en el bloque de su columna. */
+function KneeNote({ knee }: { knee: KneeResult | undefined }) {
+  if (!knee) return null;
+  return (
+    <p className="field-hint" style={{ margin: 0 }}>
+      {tr(
+        `Hueco para las piernas: ${mm(knee.width)} × ${mm(knee.height)} mm (ancho × alto), del suelo a la tapa. Sin piso, estantes ni fondo.`,
+        `Knee space: ${mm(knee.width)} × ${mm(knee.height)} mm (width × height), from the floor to the top. No bottom panel, shelves or back panel.`,
+      )}
+      {knee.modesty &&
+        ` ${tr(
+          `Faldón de ${mm(knee.modesty.h)} mm atrás, contra la tapa: marca en los dos costados la línea de su borde de abajo, a ${mm(knee.modesty.y)} mm del suelo.`,
+          `${mm(knee.modesty.h)} mm modesty panel at the back, against the top: mark the line of its bottom edge on both sides, ${mm(knee.modesty.y)} mm from the floor.`,
+        )}`}
+    </p>
+  );
+}
+
 export function PlanPanel({ unit, result }: Props) {
   const t = unit.material.thickness;
   const [viewsRef, width] = useElementWidth<HTMLDivElement>();
@@ -88,6 +129,15 @@ export function PlanPanel({ unit, result }: Props) {
   const showDoors = doors.length > 0 && doorView === 'con';
   const depths = [...new Set(result.columns.flatMap((c) => c.shelves.map((sh) => sh.depth)))].sort((a, b) => b - a);
   const shelfDepthLabel = depths.length ? depths.map((d) => mm(d)).join(' / ') : mm(result.shelfDepth - result.frontInset);
+  const fullDividers = result.dividers.filter((d) => d.full).length;
+  const dividersTitle =
+    fullDividers === 0
+      ? tr('Divisores', 'Dividers')
+      : fullDividers === result.dividers.length
+        ? fullDividers === 1
+          ? tr('Lateral interior', 'Inner side panel')
+          : tr('Laterales interiores', 'Inner side panels')
+        : tr('Divisores y laterales interiores', 'Dividers and inner side panels');
 
   return (
     <div className="plan-grid">
@@ -148,6 +198,11 @@ export function PlanPanel({ unit, result }: Props) {
               <i className="swatch" style={{ background: 'var(--back)' }} /> {tr('Fondo', 'Back panel')}
             </span>
           )}
+          {result.knees.some((k) => k.modesty) && (
+            <span>
+              <i className="swatch" style={{ background: 'var(--panel-shade)' }} /> {tr('Faldón (atrás)', 'Modesty panel (at the back)')}
+            </span>
+          )}
           {result.columns.some((c) => c.shelves.some((s) => s.type === 'movil')) && (
             <span>
               <i className="swatch" style={{ background: 'var(--panel)', borderStyle: 'dashed' }} /> {tr('Estante móvil', 'Adjustable shelf')}
@@ -187,8 +242,15 @@ export function PlanPanel({ unit, result }: Props) {
                 <dd>{mm(result.doors.swing)}</dd>
               </>
             )}
-            <dt>{tr('Alto interior, de piso a techo', 'Inside height, bottom to top')}</dt>
-            <dd>{mm(result.interior.height)}</dd>
+            {result.bases.length > 0 && (
+              <>
+                <dt>{tr('Alto interior, de piso a techo', 'Inside height, bottom to top')}</dt>
+                <dd>{mm(result.interior.height)}</dd>
+              </>
+            )}
+            {result.knees.map((k) => (
+              <KneeRows key={k.column} knee={k} label={result.columns.length > 1 ? tr(` (columna ${k.column + 1})`, ` (column ${k.column + 1})`) : ''} />
+            ))}
             {result.maletero && (
               <>
                 <dt>{tr('Estante maletero, cara de abajo desde el suelo', 'Top storage shelf, underside from the floor')}</dt>
@@ -201,9 +263,13 @@ export function PlanPanel({ unit, result }: Props) {
                 <dd>{mm(result.diagonal)}</dd>
               </>
             )}
-            <dt>{tr('Profundidad de los estantes', 'Shelf depth')}</dt>
-            <dd>{shelfDepthLabel}</dd>
-            {unit.plinth.enabled && (
+            {result.bases.length > 0 && (
+              <>
+                <dt>{tr('Profundidad de los estantes', 'Shelf depth')}</dt>
+                <dd>{shelfDepthLabel}</dd>
+              </>
+            )}
+            {unit.plinth.enabled && result.bases.length > 0 && (
               <>
                 <dt>{tr('Cara de arriba del piso, desde el suelo', 'Top face of the bottom panel, from the floor')}</dt>
                 <dd>{mm(result.interior.baseY)}</dd>
@@ -336,7 +402,7 @@ export function PlanPanel({ unit, result }: Props) {
 
           {result.dividers.length > 0 && (
             <div className="space-block">
-              <h4>{tr('Divisores', 'Dividers')}</h4>
+              <h4>{dividersTitle}</h4>
               <div className="table-wrap">
                 <table className="compact">
                   <thead>
@@ -350,7 +416,8 @@ export function PlanPanel({ unit, result }: Props) {
                     {result.dividers.map((d) => (
                       <tr key={d.index}>
                         <td>
-                          {tr('Divisor', 'Divider')} {d.index + 1}
+                          {d.full ? tr('Lateral interior', 'Inner side panel') : tr('Divisor', 'Divider')} {d.index + 1}
+                          {d.full && <span className="piece-notes">{tr('llega al suelo', 'reaches the floor')}</span>}
                         </td>
                         <td className="n">{mm(d.left)}</td>
                         <td className="n">{mm(d.leftFromInside)}</td>
@@ -361,6 +428,11 @@ export function PlanPanel({ unit, result }: Props) {
               </div>
               <p className="field-hint" style={{ margin: '6px 0 0' }}>
                 {tr('Márcalas en el piso y en el techo, por dentro, midiendo desde la izquierda.', 'Mark them on the bottom and top, on the inside, measuring from the left.')}
+                {result.dividers.some((d) => d.full) &&
+                  ` ${tr(
+                    'Los laterales interiores van del suelo a la tapa: marca su lugar debajo de la tapa y en el piso de la cajonera que sostienen.',
+                    'The inner side panels run from the floor to the top: mark their place under the top and on the bottom panel of the pedestal they hold.',
+                  )}`}
               </p>
             </div>
           )}
@@ -371,7 +443,9 @@ export function PlanPanel({ unit, result }: Props) {
                 {result.columns.length > 1 ? tr(`Columna ${col.index + 1}`, `Column ${col.index + 1}`) : tr('Huecos y estantes', 'Compartments and shelves')} ·{' '}
                 <span className="num">{tr(`espacio libre ${mm(col.width)} mm`, `clear ${mm(col.width)} mm`)}</span>
               </h4>
-              {col.shelves.length === 0 && !col.compartments[0]?.fill ? (
+              {col.knee ? (
+                <KneeNote knee={result.knees.find((k) => k.column === col.index)} />
+              ) : col.shelves.length === 0 && !col.compartments[0]?.fill ? (
                 <p className="field-hint" style={{ margin: 0 }}>
                   {tr(`Sin estantes: un hueco de ${mm(col.gaps[0])} mm de alto.`, `No shelves: one compartment ${mm(col.gaps[0])} mm high.`)}
                 </p>
@@ -479,12 +553,14 @@ export function PlanPanel({ unit, result }: Props) {
               )}
             </div>
           ))}
-          <p className="footer-note" style={{ margin: 0 }}>
-            {tr(
-              `Las alturas de los estantes son de su cara inferior. “Desde el suelo” se mide desde el extremo inferior del lateral; “desde el piso”, desde la cara de arriba del piso del mueble (sirve para marcar los divisores). El tornillo de un estante fijo va ${mm(t / 2)} mm más arriba.`,
-              `Shelf heights are to their underside. “From the floor” is measured from the bottom end of the side panel; “from the bottom panel”, from the top face of the unit's bottom panel (useful to mark the dividers). The screw for a fixed shelf goes ${mm(t / 2)} mm higher.`,
-            )}
-          </p>
+          {result.bases.length > 0 && (
+            <p className="footer-note" style={{ margin: 0 }}>
+              {tr(
+                `Las alturas de los estantes son de su cara inferior. “Desde el suelo” se mide desde el extremo inferior del lateral; “desde el piso”, desde la cara de arriba del piso del mueble (sirve para marcar los divisores). El tornillo de un estante fijo va ${mm(t / 2)} mm más arriba.`,
+                `Shelf heights are to their underside. “From the floor” is measured from the bottom end of the side panel; “from the bottom panel”, from the top face of the unit's bottom panel (useful to mark the dividers). The screw for a fixed shelf goes ${mm(t / 2)} mm higher.`,
+              )}
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -69,6 +69,8 @@ const PIECES: Record<string, [es: string, en: string]> = {
   Piso: ['', 'Bottom'],
   Zócalo: ['', 'Plinth'],
   'Zócalo trasero': ['', 'Back plinth'],
+  'Lateral interior': ['', 'Inner side panel'],
+  Faldón: ['', 'Modesty panel'],
   Fondo: ['', 'Back panel'],
   'Fondo (parte)': ['', 'Back panel (part)'],
   Divisor: ['', 'Divider'],

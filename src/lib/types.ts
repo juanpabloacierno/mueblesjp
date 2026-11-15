@@ -113,6 +113,11 @@ export interface ColumnSpec {
   gaps: (number | null)[];
   /** Contenido de cada hueco desde abajo. `null` = libre (estantes). */
   fill: (CompartmentFill | null)[];
+  /**
+   * Hueco para las piernas (escritorios): sin piso, estantes ni fondo; los costados que lo
+   * rodean llegan al suelo y atrás lleva el faldón.
+   */
+  knee?: boolean;
 }
 
 /** Mueble empotrado: se cargan las medidas del hueco y se descuentan holguras. */
@@ -138,6 +143,13 @@ export interface MaleteroSpec {
   dividers: boolean;
 }
 
+/** Faldón de los escritorios. */
+export interface ModestySpec {
+  enabled: boolean;
+  /** Alto del faldón. */
+  height: number;
+}
+
 export interface ShelfUnit {
   kind: FurnitureKind;
   id: string;
@@ -159,6 +171,8 @@ export interface ShelfUnit {
   doors: DoorSpec;
   niche: NicheSpec;
   maletero: MaleteroSpec;
+  /** Faldón: tablero atrás de cada hueco para las piernas, debajo de la tapa. */
+  modesty: ModestySpec;
   material: Material;
   /** Ítems de la lista de compras marcados o desmarcados a mano (clave → comprar). */
   shopping: Record<string, boolean>;
@@ -223,6 +237,7 @@ export type PanelRole =
   | 'estante-movil'
   | 'maletero'
   | 'divisor-maletero'
+  | 'faldon'
   | 'puerta';
 
 /** Panel visto de frente (para dibujar el plano). y = 0 es el suelo. */
@@ -322,6 +337,8 @@ export interface ColumnResult {
   gaps: number[];
   shelves: ShelfPosition[];
   compartments: CompartmentResult[];
+  /** Hueco para las piernas (un solo hueco del suelo a la tapa). */
+  knee?: boolean;
 }
 
 export interface DividerPosition {
@@ -330,6 +347,29 @@ export interface DividerPosition {
   left: number;
   /** Desde la cara interior del lateral izquierdo. */
   leftFromInside: number;
+  /** Junto a un hueco para las piernas: llega al suelo (pieza "Lateral interior"). */
+  full?: boolean;
+}
+
+/** Tramo de columnas seguidas con piso (entre huecos para las piernas): lleva piso, zócalo y fondo. */
+export interface BaseSegment {
+  /** Primera y última columna del tramo. */
+  from: number;
+  to: number;
+  /** Borde izquierdo y largo del piso. */
+  x: number;
+  w: number;
+}
+
+/** Hueco para las piernas. */
+export interface KneeResult {
+  column: number;
+  x: number;
+  width: number;
+  /** Alto libre del suelo a la tapa. */
+  height: number;
+  /** Faldón: borde de abajo desde el suelo y alto. */
+  modesty: { y: number; h: number } | null;
 }
 
 export type WarningLevel = 'error' | 'aviso' | 'info';
@@ -381,6 +421,9 @@ export interface ShelfUnitResult {
   panels: FrontPanel[];
   columns: ColumnResult[];
   dividers: DividerPosition[];
+  /** Tramos con piso (sin huecos para las piernas es uno solo, de lateral a lateral). */
+  bases: BaseSegment[];
+  knees: KneeResult[];
   interior: { width: number; height: number; depth: number; baseY: number; topY: number };
   /** Techo de la zona de columnas: cara de abajo del estante maletero, o del techo. */
   columnsTop: number;

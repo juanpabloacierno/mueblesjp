@@ -14,7 +14,7 @@ import { buildAssembly } from './lib/assembly';
 import { downloadFile } from './components/ui';
 import { summarize } from './lib/cutlist';
 import { buildShoppingList, shoppingTotals } from './lib/shopping';
-import { PRESETS, createFromPreset } from './lib/defaults';
+import { PRESETS, PRESET_GROUPS, createFromPreset } from './lib/defaults';
 import { mm, money, newId, num } from './lib/format';
 import { computeShelfUnit } from './lib/shelf';
 import { loadState, parseState, saveState, type AppState } from './lib/storage';
@@ -216,18 +216,20 @@ export default function App() {
                 {tr('+ Nuevo', '+ New')}
               </button>
               {menu === 'nuevo' && (
-                <div className="popover" role="menu">
-                  {(['placard', 'estanteria'] as const).map((kind) => (
-                    <div key={kind} role="group" aria-label={kind === 'placard' ? tr('Clósets', 'Wardrobes') : tr('Estanterías y muebles', 'Shelving and cabinets')}>
-                      <div className="popover-group">{kind === 'placard' ? tr('Clósets', 'Wardrobes') : tr('Estanterías y muebles', 'Shelving and cabinets')}</div>
-                      {PRESETS.filter((p) => (p.unit.kind ?? 'estanteria') === kind).map((p) => (
-                        <button key={p.key} type="button" role="menuitem" onClick={() => addFromPreset(p.key)}>
-                          <strong>{p.label}</strong>
-                          <span>{p.description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
+                <div className="popover popover-presets" role="menu">
+                  <div className="preset-groups">
+                    {PRESET_GROUPS.map((g) => (
+                      <div key={g.key} role="group" aria-label={g.label} className="preset-group">
+                        <div className="popover-group">{g.label}</div>
+                        {PRESETS.filter((p) => p.group === g.key).map((p) => (
+                          <button key={p.key} type="button" role="menuitem" onClick={() => addFromPreset(p.key)}>
+                            <strong>{p.label}</strong>
+                            <span>{p.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

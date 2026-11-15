@@ -1,4 +1,5 @@
 import { finishFor, pieceGroup } from './catalog';
+import { resolveUnit } from './resolve';
 import { BAR_FRONT, BAR_SPACING, SHOE_ANGLE_DEG, TOPE_HEIGHT, slopeWidth } from './shoes';
 import type { Finish, ShelfUnit, ShelfUnitResult } from './types';
 
@@ -30,8 +31,10 @@ export interface SceneBox {
   pullZ?: number;
 }
 
-export function buildScene(unit: ShelfUnit, r: ShelfUnitResult): SceneBox[] {
+export function buildScene(input: ShelfUnit, r: ShelfUnitResult): SceneBox[] {
   if (r.pieces.length === 0) return [];
+  // Las mismas reglas que el cálculo (empotrado, hueco para las piernas).
+  const unit = resolveUnit(input);
   const m = unit.material;
   const t = m.thickness;
   const tb = m.backThickness;
@@ -55,25 +58,41 @@ export function buildScene(unit: ShelfUnit, r: ShelfUnitResult): SceneBox[] {
   add({ name: 'Lateral', finish: fin('Lateral'), x: W - t, y: 0, ...caja, w: t, h: sideH });
   if (unit.top === 'entre') add({ name: 'Techo', finish: fin('Techo'), x: t, y: H - t, ...caja, w: Wi, h: t });
   else add({ name: 'Techo', finish: fin('Techo'), x: 0, y: H - t, ...caja, w: W, h: t });
-  add({ name: 'Piso', finish: fin('Piso'), x: t, y: zh, ...caja, w: Wi, h: t });
+  // Piso y zócalo por tramo (sin huecos para las piernas, uno solo de lateral a lateral).
+  for (const b of r.bases) add({ name: 'Piso', finish: fin('Piso'), x: b.x, y: zh, ...caja, w: b.w, h: t });
   if (unit.plinth.enabled) {
-    add({ name: 'Zócalo', finish: fin('Zócalo'), x: t, y: 0, z: D - unit.plinth.setback - t, w: Wi, h: zh, d: t });
-    if (back !== 'clavado') add({ name: 'Zócalo trasero', finish: fin('Zócalo trasero'), x: t, y: 0, z: z0, w: Wi, h: zh, d: t });
+    for (const b of r.bases) {
+      add({ name: 'Zócalo', finish: fin('Zócalo'), x: b.x, y: 0, z: D - unit.plinth.setback - t, w: b.w, h: zh, d: t });
+      if (back !== 'clavado') add({ name: 'Zócalo trasero', finish: fin('Zócalo trasero'), x: b.x, y: 0, z: z0, w: b.w, h: zh, d: t });
+    }
   }
 
-  // --- Fondo ---
-  if (back === 'clavado') {
-    add({ name: 'Fondo', finish: 'fondo', x: 1, y: 1, z: 0, w: W - 2, h: H - 2, d: tb });
-  } else if (back === 'ranurado') {
-    const g = unit.back.grooveDepth - 1;
-    add({ name: 'Fondo', finish: 'fondo', x: t - g, y: r.interior.baseY - g, z: unit.back.grooveOffset, w: Wi + 2 * g, h: r.interior.height + 2 * g, d: tb });
+  // --- Fondo (uno por tramo con piso) ---
+  const n = r.columns.length;
+  for (const b of r.bases) {
+    if (back === 'clavado') {
+      const left = b.from === 0 ? 0 : r.dividers[b.from - 1].left;
+      const right = b.to === n - 1 ? W : r.dividers[b.to].left + t;
+      add({ name: 'Fondo', finish: 'fondo', x: left + 1, y: 1, z: 0, w: right - left - 2, h: H - 2, d: tb });
+    } else if (back === 'ranurado') {
+      const g = unit.back.grooveDepth - 1;
+      add({ name: 'Fondo', finish: 'fondo', x: b.x - g, y: r.interior.baseY - g, z: unit.back.grooveOffset, w: b.w + 2 * g, h: r.interior.height + 2 * g, d: tb });
+    }
   }
 
   // --- Divisores y maletero ---
   const divDepth = (back === 'ranurado' ? r.interior.depth : D - z0) - r.frontInset;
   const divZ = D - r.frontInset - divDepth;
   const colH = r.columnsTop - r.interior.baseY;
-  for (const dv of r.dividers) add({ name: 'Divisor', finish: fin('Divisor'), x: dv.left, y: r.interior.baseY, z: divZ, w: t, h: colH, d: divDepth });
+  for (const dv of r.dividers) {
+    // Junto a un hueco para las piernas el divisor es un costado que llega al suelo.
+    if (dv.full) add({ name: 'Lateral interior', finish: fin('Lateral interior'), x: dv.left, y: 0, ...caja, w: t, h: r.columnsTop });
+    else add({ name: 'Divisor', finish: fin('Divisor'), x: dv.left, y: r.interior.baseY, z: divZ, w: t, h: colH, d: divDepth });
+  }
+  // Faldón: atrás de cada hueco para las piernas, debajo de la tapa.
+  for (const k of r.knees) {
+    if (k.modesty) add({ name: 'Faldón', finish: fin('Faldón'), x: k.x, y: k.modesty.y, z: z0, w: k.width, h: k.modesty.h, d: t });
+  }
   if (r.maletero) {
     const md = back === 'ranurado' ? r.interior.depth : D - z0;
     add({ name: 'Estante maletero', finish: fin('Estante maletero'), x: t, y: r.maletero.shelfBottom, z: D - md, w: Wi, h: t, d: md });

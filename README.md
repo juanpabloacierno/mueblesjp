@@ -3,7 +3,8 @@
 *[English version](README.en.md)*
 
 App web para diseñar muebles de melamina y saber exactamente qué cortar: **clósets**
-(empotrados o sueltos), **estanterías, libreros, muebles bajos y estantes de pared**.
+(empotrados o sueltos), **escritorios**, **libreros y estanterías**, **modulares y
+aparadores**, **muebles de dormitorio** y estantes de pared.
 La interfaz está en español e inglés (selector ES/EN en la barra superior).
 
 Cargas las medidas del mueble (o del hueco, si va empotrado) y la app te da:
@@ -44,6 +45,22 @@ Cargas las medidas del mueble (o del hueco, si va empotrado) y la app te da:
   orden, cada uno con su dibujo: lo ya armado en blanco, las piezas nuevas resaltadas y
   separadas, con flechas hasta su lugar y la letra del despiece, más qué piezas y herrajes
   lleva el paso. Los dibujos salen del modelo 3D, así que siempre coinciden con tu mueble.
+- **Modelos para empezar** (menú **+ Nuevo**), agrupados:
+  - *Clósets*: con corredizas, con puertas batientes o solo el interior.
+  - *Escritorios*: simple (tapa, laterales y faldón), con cajonera, con cajonera y
+    gabinete con puerta, con dos cajoneras, con estantes, y una cajonera suelta.
+  - *Libreros y estanterías*: librero, con puertas abajo, con cajones abajo, doble con
+    puertas, empotrado de piso a techo, estantería baja, organizador de cubos y estante de
+    pared.
+  - *Modulares y aparadores*: mueble bajo con puertas, mueble y rack de TV, aparador con
+    cajones, vajillero y armario con corredizas.
+  - *Dormitorio*: mesa de noche y cómoda.
+- **Escritorios con hueco para las piernas**: cualquier columna se puede marcar como
+  hueco para las piernas. Esa columna no lleva piso, estantes ni fondo; sus costados bajan
+  hasta el suelo (*Lateral interior*) y atrás, debajo de la tapa, va el **faldón**, que
+  rigidiza el escritorio. Las demás columnas quedan como cajoneras o gabinetes, cada una con
+  su piso, su zócalo y su fondo. Avisa si el hueco queda angosto (menos de 600 mm) o bajo
+  (menos de 620 mm).
 - **Avisos**: estantes demasiado largos que se van a combar, muebles altos que hay que
   fijar a la pared, piezas que no caben en el tablero, etc.
 
@@ -76,6 +93,9 @@ Todas las medidas son en milímetros.
 | Zapatero inclinado | Espacio libre de la columna × hasta 330 mm de recorrido a 15° (342 mm de pendiente), con tope de 50 mm |
 | Zapatero con barras | 2 barras por nivel de espacio libre − 2 mm: adelante a 60 mm del frente, atrás 200 mm más adentro y 70 mm más arriba |
 | Zapatero plano | Estantes sobre soportes: espacio libre − holgura × profundidad del hueco |
+| Lateral interior (escritorio) | Del suelo a la tapa × profundidad del mueble, junto al hueco para las piernas |
+| Faldón | Espacio libre del hueco para las piernas × alto del faldón (350 mm por defecto) |
+| Piso, zócalo y fondo con hueco para las piernas | Uno por cada tramo de columnas con piso (cada cajonera o gabinete) |
 
 - La **profundidad** que cargas es la total, con el fondo incluido: con fondo clavado, los
   laterales miden la profundidad menos el espesor del fondo.
@@ -97,6 +117,9 @@ Todas las medidas son en milímetros.
   más larga que cabe (250 a 600 mm, de 50 en 50). El estante de arriba de una barra de
   colgar o de cajones queda fijo. Para levantarlo armado hace falta más alto que la
   diagonal del lateral.
+- Escritorios: la altura habitual es de 720 a 760 mm. El hueco para las piernas no lleva
+  puertas, y un mueble con hueco para las piernas no lleva maletero ni corredizas. Si todas
+  las columnas son hueco para las piernas, el escritorio es solo tapa, laterales y faldón.
 - Zapateros: los niveles se reparten de forma pareja en el hueco; se recomiendan unos
   200 mm por nivel inclinado, 180 con barras y 170 por fila plana. Avisa si quedan muy juntos.
 - Valores por defecto: melamina Egger de 2600 × 1830 × 18 mm, fondo de MDF delgado de

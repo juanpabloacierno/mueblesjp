@@ -72,17 +72,39 @@ const TopIcon = ({ over }: { over: boolean }) => (
 export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, onSaveBoard, onRemoveBoard }: Props) {
   const m = unit.material;
   const n = unit.columns.length;
+  // Huecos para las piernas (escritorios).
+  const hasKnee = unit.columns.some((c) => c.knee);
+  const allKnee = unit.columns.every((c) => c.knee);
+  const firstShelfCol = unit.columns.findIndex((c) => !c.knee);
 
   const setColumns = (count: number) =>
     update((d) => {
       while (d.columns.length < count) {
-        const last = d.columns[d.columns.length - 1] ?? column(2);
-        d.columns.push({ ...structuredClone(last), width: null });
+        // La columna nueva copia la última con estantes (no un hueco para las piernas).
+        const last = [...d.columns].reverse().find((c) => !c.knee) ?? column(2);
+        const copy: ColumnSpec = { ...structuredClone(last), width: null };
+        delete copy.knee;
+        d.columns.push(copy);
       }
       d.columns.length = count;
     });
 
-  const shelfEditors = unit.sameShelves ? [0] : unit.columns.map((_, i) => i);
+  const setKnee = (i: number, on: boolean) =>
+    update((d) => {
+      if (on) {
+        d.columns[i].knee = true;
+        // Un escritorio no lleva maletero ni corredizas.
+        d.maletero.enabled = false;
+        if (d.doors.type === 'corrediza') d.doors.type = 'ninguna';
+      } else {
+        delete d.columns[i].knee;
+      }
+    });
+
+  // Con "mismos estantes" se edita la primera columna que no es hueco para las piernas.
+  const shelfEditors = unit.sameShelves ? (firstShelfCol >= 0 ? [firstShelfCol] : []) : unit.columns.map((_, i) => i);
+  const fullDividers = result.dividers.filter((d) => d.full).length;
+  const plainDividers = Math.max(0, n - 1 - fullDividers);
 
   return (
     <div>
@@ -162,46 +184,64 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           }
         />
 
-        <Switch id="f-plinth" label={tr('Zócalo (el piso queda elevado)', 'Plinth (raises the bottom)')} checked={unit.plinth.enabled} onChange={(v) => update((d) => void (d.plinth.enabled = v))} />
-        {unit.plinth.enabled && (
+        {allKnee && (
+          <span className="field-hint">
+            {tr(
+              'Escritorio de tapa y laterales: no lleva piso, zócalo ni fondo. Para sumar una cajonera o estantes, agrega una columna.',
+              'Desk made of a top and side panels: no bottom, plinth or back panel. To add drawers or shelves, add a column.',
+            )}
+          </span>
+        )}
+        {!allKnee && (
+          <Switch id="f-plinth" label={tr('Zócalo (el piso queda elevado)', 'Plinth (raises the bottom)')} checked={unit.plinth.enabled} onChange={(v) => update((d) => void (d.plinth.enabled = v))} />
+        )}
+        {!allKnee && unit.plinth.enabled && (
           <div className="grid-2">
             <NumberField id="f-plinth-h" label={tr('Alto del zócalo', 'Plinth height')} value={unit.plinth.height} min={1} onChange={(v) => v !== null && update((d) => void (d.plinth.height = v))} />
             <NumberField id="f-plinth-s" label={tr('Retiro del frente', 'Front setback')} value={unit.plinth.setback} onChange={(v) => v !== null && update((d) => void (d.plinth.setback = v))} hint={tr('0 = al ras', '0 = flush')} />
           </div>
         )}
 
-        <Segmented
-          label={tr('Fondo', 'Back panel')}
-          value={unit.back.mode}
-          onChange={(v) => update((d) => void (d.back.mode = v))}
-          options={[
-            { value: 'clavado', label: tr('Clavado atrás', 'Nailed on') },
-            { value: 'ranurado', label: tr('En ranura', 'In a groove') },
-            { value: 'ninguno', label: tr('Sin fondo', 'No back') },
-          ]}
-          hint={
-            unit.back.mode === 'clavado'
-              ? tr(
-                  `MDF delgado de ${mm(m.backThickness)} mm clavado o atornillado sobre los cantos traseros. Es lo más simple y mantiene el mueble a escuadra.`,
-                  `${mm(m.backThickness)} mm thin MDF nailed or screwed onto the back edges. It is the simplest option and keeps the unit square.`,
-                )
-              : unit.back.mode === 'ranurado'
+        {!allKnee && (
+          <Segmented
+            label={tr('Fondo', 'Back panel')}
+            value={unit.back.mode}
+            onChange={(v) => update((d) => void (d.back.mode = v))}
+            options={[
+              { value: 'clavado', label: tr('Clavado atrás', 'Nailed on') },
+              { value: 'ranurado', label: tr('En ranura', 'In a groove') },
+              { value: 'ninguno', label: tr('Sin fondo', 'No back') },
+            ]}
+            hint={
+              unit.back.mode === 'clavado'
                 ? tr(
-                    'El fondo entra en una ranura hecha en laterales, piso y techo. Necesitas sierra o router para la ranura.',
-                    'The back panel slides into a groove cut in the sides, bottom and top. You need a saw or router for the groove.',
+                    `MDF delgado de ${mm(m.backThickness)} mm clavado o atornillado sobre los cantos traseros. Es lo más simple y mantiene el mueble a escuadra.`,
+                    `${mm(m.backThickness)} mm thin MDF nailed or screwed onto the back edges. It is the simplest option and keeps the unit square.`,
                   )
-                : tr('Sin fondo el mueble se puede descuadrar: conviene atornillarlo a la pared.', 'Without a back panel the unit can rack out of square: screw it to the wall.')
-          }
-        />
-        {unit.back.mode === 'ranurado' && (
+                : unit.back.mode === 'ranurado'
+                  ? tr(
+                      'El fondo entra en una ranura hecha en laterales, piso y techo. Necesitas sierra o router para la ranura.',
+                      'The back panel slides into a groove cut in the sides, bottom and top. You need a saw or router for the groove.',
+                    )
+                  : tr('Sin fondo el mueble se puede descuadrar: conviene atornillarlo a la pared.', 'Without a back panel the unit can rack out of square: screw it to the wall.')
+            }
+          />
+        )}
+        {!allKnee && unit.back.mode === 'ranurado' && (
           <div className="grid-2">
             <NumberField id="f-groove-d" label={tr('Profundidad de ranura', 'Groove depth')} value={unit.back.grooveDepth} min={1} onChange={(v) => v !== null && update((d) => void (d.back.grooveDepth = v))} />
             <NumberField id="f-groove-o" label={tr('Distancia al borde trasero', 'Distance from back edge')} value={unit.back.grooveOffset} onChange={(v) => v !== null && update((d) => void (d.back.grooveOffset = v))} />
           </div>
         )}
 
-        <Switch id="f-maletero" label={tr('Maletero arriba (estante de lado a lado)', 'Top storage (full-width shelf)')} checked={unit.maletero.enabled} onChange={(v) => update((d) => void (d.maletero.enabled = v))} />
-        {unit.maletero.enabled && (
+        {hasKnee ? (
+          <span className="field-hint">
+            {tr('Con un hueco para las piernas no hay maletero.', 'There is no top storage with a knee space.')}
+          </span>
+        ) : (
+          <Switch id="f-maletero" label={tr('Maletero arriba (estante de lado a lado)', 'Top storage (full-width shelf)')} checked={unit.maletero.enabled} onChange={(v) => update((d) => void (d.maletero.enabled = v))} />
+        )}
+        {!hasKnee && unit.maletero.enabled && (
           <>
             <NumberField
               id="f-maletero-h"
@@ -230,10 +270,66 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           <Stepper label={tr('Columnas', 'Columns')} value={n} min={1} max={8} onChange={setColumns} />
           {n > 1 && (
             <span className="field-hint" style={{ textAlign: 'right' }}>
-              {tr(`${n - 1} ${n - 1 === 1 ? 'divisor' : 'divisores'} de ${mm(m.thickness)} mm`, `${n - 1} ${mm(m.thickness)} mm ${n - 1 === 1 ? 'divider' : 'dividers'}`)}
+              {fullDividers === 0
+                ? tr(`${n - 1} ${n - 1 === 1 ? 'divisor' : 'divisores'} de ${mm(m.thickness)} mm`, `${n - 1} ${mm(m.thickness)} mm ${n - 1 === 1 ? 'divider' : 'dividers'}`)
+                : tr(
+                    `${plainDividers ? `${plainDividers} ${plainDividers === 1 ? 'divisor' : 'divisores'} y ` : ''}${fullDividers} ${fullDividers === 1 ? 'lateral interior' : 'laterales interiores'} de ${mm(m.thickness)} mm`,
+                    `${plainDividers ? `${plainDividers} ${plainDividers === 1 ? 'divider' : 'dividers'} and ` : ''}${fullDividers} ${mm(m.thickness)} mm inner side ${fullDividers === 1 ? 'panel' : 'panels'}`,
+                  )}
             </span>
           )}
         </div>
+
+        <div className="field">
+          <span className="field-label">{tr('Hueco para las piernas (escritorio)', 'Knee space (desk)')}</span>
+          {n === 1 ? (
+            <Switch
+              id="f-knee-0"
+              label={tr('Toda la columna es hueco para las piernas', 'The whole column is a knee space')}
+              checked={!!unit.columns[0]?.knee}
+              onChange={(v) => setKnee(0, v)}
+            />
+          ) : (
+            <div className="chip-checks">
+              {unit.columns.map((c, i) => (
+                <label key={i} className="chip-check" htmlFor={`f-knee-${i}`}>
+                  <input id={`f-knee-${i}`} type="checkbox" checked={!!c.knee} onChange={(e) => setKnee(i, e.target.checked)} />
+                  {tr('Col.', 'Col.')} {i + 1}
+                </label>
+              ))}
+            </div>
+          )}
+          <span className="field-hint">
+            {tr(
+              'Sin piso, estantes ni fondo: los costados bajan hasta el suelo y atrás va el faldón.',
+              'No bottom, shelves or back panel: the sides go down to the floor and a modesty panel goes at the back.',
+            )}{' '}
+            {n > 1
+              ? tr('Las demás columnas quedan como cajoneras o gabinetes.', 'The other columns become drawer pedestals or cabinets.')
+              : tr('Para sumar una cajonera, agrega una columna.', 'To add a drawer pedestal, add a column.')}
+          </span>
+        </div>
+
+        {hasKnee && (
+          <div className="knee-modesty">
+            <Switch
+              id="f-modesty"
+              label={tr('Faldón atrás, debajo de la tapa', 'Modesty panel at the back, under the top')}
+              checked={unit.modesty.enabled}
+              onChange={(v) => update((d) => void (d.modesty.enabled = v))}
+            />
+            {unit.modesty.enabled && (
+              <NumberField
+                id="f-modesty-h"
+                label={tr('Alto del faldón', 'Modesty panel height')}
+                value={unit.modesty.height}
+                min={1}
+                onChange={(v) => v !== null && update((d) => void (d.modesty.height = v))}
+                hint={tr('Rigidiza el escritorio y tapa los cables. Con 300 a 400 mm alcanza.', 'It stiffens the desk and hides cables. 300 to 400 mm is enough.')}
+              />
+            )}
+          </div>
+        )}
 
         {n > 1 && (
           <div className="field">
@@ -249,16 +345,20 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           </div>
         )}
 
-        {n > 1 && (
+        {n > 1 && !allKnee && (
           <Switch
             id="f-same"
-            label={tr('Mismos estantes en todas las columnas', 'Same shelves in every column')}
+            label={
+              hasKnee
+                ? tr('Mismos estantes en todas las columnas (menos el hueco para las piernas)', 'Same shelves in every column (except the knee space)')
+                : tr('Mismos estantes en todas las columnas', 'Same shelves in every column')
+            }
             checked={unit.sameShelves}
             onChange={(v) =>
               update((d) => {
                 d.sameShelves = v;
                 if (!v) {
-                  const first = d.columns[0];
+                  const first = d.columns.find((c) => !c.knee) ?? d.columns[0];
                   d.columns = d.columns.map((c) => ({ ...c, shelves: first.shelves, shelfType: first.shelfType, gaps: [...first.gaps], fill: [...(first.fill ?? [])] }));
                 }
               })
@@ -266,22 +366,26 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           />
         )}
 
-        {shelfEditors.map((i) => (
-          <ShelfEditor
-            key={i}
-            index={i}
-            title={unit.sameShelves || n === 1 ? null : tr(`Columna ${i + 1}`, `Column ${i + 1}`)}
-            spec={unit.columns[i]}
-            gaps={result.columns[i]?.gaps ?? []}
-            columnHeight={result.columnsTop - result.interior.baseY}
-            thickness={m.thickness}
-            placard={unit.kind === 'placard'}
-            update={update}
-          />
-        ))}
+        {shelfEditors.map((i) =>
+          unit.columns[i].knee ? (
+            <KneeCard key={i} index={i} title={n === 1 ? null : tr(`Columna ${i + 1}`, `Column ${i + 1}`)} result={result} />
+          ) : (
+            <ShelfEditor
+              key={i}
+              index={i}
+              title={unit.sameShelves || n === 1 ? null : tr(`Columna ${i + 1}`, `Column ${i + 1}`)}
+              spec={unit.columns[i]}
+              gaps={result.columns[i]?.gaps ?? []}
+              columnHeight={result.columnsTop - result.interior.baseY}
+              thickness={m.thickness}
+              placard={unit.kind === 'placard'}
+              update={update}
+            />
+          ),
+        )}
       </Section>
 
-      <DoorsForm unit={unit} result={result} update={update} />
+      {!allKnee && <DoorsForm unit={unit} result={result} update={update} />}
 
       <Section title={tr('Tableros', 'Boards')}>
         <div className="subcard">
@@ -401,6 +505,21 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           {tr('Usar estos tableros en muebles nuevos', 'Use these boards for new units')}
         </button>
       </section>
+    </div>
+  );
+}
+
+/** Columna que es hueco para las piernas: no tiene estantes que editar. */
+function KneeCard({ index, title, result }: { index: number; title: string | null; result: ShelfUnitResult }) {
+  const k = result.knees.find((x) => x.column === index);
+  return (
+    <div className="subcard knee-card">
+      {title && <h3>{title}</h3>}
+      <p className="field-hint">
+        <strong>{tr('Hueco para las piernas', 'Knee space')}</strong>
+        {k ? ` · ${mm(k.width)} × ${mm(k.height)} mm ${tr('libres', 'clear')}` : ''}.{' '}
+        {tr('No lleva estantes, piso ni fondo.', 'No shelves, bottom or back panel.')}
+      </p>
     </div>
   );
 }
@@ -661,22 +780,25 @@ function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUni
   const n = unit.columns.length;
   const t = unit.material.thickness;
   const set = <K extends keyof DoorSpec>(key: K, value: DoorSpec[K]) => update((draft) => void (draft.doors[key] = value));
-  const refColumn = result.columns.find((c) => columnHasDoors(d, c.index)) ?? result.columns[0];
+  const hasKnee = unit.columns.some((c) => c.knee);
+  const refColumn = result.columns.find((c) => !c.knee && columnHasDoors(d, c.index)) ?? result.columns.find((c) => !c.knee) ?? result.columns[0];
   const shelves = refColumn?.shelves ?? [];
 
   return (
     <Section title={tr('Puertas', 'Doors')}>
       <Segmented
         label={tr('Tipo de puertas', 'Door type')}
-        value={d.type}
+        value={hasKnee && d.type === 'corrediza' ? 'ninguna' : d.type}
         onChange={(v) => set('type', v)}
         options={[
           { value: 'ninguna', label: tr('Sin puertas', 'No doors') },
           { value: 'batiente', label: tr('Con bisagras', 'Hinged') },
-          { value: 'corrediza', label: tr('Corredizas', 'Sliding') },
+          ...(hasKnee ? [] : [{ value: 'corrediza' as const, label: tr('Corredizas', 'Sliding') }]),
         ]}
         hint={
-          d.type === 'batiente'
+          hasKnee && d.type !== 'batiente'
+            ? tr('Las corredizas no van con un hueco para las piernas: usa puertas con bisagras en los gabinetes.', 'Sliding doors do not work with a knee space: use hinged doors on the cabinets.')
+            : d.type === 'batiente'
             ? tr('Bisagras de cazoleta de 35 mm. Necesitan espacio libre adelante para abrir.', '35 mm concealed hinges. They need clear space in front to open.')
             : d.type === 'corrediza'
               ? tr('No necesitan espacio para abrir, pero solo dejan ver una parte a la vez.', 'They need no space to open, but only show part of the inside at a time.')
@@ -721,23 +843,25 @@ function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUni
             <div className="field">
               <span className="field-label">{tr('Columnas con puertas', 'Columns with doors')}</span>
               <div className="chip-checks">
-                {unit.columns.map((_, i) => (
-                  <label key={i} className="chip-check" htmlFor={`f-door-col-${i}`}>
-                    <input
-                      id={`f-door-col-${i}`}
-                      type="checkbox"
-                      checked={d.columns[i] ?? true}
-                      onChange={(e) =>
-                        update((draft) => {
-                          const cols = Array.from({ length: n }, (_, x) => draft.doors.columns[x] ?? true);
-                          cols[i] = e.target.checked;
-                          draft.doors.columns = cols;
-                        })
-                      }
-                    />
-                    {tr('Col.', 'Col.')} {i + 1}
-                  </label>
-                ))}
+                {unit.columns.map((c, i) =>
+                  c.knee ? null : (
+                    <label key={i} className="chip-check" htmlFor={`f-door-col-${i}`}>
+                      <input
+                        id={`f-door-col-${i}`}
+                        type="checkbox"
+                        checked={d.columns[i] ?? true}
+                        onChange={(e) =>
+                          update((draft) => {
+                            const cols = Array.from({ length: n }, (_, x) => draft.doors.columns[x] ?? true);
+                            cols[i] = e.target.checked;
+                            draft.doors.columns = cols;
+                          })
+                        }
+                      />
+                      {tr('Col.', 'Col.')} {i + 1}
+                    </label>
+                  ),
+                )}
               </div>
             </div>
           )}

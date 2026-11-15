@@ -1,6 +1,8 @@
 import type { Summary } from './cutlist';
 import { CUP_EDGE_DISTANCE, PLATE_FRONT_DISTANCE } from './doors';
 import { mm } from './format';
+import { resolveUnit } from './resolve';
+import { screwsPerJoint } from './shelf';
 import { tr } from './i18n';
 import { BAR_FRONT, BAR_SPACING, TOPE_HEIGHT } from './shoes';
 import type { ShelfUnit, ShelfUnitResult } from './types';
@@ -17,8 +19,14 @@ function list(items: string[]): string {
 }
 
 /** Pasos de armado en orden, con las medidas de este mueble. */
-export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Summary): Step[] {
+export function buildSteps(input: ShelfUnit, result: ShelfUnitResult, summary: Summary): Step[] {
   if (result.pieces.length === 0) return [];
+  // Las mismas reglas que el cálculo (empotrado, hueco para las piernas).
+  const unit = resolveUnit(input);
+  // Escritorio: cajoneras o gabinetes (tramos con piso) unidos por el faldón y la tapa.
+  const desk = result.knees.length > 0;
+  const plainDividers = result.dividers.filter((d) => !d.full).length;
+  const modesty = result.knees.find((k) => k.modesty)?.modesty ?? null;
   const steps: Step[] = [];
   const { width: W, height: H, depth: D } = result.size;
   const n = unit.niche;
@@ -64,19 +72,22 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
     ),
   });
 
-  const marks = [tr('las alturas de los estantes fijos', 'the fixed shelf heights')];
+  const marks: string[] = [];
+  if (!desk || fixed) marks.push(tr('las alturas de los estantes fijos', 'the fixed shelf heights'));
+  if (desk && result.bases.length) marks.push(tr('la altura del piso de cada módulo en sus costados', 'the bottom panel height of each pedestal on its sides'));
+  if (modesty) marks.push(tr(`el faldón (${mm(modesty.h)} mm, atrás y al ras de arriba)`, `the modesty panel (${mm(modesty.h)} mm, at the back and flush with the top)`));
   if (result.rods.length) marks.push(tr('las barras de colgar', 'the hanging rods'));
   if (result.drawers.length) marks.push(tr('las correderas', 'the drawer slides'));
   if (result.shoeRacks.length) marks.push(tr('los niveles del zapatero', 'the shoe rack levels'));
   steps.push({
     key: 'marcar',
-    title: tr('Marca laterales y divisores', 'Mark the side panels and dividers'),
+    title: desk ? tr('Marca los costados', 'Mark the sides') : tr('Marca laterales y divisores', 'Mark the side panels and dividers'),
     detail: tr(
       `Con la tabla de Espacios y marcas, marca con lápiz ${list(marks)} en las caras interiores. ${
-        result.dividers.length ? `Marca también dónde va cada divisor en el piso, el techo${mal ? ' y el estante maletero' : ''}.` : ''
+        plainDividers ? `Marca también dónde va cada divisor en el piso, el techo${mal ? ' y el estante maletero' : ''}.` : ''
       }`,
       `Using the Spaces and marks table, pencil-mark ${list(marks)} on the inner faces. ${
-        result.dividers.length ? `Also mark where each divider goes on the bottom, the top${mal ? ' and the top storage shelf' : ''}.` : ''
+        plainDividers ? `Also mark where each divider goes on the bottom, the top${mal ? ' and the top storage shelf' : ''}.` : ''
       }`,
     ).trim(),
   });
@@ -110,7 +121,33 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
           ' Before closing with the second side panel, slide the back panel into the grooves with a little glue.',
         )
       : '';
-  steps.push({
+  if (desk) {
+    const spj = result.counts.screwsPerJoint;
+    const top =
+      unit.top === 'sobre'
+        ? tr('apoya la tapa encima y atorníllala desde arriba (o desde abajo con escuadras)', 'rest the desktop on top and screw it down from above (or from below with angle brackets)')
+        : tr('mete el techo entre los laterales y atorníllalo', 'fit the top between the side panels and screw it');
+    const faldon = modesty
+      ? tr(
+          `atornilla el faldón atrás, al ras del borde de arriba, con ${screwsPerJoint(modesty.h)} tornillos por lado`,
+          `screw the modesty panel at the back, flush with the top edge, with ${screwsPerJoint(modesty.h)} screws per side`,
+        )
+      : '';
+    const pedestals = result.bases.length
+      ? tr(
+          `Arma cada módulo con piso (cajonera, gabinete o estantes) como una caja: acuesta su costado izquierdo, atorníllale el piso${unit.plinth.enabled ? ' y el zócalo' : ''} y cierra con el otro costado, con tornillos 4 × 50, ${spj} por unión.${groove} `,
+          `Build each pedestal (drawers, cabinet or shelves) as a box: lay its left side flat, screw the bottom${unit.plinth.enabled ? ' and the plinth' : ''} to it and close with the other side, with 4 × 50 screws, ${spj} per joint.${groove} `,
+        )
+      : '';
+    const rest = result.bases.length
+      ? faldon
+        ? tr(`Ponlos de pie en su lugar, ${faldon} y ${top}.`, `Stand them in place, ${faldon} and ${top}.`)
+        : tr(`Ponlos de pie en su lugar y ${top}.`, `Stand them in place and ${top}.`)
+      : faldon
+        ? tr(`Acuesta un lateral, ${faldon} y cierra con el otro lateral. Después pon el escritorio de pie y ${top}.`, `Lay one side panel flat, ${faldon} and close with the other side panel. Then stand the desk up and ${top}.`)
+        : tr(`Pon de pie los laterales y ${top}.`, `Stand the side panels up and ${top}.`);
+    steps.push({ key: 'caja', title: tr('Arma la estructura', 'Assemble the frame'), detail: `${pedestals}${rest}` });
+  } else steps.push({
     key: 'caja',
     title: tooTall ? tr('Arma la caja de pie, en el lugar', 'Assemble the carcass upright, in place') : tr('Arma la caja', 'Assemble the carcass'),
     detail: tooTall
@@ -128,7 +165,12 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
     steps.push({
       key: 'escuadra',
       title: tr('Revisa la escuadra y clava el fondo', 'Square up and nail on the back panel'),
-      detail: tr(
+      detail: desk
+        ? tr(
+            'Mide las dos diagonales del frente de cada módulo: tienen que medir lo mismo. Solo entonces clava su fondo cada 15 cm por el borde, también sobre el canto de la tapa. El fondo es lo que lo mantiene en escuadra.',
+            "Measure both diagonals of each pedestal's front: they must be equal. Only then nail its back panel every 15 cm along the edge, including onto the edge of the desktop. The back panel is what keeps it square.",
+          )
+        : tr(
         'Mide las dos diagonales del frente: tienen que medir lo mismo. Solo entonces clava el fondo cada 15 cm por el borde y sobre los estantes fijos y divisores. El fondo es lo que mantiene el mueble en escuadra.',
         'Measure both diagonals of the front: they must be equal. Only then nail the back panel every 15 cm along the edge and over the fixed shelves and dividers. The back panel is what keeps the unit square.',
       ),
@@ -146,14 +188,14 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
     });
   }
 
-  if (result.dividers.length || fixed) {
+  if (plainDividers || fixed) {
     steps.push({
       key: 'divisores',
-      title: result.dividers.length
+      title: plainDividers
         ? tr('Coloca divisores y estantes fijos', 'Fit the dividers and fixed shelves')
         : tr('Coloca los estantes fijos', 'Fit the fixed shelves'),
       detail: `${
-        result.dividers.length
+        plainDividers
           ? tr(
               'Mete los divisores por el frente y atorníllalos desde abajo y desde arriba en las marcas. ',
               'Slide the dividers in from the front and screw them from below and above at the marks. ',

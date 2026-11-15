@@ -6,7 +6,9 @@ import { finishFor, materialFor, pieceGroup } from './catalog';
 import { resolveUnit } from './resolve';
 import { SHOE_ANGLE_DEG, TOPE_HEIGHT, layoutShoeRack, slopeWidth } from './shoes';
 import type {
+  BaseSegment,
   ColumnResult,
+  KneeResult,
   CompartmentResult,
   DividerPosition,
   DrawerResult,
@@ -127,7 +129,10 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   const interiorHeight = topY - baseY;
   const interiorWidth = W - 2 * t;
   const n = Math.max(1, unit.columns.length);
-  const mal = unit.maletero.enabled ? unit.maletero : null;
+  // Huecos para las piernas (escritorios): sin piso ni estantes, del suelo a la tapa.
+  const knee = Array.from({ length: n }, (_, i) => !!unit.columns[i]?.knee);
+  const hasKnee = knee.some(Boolean);
+  const mal = unit.maletero.enabled && !hasKnee ? unit.maletero : null;
   const maleteroShelfBottom = mal ? topY - mal.height - t : null;
   const columnsTop = maleteroShelfBottom ?? topY;
   const columnHeight = columnsTop - baseY;
@@ -139,6 +144,8 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     panels: [],
     columns: [],
     dividers: [],
+    bases: [],
+    knees: [],
     interior: { width: interiorWidth, height: interiorHeight, depth: interiorDepth, baseY, topY },
     shelfDepth,
     frontInset,
@@ -215,9 +222,39 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   const columns: ColumnResult[] = [];
   const dividers: DividerPosition[] = [];
   const insetDoorRecess = t + 2;
+  // Faldón: solo con huecos para las piernas; nunca más alto que el espacio bajo la tapa.
+  const modestyH = hasKnee && unit.modesty?.enabled ? Math.max(0, Math.min(unit.modesty.height, columnsTop)) : 0;
+  if (modestyH > 0 && modestyH > columnsTop - 100) {
+    warnings.push({
+      level: 'aviso',
+      text: tr(
+        `El faldón de ${mm(unit.modesty.height)} mm llega casi al suelo: con 300 a 400 mm alcanza para rigidizar el escritorio.`,
+        `The ${mm(unit.modesty.height)} mm modesty panel almost reaches the floor: 300 to 400 mm is enough to stiffen the desk.`,
+      ),
+    });
+  }
+  // Con "mismos estantes" se copian los de la primera columna que no es hueco para las piernas.
+  const shelfSpec = unit.columns.find((c) => !c.knee) ?? unit.columns[0];
   let x = t;
   for (let i = 0; i < n; i++) {
-    const spec = unit.sameShelves ? unit.columns[0] : unit.columns[i];
+    if (knee[i]) {
+      columns.push({
+        index: i,
+        x,
+        width: widths[i],
+        gaps: [columnsTop],
+        shelves: [],
+        compartments: [{ index: 0, bottom: 0, height: columnsTop, depth: carcassDepth - (modestyH ? t : 0), fill: null }],
+        knee: true,
+      });
+      x += widths[i];
+      if (i < n - 1) {
+        dividers.push({ index: i, left: x, leftFromInside: x - t, full: true });
+        x += t;
+      }
+      continue;
+    }
+    const spec = unit.sameShelves ? shelfSpec : unit.columns[i];
     const k = Math.max(0, Math.floor(spec.shelves));
     const gapSpecs = Array.from({ length: k + 1 }, (_, j) => spec.gaps[j] ?? null);
     const gapDist = distribute(columnHeight - k * t, gapSpecs);
@@ -271,10 +308,26 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     columns.push({ index: i, x, width: widths[i], gaps, shelves, compartments });
     x += widths[i];
     if (i < n - 1) {
-      dividers.push({ index: i, left: x, leftFromInside: x - t });
+      dividers.push({ index: i, left: x, leftFromInside: x - t, full: knee[i + 1] });
       x += t;
     }
   }
+
+  // Tramos con piso: columnas seguidas que no son hueco para las piernas.
+  const bases: BaseSegment[] = [];
+  for (let i = 0; i < n; ) {
+    if (knee[i]) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < n && !knee[j + 1]) j++;
+    bases.push({ from: i, to: j, x: columns[i].x, w: columns[j].x + columns[j].width - columns[i].x });
+    i = j + 1;
+  }
+  const knees: KneeResult[] = columns
+    .filter((c) => c.knee)
+    .map((c) => ({ column: c.index, x: c.x, width: c.width, height: columnsTop, modesty: modestyH ? { y: columnsTop - modestyH, h: modestyH } : null }));
 
   // --- Puertas ---
   const doorCalc = computeDoors({ unit, columns, baseY, topY, zh, interiorWidth, maleteroShelfBottom });
@@ -302,27 +355,36 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   } else {
     add({ name: 'Techo', qty: 1, length: W, width: carcassDepth, edges: { long: 1, short: 2 }, notes: [tr('Apoya sobre los laterales', 'Rests on top of the side panels')] });
   }
-  add({ name: 'Piso', qty: 1, length: interiorWidth, width: carcassDepth, edges: { long: 1, short: 0 } });
+  for (const b of bases) add({ name: 'Piso', qty: 1, length: b.w, width: carcassDepth, edges: { long: 1, short: 0 } });
   if (unit.plinth.enabled) {
-    add({
-      name: 'Zócalo',
-      qty: 1,
-      length: interiorWidth,
-      width: zh,
-      edges: { long: 0, short: 0 },
-      notes: unit.plinth.setback > 0 ? [tr(`Retirado ${mm(unit.plinth.setback)} mm del frente`, `Set back ${mm(unit.plinth.setback)} mm from the front`)] : [tr('Al ras del frente', 'Flush with the front')],
-    });
-    if (backMode !== 'clavado') {
-      add({ name: 'Zócalo trasero', qty: 1, length: interiorWidth, width: zh, edges: { long: 0, short: 0 }, notes: [tr('Refuerzo atrás', 'Rear reinforcement')] });
+    for (const b of bases) {
+      add({
+        name: 'Zócalo',
+        qty: 1,
+        length: b.w,
+        width: zh,
+        edges: { long: 0, short: 0 },
+        notes: unit.plinth.setback > 0 ? [tr(`Retirado ${mm(unit.plinth.setback)} mm del frente`, `Set back ${mm(unit.plinth.setback)} mm from the front`)] : [tr('Al ras del frente', 'Flush with the front')],
+      });
+      if (backMode !== 'clavado') {
+        add({ name: 'Zócalo trasero', qty: 1, length: b.w, width: zh, edges: { long: 0, short: 0 }, notes: [tr('Refuerzo atrás', 'Rear reinforcement')] });
+      }
     }
   }
-  if (n > 1) {
+  const fullDividers = dividers.filter((d) => d.full).length;
+  const plainDividers = dividers.length - fullDividers;
+  if (fullDividers > 0) {
+    const notes = [tr('Veta vertical', 'Vertical grain'), tr('Llega al suelo: es el costado del hueco para las piernas', 'Reaches the floor: it is the side of the knee space')];
+    if (backMode === 'ranurado') notes.push(tr('Lleva la ranura del fondo', 'Has the back panel groove'));
+    add({ name: 'Lateral interior', qty: fullDividers, length: columnsTop, width: carcassDepth, edges: { long: 1, short: 0 }, notes });
+  }
+  if (plainDividers > 0) {
     const notes = [tr('Veta vertical', 'Vertical grain')];
     if (backMode === 'ranurado') notes.push(tr('Termina contra el fondo', 'Ends against the back panel'));
     if (frontInset) notes.push(tr(`Retirado ${mm(frontInset)} mm del frente por los rieles`, `Set back ${mm(frontInset)} mm from the front for the tracks`));
     add({
       name: 'Divisor',
-      qty: n - 1,
+      qty: plainDividers,
       length: columnHeight,
       width: (backMode === 'ranurado' ? interiorDepth : carcassDepth) - frontInset,
       edges: { long: 1, short: 0 },
@@ -431,6 +493,18 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       }
     }
   }
+  for (const k of knees) {
+    if (!k.modesty) continue;
+    add({
+      name: 'Faldón',
+      qty: 1,
+      length: k.width,
+      width: k.modesty.h,
+      edges: { long: 1, short: 0 },
+      notes: [tr('Atrás del hueco para las piernas, debajo de la tapa', 'At the back of the knee space, under the top'), tr('Tapacanto en el canto de abajo', 'Edge banding on the bottom edge')],
+      cols: [k.column + 1],
+    });
+  }
   for (const d of doors.doors) {
     const isSliding = d.track !== null;
     add({
@@ -446,39 +520,46 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     });
   }
 
-  // --- Fondo ---
+  // --- Fondo (uno por tramo con piso; el hueco para las piernas queda abierto) ---
   if (backMode !== 'ninguno') {
-    const backLen = backMode === 'clavado' ? H - 2 : interiorHeight + 2 * (unit.back.grooveDepth - 1);
-    const backWid = backMode === 'clavado' ? W - 2 : interiorWidth + 2 * (unit.back.grooveDepth - 1);
     const board = usableBoard(m.backBoardLength, m.backBoardWidth, m.trim);
-    const parts = splitBack(backLen, backWid, board.length, board.width, backMode === 'clavado' ? dividers.map((d) => d.left + t / 2 - 1) : []);
+    const g = unit.back.grooveDepth - 1;
     const notes =
       backMode === 'clavado'
         ? [tr('Va clavado atrás, 1 mm adentro de cada borde', 'Nailed on the back, 1 mm in from each edge')]
-        : [tr(`Entra ${mm(unit.back.grooveDepth - 1)} mm en cada ranura`, `Goes ${mm(unit.back.grooveDepth - 1)} mm into each groove`)];
-    if (parts.length > 1) {
-      warnings.push({
-        level: 'aviso',
-        text: tr(
-          `El fondo (${mm(backLen)} × ${mm(backWid)} mm) no entra en un tablero: se corta en ${parts.length} partes. Cada unión tiene que caer sobre un divisor, un estante fijo o un listón.`,
-          `The back panel (${mm(backLen)} × ${mm(backWid)} mm) does not fit on one board: it is cut in ${parts.length} parts. Each joint must land on a divider, a fixed shelf or a batten.`,
-        ),
-      });
-    }
-    for (const p of uniqueParts(parts)) {
-      raw.push({
-        name: parts.length > 1 ? 'Fondo (parte)' : 'Fondo',
-        qty: p.qty,
-        length: p.length,
-        width: p.width,
-        thickness: tb,
-        material: 'fondo',
-        finish: null,
-        edges: { long: 0, short: 0 },
-        canRotate: true,
-        notes,
-        cols: [],
-      });
+        : [tr(`Entra ${mm(g)} mm en cada ranura`, `Goes ${mm(g)} mm into each groove`)];
+    for (const b of bases) {
+      // Clavado: de la cara de afuera de un costado a la del otro.
+      const left = b.from === 0 ? 0 : dividers[b.from - 1].left;
+      const right = b.to === n - 1 ? W : dividers[b.to].left + t;
+      const backLen = backMode === 'clavado' ? H - 2 : interiorHeight + 2 * g;
+      const backWid = backMode === 'clavado' ? right - left - 2 : b.w + 2 * g;
+      const joints = backMode === 'clavado' ? dividers.filter((d) => d.index >= b.from && d.index < b.to).map((d) => d.left + t / 2 - 1 - left) : [];
+      const parts = splitBack(backLen, backWid, board.length, board.width, joints);
+      if (parts.length > 1) {
+        warnings.push({
+          level: 'aviso',
+          text: tr(
+            `El fondo (${mm(backLen)} × ${mm(backWid)} mm) no entra en un tablero: se corta en ${parts.length} partes. Cada unión tiene que caer sobre un divisor, un estante fijo o un listón.`,
+            `The back panel (${mm(backLen)} × ${mm(backWid)} mm) does not fit on one board: it is cut in ${parts.length} parts. Each joint must land on a divider, a fixed shelf or a batten.`,
+          ),
+        });
+      }
+      for (const p of uniqueParts(parts)) {
+        raw.push({
+          name: parts.length > 1 ? 'Fondo (parte)' : 'Fondo',
+          qty: p.qty,
+          length: p.length,
+          width: p.width,
+          thickness: tb,
+          material: 'fondo',
+          finish: null,
+          edges: { long: 0, short: 0 },
+          canRotate: true,
+          notes,
+          cols: [],
+        });
+      }
     }
   }
 
@@ -491,12 +572,18 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     unit.top === 'entre'
       ? { role: 'techo', x: t, y: H - t, w: interiorWidth, h: t }
       : { role: 'techo', x: 0, y: H - t, w: W, h: t },
-    { role: 'piso', x: t, y: zh, w: interiorWidth, h: t },
   ];
-  if (unit.plinth.enabled) {
-    panels.push({ role: 'zocalo', x: t, y: 0, w: interiorWidth, h: zh, recessed: unit.plinth.setback > 0 });
+  for (const b of bases) {
+    panels.push({ role: 'piso', x: b.x, y: zh, w: b.w, h: t });
+    if (unit.plinth.enabled) panels.push({ role: 'zocalo', x: b.x, y: 0, w: b.w, h: zh, recessed: unit.plinth.setback > 0 });
   }
-  for (const d of dividers) panels.push({ role: 'divisor', x: d.left, y: baseY, w: t, h: columnHeight, recessed: frontInset > 0 });
+  for (const d of dividers) {
+    if (d.full) panels.push({ role: 'lateral', x: d.left, y: 0, w: t, h: columnsTop });
+    else panels.push({ role: 'divisor', x: d.left, y: baseY, w: t, h: columnHeight, recessed: frontInset > 0 });
+  }
+  for (const k of knees) {
+    if (k.modesty) panels.push({ role: 'faldon', x: k.x, y: k.modesty.y, w: k.width, h: k.modesty.h, recessed: true });
+  }
   if (mal && maleteroShelfBottom !== null) {
     panels.push({ role: 'maletero', x: t, y: maleteroShelfBottom, w: interiorWidth, h: t });
     if (mal.dividers) {
@@ -601,6 +688,42 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       });
     }
   }
+  for (const k of knees) {
+    const label = n > 1 ? `${tr('Columna', 'Column')} ${k.column + 1}: ` : '';
+    if (k.width < 600) {
+      warnings.push({
+        level: 'aviso',
+        text: label + tr(
+          `el hueco para las piernas mide ${mm(k.width)} mm de ancho: para sentarse cómodo hacen falta al menos 600 mm (mejor 700 o más).`,
+          `the knee space is ${mm(k.width)} mm wide: you need at least 600 mm to sit comfortably (700 or more is better).`,
+        ),
+      });
+    }
+    if (k.height < 620) {
+      warnings.push({
+        level: 'aviso',
+        text: label + tr(
+          `debajo de la tapa quedan ${mm(k.height)} mm: para las piernas hacen falta al menos 620 mm.`,
+          `there are ${mm(k.height)} mm under the top: legs need at least 620 mm.`,
+        ),
+      });
+    }
+    if (k.width > 1000 && t < 25) {
+      warnings.push({
+        level: 'info',
+        text: label + tr(
+          `la tapa queda sin apoyo en ${mm(k.width)} mm. El faldón atornillado evita que se combe; si vas a apoyar mucho peso, usa un tablero de 25 mm o un listón de refuerzo debajo.`,
+          `the top is unsupported over ${mm(k.width)} mm. The screwed-on modesty panel keeps it from sagging; for heavy loads, use a 25 mm board or a reinforcing batten underneath.`,
+        ),
+      });
+    }
+  }
+  if (hasKnee && (H < 680 || H > 800)) {
+    warnings.push({
+      level: 'info',
+      text: tr(`Un escritorio suele medir de 720 a 760 mm de alto, y este mide ${mm(H)} mm.`, `A desk is usually 720 to 760 mm high; this one is ${mm(H)} mm.`),
+    });
+  }
   if (input.niche.enabled && diagonal > input.niche.height) {
     warnings.push({
       level: 'aviso',
@@ -633,11 +756,13 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     panels,
     columns,
     dividers,
+    bases,
+    knees,
     interior: { width: interiorWidth, height: interiorHeight, depth: interiorDepth, baseY, topY },
     shelfDepth,
     frontInset,
     doors,
-    counts: countFasteners(unit, columns, dividers, carcassDepth, interiorWidth, columnHeight, drawers, shoeRacks),
+    counts: countFasteners(unit, columns, dividers, bases, knees, carcassDepth, columnHeight, drawers, shoeRacks),
     warnings,
     size: { width: W, height: H, depth: D },
     columnsTop,
@@ -763,8 +888,9 @@ function countFasteners(
   unit: ShelfUnit,
   columns: ColumnResult[],
   dividers: DividerPosition[],
+  bases: BaseSegment[],
+  knees: KneeResult[],
   carcassDepth: number,
-  interiorWidth: number,
   columnHeight: number,
   drawers: DrawerResult[],
   shoeRacks: ShoeRackResult[],
@@ -773,33 +899,46 @@ function countFasteners(
   const n = columns.length;
   const fixed = columns.flatMap((c) => c.shelves.filter((s) => s.type === 'fijo').map(() => c));
   const movable = columns.reduce((s, c) => s + c.shelves.filter((sh) => sh.type === 'movil').length, 0);
-  const plinthPieces = unit.plinth.enabled ? (unit.back.mode === 'clavado' ? 1 : 2) : 0;
+  const plinthPieces = unit.plinth.enabled ? bases.length * (unit.back.mode === 'clavado' ? 1 : 2) : 0;
 
   const mal = unit.maletero.enabled;
   const malDividers = mal && unit.maletero.dividers ? dividers.length : 0;
-  const joints = 2 + 2 + dividers.length * 2 + fixed.length * 2 + (mal ? 2 : 0) + malDividers * 2;
+  // Techo: 2 uniones. Cada piso: 2. Divisor: arriba y abajo; el que llega al suelo, solo arriba
+  // (el piso de su tramo ya cuenta la unión de abajo).
+  const full = dividers.filter((d) => d.full).length;
+  const plain = dividers.length - full;
+  const modesty = knees.filter((k) => k.modesty);
+  const joints = 2 + 2 * bases.length + plain * 2 + full + fixed.length * 2 + (mal ? 2 : 0) + malDividers * 2 + modesty.length * 2;
   const drawerCount = drawers.reduce((s, d) => s + d.count, 0);
   // Cada caja de cajón: 4 uniones con 2 tornillos.
   // Estantes zapateros inclinados: 2 tornillos por costado.
   const inclined = shoeRacks.filter((z) => z.style === 'inclinado').reduce((s, z) => s + z.levels.length, 0);
   const flatShoeShelves = shoeRacks.filter((z) => z.style === 'plano').reduce((s, z) => s + z.levels.length, 0);
-  const screws = joints * spj + plinthPieces * 2 * 2 + drawerCount * 8 + inclined * 4;
-  // Cabezas a la vista: atraviesan los laterales o el techo.
+  // Faldón: tornillos según su alto.
+  const modestyScrews = modesty.reduce((s, k) => s + 2 * screwsPerJoint(k.modesty!.h), 0);
+  const screws = (joints - modesty.length * 2) * spj + modestyScrews + plinthPieces * 2 * 2 + drawerCount * 8 + inclined * 4;
+  // Cabezas a la vista: atraviesan los laterales o el techo (o los costados del hueco para las piernas).
   const edgeShelfJoints = n === 1 ? fixed.length * 2 : fixed.filter((c) => c.index === 0 || c.index === n - 1).length;
   const edgeInclined = shoeRacks
     .filter((z) => z.style === 'inclinado' && (z.column === 0 || z.column === n - 1))
     .reduce((sum, z) => sum + z.levels.length * (n === 1 ? 4 : 2), 0);
-  const visibleScrews = (2 + 2 + edgeShelfJoints + dividers.length + (mal ? 2 : 0)) * spj + (unit.plinth.enabled ? 4 : 0) + edgeInclined;
+  const visibleScrews =
+    (2 + 2 * bases.length + edgeShelfJoints + dividers.length + (mal ? 2 : 0)) * spj + modestyScrews + (unit.plinth.enabled ? 4 * bases.length : 0) + edgeInclined;
 
   let backNails = 0;
   if (unit.back.mode === 'clavado') {
-    const perimeter = 2 * (unit.width + unit.height);
-    const inner =
-      fixed.reduce((s, c) => s + c.width, 0) +
-      dividers.length * columnHeight +
-      (unit.plinth.enabled ? interiorWidth : 0) +
-      (mal ? interiorWidth + malDividers * unit.maletero.height : 0);
-    backNails = Math.ceil(perimeter / 150 + inner / 200);
+    // Un fondo por tramo: clavos por el contorno y sobre lo que queda adentro.
+    for (const b of bases) {
+      const left = b.from === 0 ? 0 : dividers[b.from - 1].left;
+      const right = b.to === n - 1 ? unit.width : dividers[b.to].left + unit.material.thickness;
+      const inside = columns.slice(b.from, b.to + 1);
+      const inner =
+        inside.reduce((s, c) => s + c.shelves.filter((sh) => sh.type === 'fijo').length * c.width, 0) +
+        (b.to - b.from) * columnHeight +
+        (unit.plinth.enabled ? b.w : 0) +
+        (mal ? b.w + malDividers * unit.maletero.height : 0);
+      backNails += Math.ceil((2 * (right - left + unit.height)) / 150 + inner / 200);
+    }
   }
   // Fondos de cajón clavados cada 10 cm.
   backNails += drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);

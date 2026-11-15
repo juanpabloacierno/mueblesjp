@@ -99,4 +99,49 @@ describe('instrucciones de armado ilustradas', () => {
       setLang('es');
     }
   });
+  it('escritorios: los tornillos de cada paso suman lo mismo que la lista de compras', () => {
+    for (const key of ['escritorio-simple', 'escritorio-cajonera', 'escritorio-gabinete', 'escritorio-doble']) {
+      const { a, r } = plan(key);
+      expect(a.hardware.find((h) => h.kind === 'tornillo')?.qty, key).toBe(r.counts.screws);
+      // Cada pieza del dibujo entra en un solo paso.
+      const added = a.steps.flatMap((s) => s.add);
+      expect(new Set(added).size, key).toBe(added.length);
+      expect(added.length, key).toBe(a.scene.length);
+    }
+  });
+
+  it('escritorio con cajonera y gabinete: cada módulo como una caja, después faldón, tapa y fondos', () => {
+    const { a } = plan('escritorio-gabinete');
+    expect(a.steps.map((s) => s.key)).toEqual([
+      'a-base',
+      'a-lateral',
+      'a-base-2',
+      'a-lateral-2',
+      'a-faldon',
+      'a-techo',
+      'a-fondo',
+      'a-cajones',
+      'a-moviles',
+      'a-puertas',
+      'a-terminar',
+    ]);
+    expect(a.steps.map((s) => s.title).slice(0, 4)).toEqual([
+      'Cajonera izquierda: costado, piso y zócalo',
+      'Cajonera izquierda: otro costado',
+      'Gabinete derecho: costado, piso y zócalo',
+      'Gabinete derecho: otro costado',
+    ]);
+    const names = (key: string) => a.steps.find((s) => s.key === key)!.add.map((i) => a.scene[i].name);
+    expect(names('a-base-2')).toEqual(['Lateral interior', 'Piso', 'Zócalo']);
+    expect(names('a-faldon')).toEqual(['Faldón']);
+    expect(names('a-fondo')).toEqual(['Fondo', 'Fondo']);
+    expect(a.steps.find((s) => s.key === 'a-fondo')?.view).toBe('atras');
+  });
+
+  it('escritorio simple: un lateral queda quieto, se suman faldón y el otro lateral, y la tapa', () => {
+    const { a } = plan('escritorio-simple');
+    expect(a.steps.map((s) => s.key)).toEqual(['a-faldon', 'a-techo', 'a-terminar']);
+    expect(a.steps[0].fixed).toHaveLength(1);
+    expect(a.prep.map((s) => s.key)).toEqual(['cortes', 'marcar', 'perforar']);
+  });
 });

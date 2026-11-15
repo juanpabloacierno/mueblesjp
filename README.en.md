@@ -3,8 +3,8 @@
 *[Versión en español](README.md)*
 
 A web app to design melamine furniture and know exactly what to cut: **wardrobes**
-(built into an alcove or freestanding), **shelving units, bookcases, low cabinets and wall
-shelves**. The interface is available in Spanish and English: use the ES/EN switch in the
+(built into an alcove or freestanding), **desks**, **bookcases and shelving**, **media
+units and sideboards**, **bedroom furniture** and wall shelves. The interface is available in Spanish and English: use the ES/EN switch in the
 top bar (the first time it follows your browser's language).
 
 Enter the size of the unit (or of the alcove, if it is built in) and the app gives you:
@@ -46,6 +46,22 @@ Enter the size of the unit (or of the alcove, if it is built in) and the app giv
   pulled apart, with arrows to where they go and their cut-list letter, plus the pieces
   and hardware each step needs. The drawings come from the 3D model, so they always match
   your unit.
+- **Starting models** (**+ New** menu), grouped:
+  - *Wardrobes*: with sliding doors, with hinged doors, or just the interior.
+  - *Desks*: simple (top, side panels and modesty panel), with a drawer pedestal, with
+    drawers and a cabinet with a door, with two drawer pedestals, with shelves, and a
+    standalone drawer unit.
+  - *Bookcases and shelving*: bookcase, with lower doors, with drawers below, double with
+    doors, built-in floor to ceiling, low shelving unit, cube organizer and wall shelf.
+  - *Media units and sideboards*: low cabinet with doors, TV unit and TV stand, sideboard
+    with drawers, china cabinet and cabinet with sliding doors.
+  - *Bedroom*: nightstand and chest of drawers.
+- **Desks with a knee space**: any column can be marked as a knee space. That column has
+  no bottom, shelves or back panel; its sides go down to the floor (*Inner side panel*)
+  and a **modesty panel** goes at the back, under the top, to stiffen the desk. The other
+  columns become drawer pedestals or cabinets, each with its own bottom, plinth and back
+  panel. It warns you if the knee space is too narrow (under 600 mm) or too low (under
+  620 mm).
 - **Warnings**: shelves too long that will sag, tall units that must be fixed to the wall,
   pieces that do not fit on the board, and so on.
 
@@ -78,6 +94,9 @@ All measurements are in millimeters.
 | Slanted shoe rack | Clear width of the column × up to 330 mm run at 15° (342 mm along the slope), with a 50 mm stop |
 | Shoe rack with bars | 2 bars per level, clear width − 2 mm: front bar 60 mm from the front, back bar 200 mm further in and 70 mm higher |
 | Flat shoe rack | Shelves on pins: clear width − clearance × compartment depth |
+| Inner side panel (desk) | Floor to top × unit depth, next to the knee space |
+| Modesty panel | Clear width of the knee space × modesty panel height (350 mm by default) |
+| Bottom, plinth and back panel with a knee space | One per run of columns with a bottom (each pedestal or cabinet) |
 
 - The **depth** you enter is the total depth including the back: with a nailed-on back,
   the side panels are the depth minus the back thickness.
@@ -99,6 +118,9 @@ All measurements are in millimeters.
   that fits (250 to 600 mm, in 50 mm steps). The shelf above a hanging rod or drawers is
   fixed. To stand the assembled unit up you need more height than the side panel's
   diagonal.
+- Desks: the usual height is 720 to 760 mm. The knee space has no doors, and a unit with
+  a knee space has no top storage or sliding doors. If every column is a knee space, the
+  desk is just a top, side panels and a modesty panel.
 - Shoe racks: levels are spread evenly in the compartment; about 200 mm per slanted level,
   180 with bars and 170 per flat row are recommended. It warns you if they are too close.
 - Defaults: Egger melamine 2600 × 1830 × 18 mm, 3 mm thin MDF back, 4 mm saw kerf, 10 mm

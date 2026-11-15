@@ -112,8 +112,8 @@ function SheetDrawing({ sheet, plan, boardL, boardW, trim, grain, id }: { sheet:
   );
 }
 
-function PlanSheets({ plan, unit, isBack }: { plan: MaterialPlan; unit: ShelfUnit; isBack: boolean }) {
-  const m = unit.material;
+function PlanSheets({ plan, isBack }: { plan: MaterialPlan; isBack: boolean }) {
+  const m = plan.material;
   const boardL = isBack ? m.backBoardLength : m.boardLength;
   const boardW = isBack ? m.backBoardWidth : m.boardWidth;
   const total = plan.pack.sheets.length;
@@ -170,13 +170,15 @@ export function BoardsView({ unit, summary }: { unit: ShelfUnit; summary: Summar
     <div className="panel-body">
       <p className="footer-note" style={{ margin: 0 }}>
         Distribución orientativa con cortes de lado a lado (como una seccionadora), sierra de {mm(m.kerf)} mm y {mm(m.trim)} mm de refilado por borde.
-        {m.hasGrain ? ' Las piezas respetan la veta.' : ' Sin veta: las piezas se pueden girar.'} Las medidas en gris son los sobrantes aprovechables. El
+        {summary.boards.some((b) => b.material.hasGrain) ? ' Las piezas con veta no se giran.' : ' Sin veta: las piezas se pueden girar.'} Las medidas en gris son los sobrantes aprovechables. El
         aserradero puede acomodarlas distinto.
       </p>
-      <PlanSheets plan={summary.melamina} unit={unit} isBack={false} />
-      {summary.fondo && <PlanSheets plan={summary.fondo} unit={unit} isBack />}
+      {summary.boards.map((b) => (
+        <PlanSheets key={b.label} plan={b} isBack={false} />
+      ))}
+      {summary.fondo && <PlanSheets plan={summary.fondo} isBack />}
       <p className="field-hint" style={{ margin: 0 }}>
-        Total de piezas: {num(summary.melamina.area + (summary.fondo?.area ?? 0))} m².
+        Total de piezas: {num(summary.boards.reduce((a, b) => a + b.area, 0) + (summary.fondo?.area ?? 0))} m².
       </p>
     </div>
   );

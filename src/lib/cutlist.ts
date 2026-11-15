@@ -1,7 +1,7 @@
-import { backLabel, boardLabel, boardsThatFit } from './catalog';
+import { backLabel, boardLabel, boardsThatFit, materialFor } from './catalog';
 import { mm, num } from './format';
 import { packPieces, type PackItem, type PackResult } from './packing';
-import type { CutSize, Furniture, Material, Piece, Warning } from './types';
+import type { CutSize, Finish, Furniture, Material, Piece, Warning } from './types';
 
 /** Medida de corte: la terminada menos el espesor del tapacanto en los lados que lo llevan. */
 export function cutSize(piece: Piece, material: Material): CutSize {
@@ -39,12 +39,24 @@ export interface MaterialPlan {
   pack: PackResult;
   /** m² de piezas. */
   area: number;
+  /** Material efectivo de esta placa (exterior, interior o fondo). */
+  material: Material;
+  kind: 'melamina' | 'fondo';
+  finish: Finish | null;
+  /** Tapacanto de las piezas de esta placa. */
+  edgeMeters: number;
+  edgeToBuy: number;
 }
 
 export interface Summary {
+  /** Melamina exterior (o la única, si no hay color interior). */
   melamina: MaterialPlan;
+  /** Melamina interior, si el mueble tiene otro color adentro. */
+  interior: MaterialPlan | null;
   fondo: MaterialPlan | null;
-  /** Metros de tapacanto sin margen. */
+  /** Todas las placas de melamina (exterior e interior). */
+  boards: MaterialPlan[];
+  /** Metros de tapacanto sin margen (total). */
   edgeMeters: number;
   /** Metros a comprar (+10 %, redondeado hacia arriba). */
   edgeToBuy: number;
@@ -58,71 +70,66 @@ function expand(pieces: Piece[], material: Material): PackItem[] {
   });
 }
 
+const area = (list: Piece[]) => list.reduce((s, p) => s + p.length * p.width * p.qty, 0) / 1e6;
+
+function plan(pieces: Piece[], material: Material, kind: 'melamina' | 'fondo', finish: Finish | null, labelSuffix: string): MaterialPlan {
+  const L = kind === 'melamina' ? material.boardLength : material.backBoardLength;
+  const W = kind === 'melamina' ? material.boardWidth : material.backBoardWidth;
+  const pack = packPieces(expand(pieces, material), { boardLength: L, boardWidth: W, kerf: material.kerf, trim: material.trim });
+  const edgeMeters = kind === 'melamina' ? pieces.reduce((s, p) => s + edgeLength(p), 0) / 1000 : 0;
+  return {
+    label: (kind === 'melamina' ? boardLabel(material) : backLabel(material)) + labelSuffix,
+    boardLabel: `${mm(L)} × ${mm(W)} mm`,
+    pieces,
+    pack,
+    area: area(pieces),
+    material,
+    kind,
+    finish,
+    edgeMeters,
+    edgeToBuy: edgeMeters > 0 ? Math.ceil(edgeMeters * 1.1) : 0,
+  };
+}
+
 export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
   const m = furniture.material;
   const warnings: Warning[] = [];
-  const mel = pieces.filter((p) => p.material === 'melamina');
+  const split = m.interior.enabled;
+  const ext = pieces.filter((p) => p.material === 'melamina' && (!split || p.finish !== 'interior'));
+  const int = split ? pieces.filter((p) => p.material === 'melamina' && p.finish === 'interior') : [];
   const back = pieces.filter((p) => p.material === 'fondo');
 
-  const melPack = packPieces(expand(mel, m), {
-    boardLength: m.boardLength,
-    boardWidth: m.boardWidth,
-    kerf: m.kerf,
-    trim: m.trim,
-  });
-  const backPack = back.length
-    ? packPieces(expand(back, m), {
-        boardLength: m.backBoardLength,
-        boardWidth: m.backBoardWidth,
-        kerf: m.kerf,
-        trim: m.trim,
-      })
-    : null;
+  const melamina = plan(ext, m, 'melamina', 'exterior', split ? ' · exterior' : '');
+  const interior = split && int.length ? plan(int, materialFor(m, 'interior'), 'melamina', 'interior', ' · interior') : null;
+  const fondo = back.length ? plan(back, m, 'fondo', null, '') : null;
 
-  for (const [pack, list, board] of [
-    [melPack, mel, `${mm(m.boardLength)} × ${mm(m.boardWidth)}`],
-    [backPack, back, `${mm(m.backBoardLength)} × ${mm(m.backBoardWidth)}`],
-  ] as const) {
-    if (!pack) continue;
-    const refs = [...new Set(pack.unplaced.map((u) => u.ref))];
+  for (const pl of [melamina, interior, fondo]) {
+    if (!pl) continue;
+    const pm = pl.material;
+    const refs = [...new Set(pl.pack.unplaced.map((u) => u.ref))];
     for (const ref of refs) {
-      const p = list.find((x) => x.code === ref)!;
-      const size = cutSize(p, m);
-      const fits = p.material === 'melamina' ? boardsThatFit(m, size.length, size.width) : [];
+      const p = pl.pieces.find((x) => x.code === ref)!;
+      const size = cutSize(p, pm);
+      const fits = pl.kind === 'melamina' ? boardsThatFit(pm, size.length, size.width) : [];
       const tip = fits.length
         ? ` Entra en ${fits.map((b) => `${b.brand} de ${mm(b.length)} × ${mm(b.width)}`).join(' o ')}: cambiá la placa en la sección Placas.`
         : '';
       warnings.push({
         level: 'error',
-        text: `La pieza ${p.code} (${p.name}, ${mm(p.length)} × ${mm(p.width)} mm) no entra en la placa de ${board} mm${m.trim ? ` con ${mm(m.trim)} mm de refilado` : ''}.${tip}`,
+        text: `La pieza ${p.code} (${p.name}, ${mm(p.length)} × ${mm(p.width)} mm) no entra en la placa de ${pl.boardLabel}${pm.trim ? ` con ${mm(pm.trim)} mm de refilado` : ''}.${tip}`,
       });
     }
   }
 
-  const edgeMm = mel.reduce((s, p) => s + edgeLength(p), 0);
-  const edgeMeters = edgeMm / 1000;
-  const edgeToBuy = edgeMeters > 0 ? Math.ceil(edgeMeters * 1.1) : 0;
-
-  const area = (list: Piece[]) => list.reduce((s, p) => s + p.length * p.width * p.qty, 0) / 1e6;
+  const boards = interior ? [melamina, interior] : [melamina];
+  const edgeMeters = boards.reduce((s, b) => s + b.edgeMeters, 0);
   return {
-    melamina: {
-      label: boardLabel(m),
-      boardLabel: `${mm(m.boardLength)} × ${mm(m.boardWidth)} mm`,
-      pieces: mel,
-      pack: melPack,
-      area: area(mel),
-    },
-    fondo: backPack
-      ? {
-          label: backLabel(m),
-          boardLabel: `${mm(m.backBoardLength)} × ${mm(m.backBoardWidth)} mm`,
-          pieces: back,
-          pack: backPack,
-          area: area(back),
-        }
-      : null,
+    melamina,
+    interior,
+    fondo,
+    boards,
     edgeMeters,
-    edgeToBuy,
+    edgeToBuy: boards.reduce((s, b) => s + b.edgeToBuy, 0),
     warnings,
   };
 }
@@ -135,21 +142,21 @@ export function cutListText(furniture: Furniture, summary: Summary): string {
   lines.push(`Mueble terminado: ${mm(furniture.width)} ancho × ${mm(furniture.height)} alto × ${mm(furniture.depth)} prof. (mm)`);
   if (m.subtractEdge) lines.push(`Medidas de corte (ya descontado el tapacanto de ${num(m.edgeThickness)} mm)`);
   lines.push('');
-  const block = (plan: MaterialPlan) => {
-    lines.push(`*${plan.label}* (placa ${plan.boardLabel}${m.hasGrain && plan.pieces[0]?.material === 'melamina' ? ', con veta: el largo va en el sentido de la veta' : ''})`);
-    for (const p of plan.pieces) {
-      const size = cutSize(p, m);
+  const block = (pl: MaterialPlan) => {
+    lines.push(`*${pl.label}* (placa ${pl.boardLabel}${pl.kind === 'melamina' && pl.material.hasGrain ? ', con veta: el largo va en el sentido de la veta' : ''})`);
+    for (const p of pl.pieces) {
+      const size = cutSize(p, pl.material);
       const edge = p.edges.long || p.edges.short ? ` · tapacanto: ${edgeLabel(p)}` : '';
       lines.push(`${p.code}) ${p.name}: ${p.qty} u. de ${mm(size.length)} × ${mm(size.width)}${edge}`);
     }
+    if (pl.edgeToBuy) lines.push(`Tapacanto ${pl.material.color} ${mm(m.edgeWidth)} mm: ${num(pl.edgeMeters, 1)} m (comprar ${pl.edgeToBuy} m)`.replace(/\s+/g, ' '));
     lines.push('');
   };
-  block(summary.melamina);
+  for (const b of summary.boards) block(b);
   if (summary.fondo) block(summary.fondo);
-  if (summary.edgeToBuy) lines.push(`Tapacanto ${mm(m.edgeWidth)} mm: ${num(summary.edgeMeters, 1)} m (comprar ${summary.edgeToBuy} m)`);
-  lines.push(
-    `Placas estimadas: ${summary.melamina.pack.sheets.length} de melamina${summary.fondo ? `, ${summary.fondo.pack.sheets.length} de fondo` : ''} (sierra ${mm(m.kerf)} mm)`,
-  );
+  const counts = summary.boards.map((b) => `${b.pack.sheets.length} de ${b.label}`);
+  if (summary.fondo) counts.push(`${summary.fondo.pack.sheets.length} de fondo`);
+  lines.push(`Placas estimadas: ${counts.join(', ')} (sierra ${mm(m.kerf)} mm)`);
   return lines.join('\n');
 }
 
@@ -166,7 +173,7 @@ export function cutListCsv(furniture: Furniture, pieces: Piece[]): string {
       mm(size.length),
       mm(size.width),
       mm(p.thickness),
-      p.material === 'melamina' ? boardLabel(m) : backLabel(m),
+      p.material === 'melamina' ? boardLabel(materialFor(m, p.finish ?? 'exterior')) : backLabel(m),
       String(p.edges.long),
       String(p.edges.short),
       p.canRotate ? 'Sí' : 'No',

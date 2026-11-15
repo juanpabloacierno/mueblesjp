@@ -1,6 +1,7 @@
 import { distribute } from './distribute';
 import { HINGE_LABEL, compartmentBehindInsetDoor, computeDoors, shelfBehindInsetDoor } from './doors';
 import { mm, pieceCode } from './format';
+import { finishFor, materialFor, pieceGroup } from './catalog';
 import { resolveUnit } from './resolve';
 import { SHOE_ANGLE_DEG, TOPE_HEIGHT, layoutShoeRack, slopeWidth } from './shoes';
 import type {
@@ -13,6 +14,7 @@ import type {
   DoorsResult,
   Edges,
   FastenerCounts,
+  Finish,
   FrontPanel,
   Piece,
   PieceMaterial,
@@ -29,6 +31,7 @@ interface RawPiece {
   width: number;
   thickness: number;
   material: PieceMaterial;
+  finish: Finish | null;
   edges: Edges;
   canRotate: boolean;
   notes: string[];
@@ -263,10 +266,12 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   const doors = doorCalc.result;
 
   // --- Piezas ---
-  const canRotate = !m.hasGrain;
   const raw: RawPiece[] = [];
-  const add = (p: Omit<RawPiece, 'thickness' | 'material' | 'canRotate' | 'notes' | 'cols'> & Partial<RawPiece>) =>
-    raw.push({ thickness: t, material: 'melamina', canRotate, notes: [], cols: [], ...p });
+  // Cada pieza toma el color exterior o interior según su grupo; la veta depende de esa placa.
+  const add = (p: Omit<RawPiece, 'thickness' | 'material' | 'finish' | 'canRotate' | 'notes' | 'cols'> & Partial<RawPiece>) => {
+    const finish = finishFor(m, pieceGroup(p.name));
+    raw.push({ thickness: t, material: 'melamina', finish, canRotate: !materialFor(m, finish).hasGrain, notes: [], cols: [], ...p });
+  };
 
   add({
     name: 'Lateral',
@@ -365,6 +370,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         width: d.boxW,
         thickness: tb,
         material: 'fondo',
+        finish: null,
         edges: { long: 0, short: 0 },
         canRotate: true,
         notes: ['Clavado abajo de la caja'],
@@ -443,6 +449,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         width: p.width,
         thickness: tb,
         material: 'fondo',
+        finish: null,
         edges: { long: 0, short: 0 },
         canRotate: true,
         notes,
@@ -528,6 +535,12 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       if (comp.rod.length > 1000) {
         warnings.push({ level: 'info', text: `${label}el barral mide ${mm(comp.rod.length)} mm: poné un soporte central para que no se combe.` });
       }
+    }
+    if (unit.doors.type === 'corrediza' && col.compartments.some((c) => c.drawers)) {
+      warnings.push({
+        level: 'info',
+        text: `${label}cajones detrás de corredizas: usá tiradores embutidos o de perfil (que no sobresalgan más de 2 mm), así no rozan la hoja de atrás.`,
+      });
     }
     if (unit.doors.type === 'batiente' && col.compartments.some((c) => c.drawers) && (unit.doors.columns[col.index] ?? true)) {
       warnings.push({
@@ -645,6 +658,7 @@ function mergePieces(raw: RawPiece[], columnCount: number): Piece[] {
       (o) =>
         o.name === p.name &&
         o.material === p.material &&
+        o.finish === p.finish &&
         o.thickness === p.thickness &&
         o.length === p.length &&
         o.width === p.width &&
@@ -660,8 +674,9 @@ function mergePieces(raw: RawPiece[], columnCount: number): Piece[] {
       merged.push({ ...p, notes: [...p.notes], cols: [...p.cols], edges: { ...p.edges } });
     }
   }
-  // Melamina primero, después el fondo.
-  merged.sort((a, b) => (a.material === b.material ? 0 : a.material === 'melamina' ? -1 : 1));
+  // Melamina exterior, melamina interior y después el fondo.
+  const rank = (p: RawPiece) => (p.material === 'fondo' ? 2 : p.finish === 'interior' ? 1 : 0);
+  merged.sort((a, b) => rank(a) - rank(b));
   return merged.map((p, i) => {
     const notes = [...p.notes];
     if (columnCount > 1 && p.cols.length > 0 && p.cols.length < columnCount) {
@@ -675,6 +690,7 @@ function mergePieces(raw: RawPiece[], columnCount: number): Piece[] {
       width: p.width,
       thickness: p.thickness,
       material: p.material,
+      finish: p.finish,
       edges: p.edges,
       canRotate: p.canRotate,
       notes,

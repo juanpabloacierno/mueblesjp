@@ -1,5 +1,5 @@
 import { mm } from './format';
-import type { BackType, BoardType, Material } from './types';
+import type { BackType, BoardType, Finish, Material } from './types';
 
 export type { BackType, BoardType };
 
@@ -49,9 +49,12 @@ export const CATALOG: CatalogBoard[] = [
   { brand: 'Egger', type: 'fondo-blanco', length: 2600, width: 1830, thicknesses: [3] },
   { brand: 'Egger', type: 'fibrofacil', length: 2600, width: 1830, thicknesses: [3, 5.5] },
   { brand: 'Faplac', type: 'melamina', length: 2750, width: 1830, thicknesses: [15, 18, 25] },
+  { brand: 'Faplac', type: 'melamina-mdf', length: 2750, width: 1830, thicknesses: [18] },
+  // Línea Táctil: MDF con film polimérico, en placa más angosta.
+  { brand: 'Faplac', type: 'melamina-mdf', length: 2750, width: 1300, thicknesses: [18] },
   { brand: 'Faplac', type: 'mdf', length: 2750, width: 1830, thicknesses: [18] },
   { brand: 'Faplac', type: 'aglomerado', length: 2750, width: 1830, thicknesses: [18] },
-  { brand: 'Sadepan', type: 'melamina', length: 2820, width: 1830, thicknesses: [18] },
+  { brand: 'Sadepan', type: 'melamina', length: 2820, width: 1830, thicknesses: [10, 12, 15, 18, 25] },
   { brand: 'Genérica', type: 'fibrofacil', length: 2600, width: 1830, thicknesses: [3, 5.5] },
   { brand: 'Genérica', type: 'fondo-blanco', length: 2600, width: 1830, thicknesses: [3] },
 ];
@@ -132,4 +135,32 @@ export function boardsThatFit(m: Material, pieceLength: number, pieceWidth: numb
     const W = b.width - 2 * m.trim;
     return (pieceLength <= L && pieceWidth <= W) || (!m.hasGrain && pieceLength <= W && pieceWidth <= L);
   });
+}
+
+/** Qué color lleva cada pieza: frentes siempre exterior, interior siempre interior, el cuerpo se elige. */
+export type PieceGroup = 'frente' | 'cuerpo' | 'interior';
+
+const GROUPS: [RegExp, PieceGroup][] = [
+  [/^(Puerta|Frente de cajón)/, 'frente'],
+  [/^(Lateral|Techo|Piso|Zócalo|Estante maletero)$|^Zócalo trasero$/, 'cuerpo'],
+];
+
+export function pieceGroup(name: string): PieceGroup {
+  for (const [re, g] of GROUPS) if (re.test(name)) return g;
+  return 'interior';
+}
+
+/** Color de una pieza de melamina según su grupo y la configuración interior. */
+export function finishFor(m: Material, group: PieceGroup): Finish {
+  if (!m.interior.enabled) return 'exterior';
+  if (group === 'frente') return 'exterior';
+  if (group === 'interior') return 'interior';
+  return m.interior.body;
+}
+
+/** Material efectivo de la placa exterior o interior (el resto de los datos se comparte). */
+export function materialFor(m: Material, finish: Finish): Material {
+  if (finish === 'exterior' || !m.interior.enabled) return m;
+  const i = m.interior;
+  return { ...m, brand: i.brand, boardType: i.boardType, color: i.color, boardLength: i.boardLength, boardWidth: i.boardWidth, hasGrain: i.hasGrain };
 }

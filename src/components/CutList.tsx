@@ -22,7 +22,7 @@ export function EdgeIcon({ piece, size = 34 }: { piece: Piece; size?: number }) 
   );
 }
 
-function PieceTable({ plan, unit }: { plan: MaterialPlan; unit: ShelfUnit }) {
+function PieceTable({ plan }: { plan: MaterialPlan }) {
   const isMel = plan.pieces[0]?.material === 'melamina';
   return (
     <>
@@ -54,7 +54,7 @@ function PieceTable({ plan, unit }: { plan: MaterialPlan; unit: ShelfUnit }) {
           </thead>
           <tbody>
             {plan.pieces.map((p) => {
-              const size = cutSize(p, unit.material);
+              const size = cutSize(p, plan.material);
               const adjusted = size.length !== p.length || size.width !== p.width;
               return (
                 <tr key={p.code}>
@@ -123,8 +123,10 @@ export function CutList({ unit, summary, pieces, notify }: Props) {
           </>
         )}
       </div>
-      <PieceTable plan={summary.melamina} unit={unit} />
-      {summary.fondo && <PieceTable plan={summary.fondo} unit={unit} />}
+      {summary.boards.map((b) => (
+        <PieceTable key={b.label} plan={b} />
+      ))}
+      {summary.fondo && <PieceTable plan={summary.fondo} />}
       {summary.edgeMeters > 0 && (
         <p className="field-hint" style={{ margin: '14px 0 0' }}>
           El tapacanto naranja del dibujito marca qué lados van cubiertos. Total: {num(summary.edgeMeters, 1)} m de tapacanto de {mm(m.edgeWidth)} mm.

@@ -65,18 +65,21 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   const color = m.color.trim();
 
   // --- Placas y cortes ---
-  const boards = summary.melamina.pack.sheets.length;
+  const melSheets = summary.boards.reduce((n, b) => n + b.pack.sheets.length, 0);
   const backBoards = summary.fondo?.pack.sheets.length ?? 0;
-  add({
-    key: boardKey(m),
-    category: 'placas',
-    // "Placa de melamina Egger Blanco 18 mm", "Placa de MDF crudo Faplac 18 mm".
-    name: `Placa de ${boardLabel(m).replace(/^(Melamina|Aglomerado)/, (w) => w.toLowerCase())}`,
-    qty: boards,
-    unit: 'placa',
-    note: `${summary.melamina.boardLabel} · aprovechamiento ${Math.round(summary.melamina.pack.efficiency * 100)} %`,
-    defaultOn: true,
-  });
+  for (const plan of summary.boards) {
+    const pm = plan.material;
+    add({
+      key: boardKey(pm),
+      category: 'placas',
+      // "Placa de melamina Egger Blanco 18 mm", "Placa de MDF crudo Faplac 18 mm".
+      name: `Placa de ${boardLabel(pm).replace(/^(Melamina|Aglomerado)/, (w) => w.toLowerCase())}${summary.interior ? (plan.finish === 'interior' ? ' (interior)' : ' (exterior)') : ''}`,
+      qty: plan.pack.sheets.length,
+      unit: 'placa',
+      note: `${plan.boardLabel} · aprovechamiento ${Math.round(plan.pack.efficiency * 100)} %`,
+      defaultOn: true,
+    });
+  }
   if (summary.fondo) {
     add({
       key: backBoardKey(m),
@@ -92,23 +95,31 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     key: CUT_KEY,
     category: 'placas',
     name: 'Servicio de corte en seccionadora',
-    qty: boards + backBoards,
+    qty: melSheets + backBoards,
     unit: 'placa',
     note: 'Pedilo con la lista de cortes de la pestaña Despiece',
     defaultOn: true,
   });
-  add({
-    key: edgeKey(m),
-    category: 'placas',
-    name: `Tapacanto ${color} ${mm(m.edgeWidth)} × ${num(m.edgeThickness)} mm`.replace(/\s+/g, ' '),
-    qty: summary.edgeToBuy,
-    unit: 'm',
-    note: isRawBoard(m)
-      ? 'Opcional en placa cruda: si la vas a pintar, los cantos se masillan y lijan'
-      : `${num(summary.edgeMeters, 1)} m justos + 10 % para recortes`,
-    defaultOn: !isRawBoard(m),
-    optional: isRawBoard(m),
-  });
+  // Un tapacanto por color (si el interior es del mismo color, se suman en un solo ítem).
+  const edges = new Map<string, { m: Material; meters: number }>();
+  for (const plan of summary.boards) {
+    const k = edgeKey(plan.material);
+    const prev = edges.get(k);
+    edges.set(k, { m: plan.material, meters: (prev?.meters ?? 0) + plan.edgeMeters });
+  }
+  for (const [key, { m: em, meters }] of edges) {
+    if (meters <= 0) continue;
+    add({
+      key,
+      category: 'placas',
+      name: `Tapacanto ${em.color.trim()} ${mm(m.edgeWidth)} × ${num(m.edgeThickness)} mm`.replace(/\s+/g, ' '),
+      qty: Math.ceil(meters * 1.1),
+      unit: 'm',
+      note: isRawBoard(em) ? 'Opcional en placa cruda: si la vas a pintar, los cantos se masillan y lijan' : `${num(meters, 1)} m justos + 10 % para recortes`,
+      defaultOn: !isRawBoard(em),
+      optional: isRawBoard(em),
+    });
+  }
   add({
     key: 'pegado-tapacanto',
     category: 'placas',

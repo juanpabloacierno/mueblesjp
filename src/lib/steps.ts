@@ -39,14 +39,17 @@ export function buildSteps(unit: ShelfUnit, result: ShelfUnitResult, summary: Su
     });
   }
 
-  const boards = summary.melamina.pack.sheets.length;
+  const boards = summary.boards.reduce((n, b) => n + b.pack.sheets.length, 0);
   const backBoards = summary.fondo?.pack.sheets.length ?? 0;
+  const colors = summary.interior
+    ? ` (${summary.melamina.pack.sheets.length} ${summary.melamina.material.color} por fuera y ${summary.interior.pack.sheets.length} ${summary.interior.material.color} por dentro)`
+    : '';
   steps.push({
     key: 'cortes',
     title: 'Pedí los cortes',
-    detail: `Mandá la lista de la pestaña Despiece al aserradero: son ${pieces} piezas en ${boards} ${boards === 1 ? 'placa' : 'placas'} de melamina${
+    detail: `Mandá la lista de la pestaña Despiece al aserradero: son ${pieces} piezas en ${boards} ${boards === 1 ? 'placa' : 'placas'} de melamina${colors}${
       backBoards ? ` y ${backBoards} de fondo` : ''
-    }. Pedí el tapacanto pegado en los lados que marca la lista. Cuando las recibas, medí algunas piezas y escribí la letra de cada una en un canto que no se vea.`,
+    }. Pedí el tapacanto pegado en los lados que marca la lista, del color de cada pieza. Cuando las recibas, medí algunas piezas y escribí la letra de cada una en un canto que no se vea.`,
   });
 
   const marks = ['las alturas de los estantes fijos'];

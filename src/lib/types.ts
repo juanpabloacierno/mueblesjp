@@ -5,6 +5,21 @@ export type BoardType = 'melamina' | 'melamina-mdf' | 'mdf' | 'aglomerado';
 /** Placa para el fondo. */
 export type BackType = 'fondo-blanco' | 'fibrofacil';
 
+/** Placa interior: misma espesor que la exterior, otra marca, tipo, medida o color. */
+export interface InteriorBoard {
+  enabled: boolean;
+  brand: string;
+  boardType: BoardType;
+  color: string;
+  boardLength: number;
+  boardWidth: number;
+  hasGrain: boolean;
+  /** El cuerpo (laterales, techo, piso, zócalo, maletero) va con el color exterior o el interior. */
+  body: 'exterior' | 'interior';
+}
+
+export type Finish = 'exterior' | 'interior';
+
 /** Material y parámetros de corte de un mueble. */
 export interface Material {
   /** Marca de la placa del cuerpo ("Otra" = medidas cargadas a mano). */
@@ -37,6 +52,8 @@ export interface Material {
   edgeWidth: number;
   /** Restar el espesor del tapacanto a la medida de corte. */
   subtractEdge: boolean;
+  /** Color interior distinto del exterior (estantes, divisores, cajones…). */
+  interior: InteriorBoard;
 }
 
 /** Precios de la versión anterior (antes de la lista de compras). Solo para migrar. */
@@ -175,6 +192,8 @@ export interface Piece {
   width: number;
   thickness: number;
   material: PieceMaterial;
+  /** Color de la pieza de melamina; `null` en el fondo. */
+  finish: Finish | null;
   edges: Edges;
   /** La pieza se puede girar 90° en la placa. */
   canRotate: boolean;

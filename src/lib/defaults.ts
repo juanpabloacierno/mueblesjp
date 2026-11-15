@@ -19,6 +19,7 @@ export const DEFAULT_MATERIAL: Material = {
   edgeThickness: 0.45,
   edgeWidth: 22,
   subtractEdge: false,
+  interior: { enabled: false, brand: 'Egger', boardType: 'melamina', color: 'Blanco', boardLength: 2600, boardWidth: 1830, hasGrain: false, body: 'exterior' },
 };
 
 export const DEFAULT_DOORS: DoorSpec = {
@@ -295,6 +296,7 @@ export function normalizeMaterial(raw: Partial<Material> | undefined): Material 
     ...DEFAULT_MATERIAL,
     ...(legacy ? { brand: 'Otra', boardType: 'melamina' as const, backBrand: 'Genérica', backType: 'fibrofacil' as const } : {}),
     ...raw,
+    interior: { ...DEFAULT_MATERIAL.interior, ...raw.interior },
   };
 }
 

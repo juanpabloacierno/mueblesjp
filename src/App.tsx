@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BoardsView } from './components/BoardsView';
 import { CutList } from './components/CutList';
 import { PlanPanel } from './components/PlanPanel';
 import { ShelfForm, type Updater } from './components/ShelfForm';
 import { ShoppingPanel } from './components/ShoppingPanel';
 import { StepsPanel } from './components/StepsPanel';
+
+// La vista 3D (three.js) se carga recién cuando se abre la pestaña.
+const Furniture3D = lazy(() => import('./components/Furniture3D'));
 import type { CatalogBoard } from './lib/catalog';
 import { resolveUnit } from './lib/resolve';
 import { buildSteps } from './lib/steps';
@@ -17,10 +20,11 @@ import { computeShelfUnit } from './lib/shelf';
 import { loadState, parseState, saveState, type AppState } from './lib/storage';
 import type { Warning } from './lib/types';
 
-type Tab = 'medidas' | 'plano' | 'despiece' | 'placas' | 'compras' | 'armado';
+type Tab = 'medidas' | 'plano' | '3d' | 'despiece' | 'placas' | 'compras' | 'armado';
 
 const RESULT_TABS: { key: Exclude<Tab, 'medidas'>; label: string }[] = [
   { key: 'plano', label: 'Plano y espacios' },
+  { key: '3d', label: '3D' },
   { key: 'despiece', label: 'Despiece' },
   { key: 'placas', label: 'Placas' },
   { key: 'compras', label: 'Compras' },
@@ -328,12 +332,21 @@ export default function App() {
 
           {hasPieces && (
             <div className="stats">
-              <div className="stat">
-                <span className="stat-value">{summary.melamina.pack.sheets.length}</span>
-                <span className="stat-label">{summary.melamina.pack.sheets.length === 1 ? 'placa' : 'placas'}{' '}
-                  {built.material.boardType === 'mdf' ? 'de MDF' : built.material.boardType === 'aglomerado' ? 'de aglomerado' : 'de melamina'}
-                </span>
-              </div>
+              {summary.boards.map((b) => (
+                <div className="stat" key={b.label}>
+                  <span className="stat-value">{b.pack.sheets.length}</span>
+                  <span className="stat-label">
+                    {b.pack.sheets.length === 1 ? 'placa' : 'placas'}{' '}
+                    {summary.interior
+                      ? `${b.finish === 'interior' ? 'interior' : 'exterior'} (${b.material.color})`
+                      : b.material.boardType === 'mdf'
+                        ? 'de MDF'
+                        : b.material.boardType === 'aglomerado'
+                          ? 'de aglomerado'
+                          : 'de melamina'}
+                  </span>
+                </div>
+              ))}
               {summary.fondo && (
                 <div className="stat">
                   <span className="stat-value">{summary.fondo.pack.sheets.length}</span>
@@ -389,6 +402,16 @@ export default function App() {
 
           <div className={`tab-panel ${activeResultTab === 'plano' ? '' : 'is-inactive'}`} role="tabpanel">
             {hasPieces ? <PlanPanel unit={built} result={result} /> : <p className="empty-note">Corregí los errores de arriba para ver el plano.</p>}
+          </div>
+          <div className={`tab-panel no-print ${activeResultTab === '3d' ? '' : 'is-inactive'}`} role="tabpanel">
+            {activeResultTab === '3d' &&
+              (hasPieces ? (
+                <Suspense fallback={<p className="empty-note">Cargando la vista 3D…</p>}>
+                  <Furniture3D unit={built} result={result} />
+                </Suspense>
+              ) : (
+                <p className="empty-note">Corregí los errores de arriba para ver el mueble en 3D.</p>
+              ))}
           </div>
           <div className={`tab-panel ${activeResultTab === 'despiece' ? '' : 'is-inactive'}`} role="tabpanel">
             <CutList unit={built} summary={summary} pieces={result.pieces} notify={notify} />

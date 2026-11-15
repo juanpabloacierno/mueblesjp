@@ -257,7 +257,7 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
 
       <Section title="Placas">
         <div className="subcard">
-          <h3>Placa del mueble</h3>
+          <h3>{m.interior.enabled ? 'Color exterior' : 'Placa del mueble'}</h3>
           <BoardPicker
             role="cuerpo"
             material={m}
@@ -266,6 +266,49 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
             onSaveCustom={onSaveBoard}
             onRemoveCustom={onRemoveBoard}
           />
+        </div>
+        <div className="subcard">
+          <h3>Color interior</h3>
+          <Switch
+            id="f-int"
+            label="El interior va de otro color"
+            checked={m.interior.enabled}
+            onChange={(v) =>
+              update((d) => {
+                d.material.interior.enabled = v;
+                // Por defecto el interior blanco y el cuerpo según si se ve: en un empotrado no se ve.
+                if (v) d.material.interior.body = d.niche.enabled ? 'interior' : 'exterior';
+              })
+            }
+          />
+          {m.interior.enabled ? (
+            <>
+              <BoardPicker
+                role="interior"
+                material={m}
+                custom={customBoards}
+                change={(fn) => update((d) => fn(d.material))}
+                onSaveCustom={onSaveBoard}
+                onRemoveCustom={onRemoveBoard}
+              />
+              <Segmented
+                label="Laterales, techo, piso y zócalo"
+                value={m.interior.body}
+                onChange={(v) => update((d) => void (d.material.interior.body = v))}
+                options={[
+                  { value: 'exterior', label: 'Color exterior' },
+                  { value: 'interior', label: 'Color interior' },
+                ]}
+                hint={
+                  m.interior.body === 'exterior'
+                    ? 'Puertas, frentes de cajón y la caja van con el color exterior; estantes, divisores y cajones, con el interior.'
+                    : 'Solo puertas y frentes de cajón van con el color exterior: ideal para un empotrado, donde la caja no se ve.'
+                }
+              />
+            </>
+          ) : (
+            <span className="field-hint">Por ejemplo, frentes en Roble y todo el interior en Blanco.</span>
+          )}
         </div>
         <div className="subcard">
           <h3>Placa del fondo</h3>

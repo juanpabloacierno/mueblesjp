@@ -15,6 +15,7 @@ import type {
   RodResult,
   ShoeRackResult,
   DoorsResult,
+  DrawerSizing,
   Edges,
   FastenerCounts,
   Finish,
@@ -24,6 +25,7 @@ import type {
   ShelfPosition,
   ShelfUnit,
   ShelfUnitResult,
+  SlideType,
   Warning,
 } from './types';
 
@@ -69,41 +71,117 @@ const EMPTY_DOORS: DoorsResult = { doors: [], extraDepth: 0, swing: 0, hingeCoun
 
 /** Largos comerciales de correderas telescópicas. */
 export const SLIDE_LENGTHS = [250, 300, 350, 400, 450, 500, 550, 600];
+/** Largos comerciales de correderas de rodillos. */
+export const ROLLER_LENGTHS = [250, 300, 350, 400, 450, 500, 550];
 /** Luz entre frentes de cajón. */
 export const DRAWER_GAP = 3;
-/** Lugar que ocupa cada corredera telescópica a cada lado de la caja. */
+/** Lugar que ocupa cada corredera (telescópica o de rodillos) a cada lado de la caja. */
 export const SLIDE_SPACE = 13;
 /** Distancia del centro del barral al techo del hueco. */
 export const ROD_DROP = 50;
 /** Profundidad libre mínima para colgar perchas. */
 export const HANGING_DEPTH = 520;
 
-/** Cajones dentro de un hueco: frentes embutidos con 3 mm de luz y correderas telescópicas. */
-export function layoutDrawers(column: number, x: number, width: number, bottom: number, height: number, depth: number, count: number, t: number): DrawerResult | string {
-  const n = Math.max(1, Math.floor(count));
-  const frontH = Math.floor((height - (n + 1) * DRAWER_GAP) / n);
-  if (frontH < 80) return tr(
-      `${n} cajones en un hueco de ${mm(height)} mm quedan de ${mm(frontH)} mm de alto: usa menos cajones o un hueco más alto.`,
-      `${n} drawers in a ${mm(height)} mm compartment end up ${mm(frontH)} mm high: use fewer drawers or a taller compartment.`,
+export function slideLengths(type: SlideType): number[] {
+  return type === 'rodillo' ? ROLLER_LENGTHS : SLIDE_LENGTHS;
+}
+
+/** Reparte un alto entre `n` cajones, de abajo hacia arriba. Escalonados: cada uno 25 % más alto que el de arriba. */
+export function splitDrawerHeights(total: number, n: number, sizing: DrawerSizing): number[] {
+  if (sizing !== 'escalonados') return Array.from({ length: n }, () => Math.floor(total / n));
+  const weights = Array.from({ length: n }, (_, i) => 1 + 0.25 * (n - 1 - i));
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const hs = weights.map((w) => Math.floor((total * w) / sum));
+  hs[0] += Math.floor(total - hs.reduce((a, b) => a + b, 0));
+  return hs;
+}
+
+export interface DrawerLayoutInput {
+  column: number;
+  compartment: number;
+  /** Luz del hueco: borde izquierdo, ancho, piso y alto. */
+  x: number;
+  width: number;
+  bottom: number;
+  height: number;
+  /** Profundidad útil del hueco. */
+  depth: number;
+  count: number;
+  sizing: DrawerSizing;
+  t: number;
+  slideType: SlideType;
+  /** Frentes superpuestos: hasta dónde llegan (tapan los cantos). `null` = embutidos. */
+  overlay: { left: number; right: number; bottom: number; top: number } | null;
+}
+
+/**
+ * Cajones dentro de un hueco: frentes embutidos (con 3 mm de luz dentro del hueco) o superpuestos
+ * (tapan los cantos, como las puertas superpuestas), alturas iguales o escalonadas, y correderas.
+ * Las cajas siempre van dentro del hueco, una por "lugar" del reparto embutido.
+ */
+export function layoutDrawers(p: DrawerLayoutInput): DrawerResult | string {
+  const { t, overlay } = p;
+  const n = Math.max(1, Math.floor(p.count));
+  const g = DRAWER_GAP;
+  // Lugares dentro del hueco (son los frentes si van embutidos).
+  const inner = splitDrawerHeights(p.height - (n + 1) * g, n, p.sizing);
+  const innerBottoms: number[] = [];
+  let y = p.bottom + g;
+  for (const h of inner) {
+    innerBottoms.push(y);
+    y += h + g;
+  }
+  let frontHs = inner;
+  let fronts = innerBottoms;
+  let frontW = p.width - 2 * g;
+  let x = p.x + g;
+  if (overlay) {
+    frontHs = splitDrawerHeights(overlay.top - overlay.bottom - n * g, n, p.sizing);
+    fronts = [];
+    let fy = overlay.bottom + g / 2;
+    for (const h of frontHs) {
+      fronts.push(fy);
+      fy += h + g;
+    }
+    frontW = Math.floor(overlay.right - overlay.left - g);
+    x = overlay.left + g / 2;
+  }
+  const smallest = Math.min(...inner);
+  if (smallest < 80) {
+    return tr(
+      `${n} cajones en un hueco de ${mm(p.height)} mm quedan de ${mm(smallest)} mm de alto: usa menos cajones o un hueco más alto.`,
+      `${n} drawers in a ${mm(p.height)} mm compartment end up ${mm(smallest)} mm high: use fewer drawers or a taller compartment.`,
     );
-  const slide = [...SLIDE_LENGTHS].reverse().find((l) => l <= depth - t - 10);
-  if (!slide) return tr(
-      `no hay profundidad para correderas (${mm(depth)} mm libres; la más corta pide ${SLIDE_LENGTHS[0] + t + 10} mm).`,
-      `there is not enough depth for drawer slides (${mm(depth)} mm free; the shortest needs ${SLIDE_LENGTHS[0] + t + 10} mm).`,
+  }
+  // El frente superpuesto va por delante del mueble: la caja puede ser más larga.
+  const lengths = slideLengths(p.slideType);
+  const room = p.depth - (overlay ? 0 : t) - 10;
+  const slide = [...lengths].reverse().find((l) => l <= room);
+  if (!slide) {
+    return tr(
+      `no hay profundidad para correderas (${mm(p.depth)} mm libres; la más corta pide ${lengths[0] + (overlay ? 0 : t) + 10} mm).`,
+      `there is not enough depth for drawer slides (${mm(p.depth)} mm free; the shortest needs ${lengths[0] + (overlay ? 0 : t) + 10} mm).`,
     );
-  const boxH = Math.min(250, Math.max(60, Math.floor((frontH - 30) / 10) * 10));
-  const fronts = Array.from({ length: n }, (_, i) => bottom + DRAWER_GAP + i * (frontH + DRAWER_GAP));
+  }
+  const boxHs = inner.map((h) => Math.min(250, Math.max(60, Math.floor((h - 30) / 10) * 10)));
+  const boxBottoms = innerBottoms.map((b) => b + 10);
   return {
-    column,
+    column: p.column,
+    compartment: p.compartment,
     count: n,
-    frontW: width - 2 * DRAWER_GAP,
-    frontH,
+    overlay: !!overlay,
+    frontW,
+    frontH: Math.max(...frontHs),
+    frontHs,
     fronts,
-    x: x + DRAWER_GAP,
-    boxW: width - 2 * SLIDE_SPACE,
-    boxH,
+    x,
+    boxW: p.width - 2 * SLIDE_SPACE,
+    boxH: Math.max(...boxHs),
+    boxHs,
+    boxBottoms,
     slide,
-    slideCenters: fronts.map((f) => Math.round(f + 10 + boxH / 2)),
+    slideType: p.slideType,
+    slideCenters: boxBottoms.map((b, i) => Math.round(b + boxHs[i] / 2)),
   };
 }
 const EMPTY_COUNTS: FastenerCounts = { screwsPerJoint: 0, joints: 0, screws: 0, visibleScrews: 0, shelfPins: 0, backNails: 0 };
@@ -222,6 +300,14 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   const columns: ColumnResult[] = [];
   const dividers: DividerPosition[] = [];
   const insetDoorRecess = t + 2;
+  // Hueco con una puerta delante (sus cajones van embutidos).
+  const behindDoor = (i: number, j: number) => {
+    const ds = unit.doors;
+    if (ds.type === 'ninguna') return false;
+    if (ds.type === 'corrediza') return true;
+    if (!(ds.columns[i] ?? true)) return false;
+    return ds.upToShelf === null || j < ds.upToShelf;
+  };
   // Faldón: solo con huecos para las piernas; nunca más alto que el espacio bajo la tapa.
   const modestyH = hasKnee && unit.modesty?.enabled ? Math.max(0, Math.min(unit.modesty.height, columnsTop)) : 0;
   if (modestyH > 0 && modestyH > columnsTop - 100) {
@@ -291,7 +377,30 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         const rodY = bottom + g - ROD_DROP;
         comp.rod = { column: i, y: rodY, length: widths[i] - 2, hanging: rodY - bottom, supports: widths[i] > 1000 ? 3 : 2 };
       } else if (fill?.kind === 'cajones') {
-        const d = layoutDrawers(i, x, widths[i], bottom, g, depth, fill.count, t);
+        // Superpuestos solo si no hay una puerta delante; si no, van embutidos.
+        const overlay =
+          unit.drawers.front === 'superpuesto' && !behindDoor(i, j)
+            ? {
+                left: x - (i === 0 ? t : t / 2),
+                right: x + widths[i] + (i === n - 1 ? t : t / 2),
+                bottom: j === 0 ? zh : bottom - t / 2,
+                top: j === k ? (maleteroShelfBottom !== null ? maleteroShelfBottom + t / 2 : unit.top === 'entre' ? H : H - t) : bottom + g + t / 2,
+              }
+            : null;
+        const d = layoutDrawers({
+          column: i,
+          compartment: j,
+          x,
+          width: widths[i],
+          bottom,
+          height: g,
+          depth,
+          count: fill.count,
+          sizing: fill.sizing ?? 'iguales',
+          t,
+          slideType: unit.drawers.slide,
+          overlay,
+        });
         if (typeof d === 'string') warnings.push({ level: 'aviso', text: `${label}${d}` });
         else comp.drawers = d;
       } else if (fill?.kind === 'zapatero') {
@@ -333,6 +442,32 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   const doorCalc = computeDoors({ unit, columns, baseY, topY, zh, interiorWidth, maleteroShelfBottom });
   warnings.push(...doorCalc.warnings);
   const doors = doorCalc.result;
+  // Los frentes de cajón superpuestos suman su espesor por delante, como las puertas superpuestas.
+  if (columns.some((c) => c.compartments.some((cp) => cp.drawers?.overlay))) doors.extraDepth = Math.max(doors.extraDepth, t);
+  // Ranura del fondo de los cajones.
+  const ds = unit.drawers;
+  const anyDrawers = columns.some((c) => c.compartments.some((cp) => cp.drawers));
+  if (anyDrawers && ds.bottom === 'ranura') {
+    if (ds.grooveDepth < 4 || ds.grooveDepth >= t) {
+      warnings.push({
+        level: 'aviso',
+        text: tr(
+          `La ranura de ${mm(ds.grooveDepth)} mm para el fondo de los cajones no sirve con melamina de ${mm(t)} mm: usa de 6 a 10 mm.`,
+          `A ${mm(ds.grooveDepth)} mm groove for the drawer bottoms does not work with ${mm(t)} mm melamine: use 6 to 10 mm.`,
+        ),
+      });
+    }
+    const lowest = Math.min(...columns.flatMap((c) => c.compartments.flatMap((cp) => cp.drawers?.boxHs ?? [])));
+    if (lowest < ds.grooveOffset + tb + 30) {
+      warnings.push({
+        level: 'aviso',
+        text: tr(
+          `La caja de cajón más baja mide ${mm(lowest)} mm: con la ranura a ${mm(ds.grooveOffset)} mm del canto casi no queda lugar adentro. Baja la ranura o usa menos cajones.`,
+          `The lowest drawer box is ${mm(lowest)} mm high: with the groove ${mm(ds.grooveOffset)} mm up there is hardly any room inside. Lower the groove or use fewer drawers.`,
+        ),
+      });
+    }
+  }
 
   // --- Piezas ---
   const raw: RawPiece[] = [];
@@ -430,28 +565,47 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       const d = comp.drawers;
       if (!d) continue;
       const cols = [col.index + 1];
-      add({ name: 'Frente de cajón', qty: d.count, length: d.frontW, width: d.frontH, edges: { long: 2, short: 2 }, cols });
-      add({ name: 'Lateral de cajón', qty: d.count * 2, length: d.slide, width: d.boxH, edges: { long: 1, short: 0 }, notes: [tr('Tapacanto en el canto de arriba', 'Edge banding on the top edge')], cols });
-      add({
-        name: 'Frente y contrafrente de cajón',
-        qty: d.count * 2,
-        length: d.boxW - 2 * t,
-        width: d.boxH,
-        edges: { long: 1, short: 0 },
-        notes: [tr('Van entre los laterales de la caja', 'Fit between the drawer box sides')],
-        cols,
-      });
+      const groove = ds.bottom === 'ranura';
+      const gIn = ds.grooveDepth - 1;
+      const grooveNote = tr(
+        `Ranura de ${mm(tb + 1)} × ${mm(ds.grooveDepth)} mm a ${mm(ds.grooveOffset)} mm del canto de abajo, para el fondo`,
+        `${mm(tb + 1)} × ${mm(ds.grooveDepth)} mm groove ${mm(ds.grooveOffset)} mm above the bottom edge, for the bottom panel`,
+      );
+      const frontNotes = d.overlay ? [tr('Superpuesto: tapa los cantos del mueble', 'Overlay: covers the edges of the unit')] : [];
+      for (const h of d.frontHs) add({ name: 'Frente de cajón', qty: 1, length: d.frontW, width: h, edges: { long: 2, short: 2 }, notes: frontNotes, cols });
+      for (const h of d.boxHs) {
+        add({
+          name: 'Lateral de cajón',
+          qty: 2,
+          length: d.slide,
+          width: h,
+          edges: { long: 1, short: 0 },
+          notes: [tr('Tapacanto en el canto de arriba', 'Edge banding on the top edge'), ...(groove ? [grooveNote] : [])],
+          cols,
+        });
+      }
+      for (const h of d.boxHs) {
+        add({
+          name: 'Frente y contrafrente de cajón',
+          qty: 2,
+          length: d.boxW - 2 * t,
+          width: h,
+          edges: { long: 1, short: 0 },
+          notes: [tr('Van entre los laterales de la caja', 'Fit between the drawer box sides'), ...(groove ? [grooveNote] : [])],
+          cols,
+        });
+      }
       raw.push({
         name: 'Fondo de cajón',
         qty: d.count,
-        length: d.slide,
-        width: d.boxW,
+        length: groove ? d.slide - 2 * t + 2 * gIn : d.slide,
+        width: groove ? d.boxW - 2 * t + 2 * gIn : d.boxW,
         thickness: tb,
         material: 'fondo',
         finish: null,
         edges: { long: 0, short: 0 },
         canRotate: true,
-        notes: [tr('Clavado abajo de la caja', 'Nailed under the box')],
+        notes: [groove ? tr(`Va en la ranura: entra ${mm(gIn)} mm de cada lado`, `Sits in the groove: ${mm(gIn)} mm in on each side`) : tr('Clavado abajo de la caja', 'Nailed under the box')],
         cols,
       });
     }
@@ -940,7 +1094,7 @@ function countFasteners(
       backNails += Math.ceil((2 * (right - left + unit.height)) / 150 + inner / 200);
     }
   }
-  // Fondos de cajón clavados cada 10 cm.
-  backNails += drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);
+  // Fondos de cajón clavados cada 10 cm (en ranura no llevan clavos).
+  if (unit.drawers.bottom !== 'ranura') backNails += drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);
   return { screwsPerJoint: spj, joints: joints + plinthPieces * 2, screws, visibleScrews, shelfPins: (movable + flatShoeShelves) * 4, backNails };
 }

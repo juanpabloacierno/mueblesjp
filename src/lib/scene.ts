@@ -117,14 +117,20 @@ export function buildScene(input: ShelfUnit, r: ShelfUnitResult): SceneBox[] {
       }
       if (c.drawers) {
         const d = c.drawers;
-        for (const fy of d.fronts) {
-          const pull = d.slide * 0.75;
-          add({ name: 'Frente de cajón', finish: fin('Frente de cajón'), x: d.x, y: fy, z: front - t, w: d.frontW, h: d.frontH, d: t, pullZ: pull });
-          add({ name: 'Lateral de cajón', finish: fin('Lateral de cajón'), x: col.x + 13, y: fy + 10, z: front - t - d.slide, w: d.boxW, h: d.boxH, d: d.slide, pullZ: pull });
+        const pull = d.slide * 0.75;
+        // Superpuestos: el frente va por delante del mueble y la caja termina en el frente del hueco.
+        const zFront = d.overlay ? D : front - t;
+        const zBox = d.overlay ? front - d.slide : front - t - d.slide;
+        d.fronts.forEach((fy, i) => {
+          const fh = d.frontHs[i] ?? d.frontH;
+          const bh = d.boxHs[i] ?? d.boxH;
+          const by = d.boxBottoms[i] ?? fy + 10;
+          add({ name: 'Frente de cajón', finish: fin('Frente de cajón'), x: d.x, y: fy, z: zFront, w: d.frontW, h: fh, d: t, pullZ: pull });
+          add({ name: 'Lateral de cajón', finish: fin('Lateral de cajón'), x: col.x + 13, y: by, z: zBox, w: d.boxW, h: bh, d: d.slide, pullZ: pull });
           const hw = Math.min(128, d.frontW * 0.3);
-          // Tirador de perfil bajo: detrás de corredizas no hay lugar para uno saliente.
-          add({ name: 'Tirador', finish: 'metal', x: d.x + d.frontW / 2 - hw / 2, y: fy + d.frontH - 40, z: front, w: hw, h: 12, d: r.frontInset ? 4 : 22, pullZ: pull });
-        }
+          // Tirador centrado y cerca del borde de arriba; detrás de corredizas, de perfil bajo.
+          add({ name: 'Tirador', finish: 'metal', x: d.x + d.frontW / 2 - hw / 2, y: fy + fh - 40, z: zFront + t, w: hw, h: 12, d: r.frontInset ? 4 : 22, pullZ: pull });
+        });
       }
       if (c.shoes) {
         const z = c.shoes;

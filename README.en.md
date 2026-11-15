@@ -36,6 +36,10 @@ Enter the size of the unit (or of the alcove, if it is built in) and the app giv
   quickly (long hanging, double hanging, short hanging + shoe rack, drawers + shelves…). It
   warns you when there is not enough height or depth to hang clothes and when the
   assembled unit cannot be stood up inside the alcove.
+- **Custom drawers**: in the *Drawers* section you choose for the whole unit the drawer
+  bottom (nailed under or in a groove), the fronts (inset or overlay) and the slides
+  (full-extension, soft-close or roller); in each compartment, the number of drawers and
+  whether they are equal or graduated (taller at the bottom).
 - **Shopping list**: everything you may need, grouped into boards and cutting, hardware,
   screws and fixings, supplies and tools. The essentials come checked; optional items
   (cam locks, dowels, soft-close dampers, tools…) are checked by hand. Enter each item's
@@ -89,8 +93,11 @@ All measurements are in millimeters.
 | Built-in unit | Alcove − 5 mm per side, − 20 mm at the top, − 10 mm at the back |
 | Top storage shelf | Width − 2 thicknesses; columns and dividers reach up to it |
 | Hanging rod | Clear width of the column − 2 mm, centered 50 mm below the compartment's top |
-| Drawer front | Clear width − 6 mm × (compartment height − 3 mm per gap) ÷ drawers |
-| Drawer box | Clear width − 26 mm (full-extension slides) × front − 30 mm, slide length |
+| Inset drawer front | Clear width − 6 mm × (compartment height − 3 mm per gap) ÷ drawers |
+| Overlay drawer front | Like an overlay door: covers the whole side panel and half a divider, the bottom (or half a shelf) below; covered width − 3 mm |
+| Drawer box | Clear width − 26 mm (13 mm per slide) × drawer slot − 30 mm (max. 250), slide length |
+| Nailed drawer bottom | Slide length × box width |
+| Drawer bottom in a groove | Inside of the box + 2 × (groove depth − 1 mm), both ways |
 | Slanted shoe rack | Clear width of the column × up to 330 mm run at 15° (342 mm along the slope), with a 50 mm stop |
 | Shoe rack with bars | 2 bars per level, clear width − 2 mm: front bar 60 mm from the front, back bar 200 mm further in and 70 mm higher |
 | Flat shoe rack | Shelves on pins: clear width − clearance × compartment depth |
@@ -121,6 +128,20 @@ All measurements are in millimeters.
 - Desks: the usual height is 720 to 760 mm. The knee space has no doors, and a unit with
   a knee space has no top storage or sliding doors. If every column is a knee space, the
   desk is just a top, side panels and a modesty panel.
+- Drawers:
+  - *Bottom*: nailed under the box (every 10 cm) or set in a groove in the sides, front and
+    back of the box (by default 8 mm deep, 12 mm above the bottom edge, as wide as the
+    bottom panel + 1 mm). A grooved bottom needs no nails, but the groove has to be ordered
+    from the cutting service or cut with a saw or router.
+  - *Fronts*: inset inside the compartment with a 3 mm gap, or overlay, covering the edges
+    like overlay doors and adding their thickness to the front of the unit. Drawers behind
+    a door always stay inset. With overlay fronts the box can be longer (the slide does not
+    subtract the front).
+  - *Slides*: full-extension from 250 to 600 mm, soft-close full-extension (same lengths)
+    or roller slides from 250 to 550 mm (cheaper, they do not open all the way). The longest
+    that fits is chosen, in 50 mm steps.
+  - *Heights*: equal, or graduated: each drawer adds a quarter of the top drawer's height
+    (4 drawers end up in a 1.75 : 1.5 : 1.25 : 1 ratio from bottom to top).
 - Shoe racks: levels are spread evenly in the compartment; about 200 mm per slanted level,
   180 with bars and 170 per flat row are recommended. It warns you if they are too close.
 - Defaults: Egger melamine 2600 × 1830 × 18 mm, 3 mm thin MDF back, 4 mm saw kerf, 10 mm

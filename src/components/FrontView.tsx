@@ -39,7 +39,10 @@ export const SIDE_PAD = { side: 1.2 };
 
 /** Lugar extra a la izquierda del corte lateral para dibujar puertas superpuestas. */
 export function sideExtra(unit: ShelfUnit): number {
-  return unit.doors.type === 'batiente' && unit.doors.mount === 'superpuesta' ? unit.material.thickness : 0;
+  const overlayDoors = unit.doors.type === 'batiente' && unit.doors.mount === 'superpuesta';
+  // Frentes de cajón superpuestos: también sobresalen por delante del mueble.
+  const overlayDrawers = unit.drawers?.front === 'superpuesto' && unit.columns.some((c) => c.fill?.some((f) => f?.kind === 'cajones'));
+  return overlayDoors || overlayDrawers ? unit.material.thickness : 0;
 }
 
 function DoorShape({ door, unit, fs, Y }: { door: Door; unit: ShelfUnit; fs: number; Y: (y: number) => number }) {
@@ -283,31 +286,35 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
       })}
 
       {/* Frentes de cajones */}
-      {result.drawers.flatMap((d) =>
-        d.fronts.map((fy, k) => {
+      {result.drawers.flatMap((d) => {
+        // Alturas iguales: una sola etiqueta con la cantidad; escalonadas: cada frente con su alto.
+        const equal = d.frontHs.every((h) => h === d.frontHs[0]);
+        return d.fronts.map((fy, k) => {
+          const fh = d.frontHs[k] ?? d.frontH;
           const handleW = Math.min(128, d.frontW * 0.3);
+          const showLabel = (equal ? k === 0 : true) && fh > fs * 1.8;
           return (
             <g key={`drw-${d.column}-${fy}`}>
               <rect
                 x={d.x}
-                y={Y(fy + d.frontH)}
+                y={Y(fy + fh)}
                 width={d.frontW}
-                height={d.frontH}
+                height={fh}
                 fill="var(--door)"
                 stroke="var(--panel-stroke)"
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
               />
-              <rect x={d.x + d.frontW / 2 - handleW / 2} y={Y(fy + d.frontH - 30)} width={handleW} height={12} rx={6} fill="var(--panel-stroke)" />
-              {k === 0 && d.frontH > fs * 1.8 && (
-                <text x={d.x + d.frontW / 2} y={Y(fy + d.frontH / 2) + fs * 0.25} fontSize={Math.min(fs * 0.75, d.frontH * 0.3)} textAnchor="middle" style={{ fill: 'var(--muted)' }}>
-                  {d.count} × {mm(d.frontW)} × {mm(d.frontH)}
+              <rect x={d.x + d.frontW / 2 - handleW / 2} y={Y(fy + fh - 30)} width={handleW} height={12} rx={6} fill="var(--panel-stroke)" />
+              {showLabel && (
+                <text x={d.x + d.frontW / 2} y={Y(fy + fh / 2) + fs * 0.25} fontSize={Math.min(fs * 0.75, fh * 0.3)} textAnchor="middle" style={{ fill: 'var(--muted)' }}>
+                  {equal ? `${d.count} × ${mm(d.frontW)} × ${mm(fh)}` : `${mm(d.frontW)} × ${mm(fh)}`}
                 </text>
               )}
             </g>
           );
-        }),
-      )}
+        });
+      })}
 
       {/* Zapateros */}
       {result.shoeRacks.map((z) => (
@@ -642,23 +649,30 @@ export function SideView({ unit, result, fs, scale, showDoors, column = 0 }: Pro
         }
         if (c.drawers) {
           const d = c.drawers;
+          // Superpuestos: el frente va por delante del mueble y la caja empieza en el canto.
+          const fx = d.overlay ? -t : front;
           return (
             <g key={`d${c.index}`}>
-              {d.fronts.map((fy) => (
-                <g key={fy}>
-                  <rect x={front} y={Y(fy + d.frontH)} width={t} height={d.frontH} fill="var(--door)" stroke="var(--panel-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                  <rect
-                    x={front + t}
-                    y={Y(fy + 10 + d.boxH)}
-                    width={d.slide}
-                    height={d.boxH}
-                    fill="none"
-                    stroke="var(--panel-stroke)"
-                    strokeWidth={0.8}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </g>
-              ))}
+              {d.fronts.map((fy, k) => {
+                const fh = d.frontHs[k] ?? d.frontH;
+                const bh = d.boxHs[k] ?? d.boxH;
+                const by = d.boxBottoms[k] ?? fy + 10;
+                return (
+                  <g key={fy}>
+                    <rect x={fx} y={Y(fy + fh)} width={t} height={fh} fill="var(--door)" stroke="var(--panel-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                    <rect
+                      x={fx + t}
+                      y={Y(by + bh)}
+                      width={d.slide}
+                      height={bh}
+                      fill="none"
+                      stroke="var(--panel-stroke)"
+                      strokeWidth={0.8}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </g>
+                );
+              })}
             </g>
           );
         }

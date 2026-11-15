@@ -87,6 +87,9 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   const rods = result.rods;
   const drawers = result.drawers;
   const drawerCount = drawers.reduce((n, d) => n + d.count, 0);
+  // Fondos de cajón clavados (llevan clavos) o en ranura (llevan cola y una ranura).
+  const groovedDrawers = drawerCount > 0 && unit.drawers?.bottom === 'ranura';
+  const nailedDrawers = drawerCount > 0 && !groovedDrawers;
   const shoeBars = result.shoeRacks.filter((z) => z.style === 'barras');
   // Cada nivel de zapatero con barras lleva 2 barras y 4 soportes.
   const barLengths = [...rods.map((r) => r.length), ...shoeBars.flatMap((z) => z.levels.flatMap(() => [z.width - 2, z.width - 2]))];
@@ -293,14 +296,26 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   }
   const slideCounts = new Map<number, number>();
   for (const d of drawers) slideCounts.set(d.slide, (slideCounts.get(d.slide) ?? 0) + d.count);
+  const slideType = unit.drawers?.slide ?? 'telescopica';
   for (const [length, qty] of [...slideCounts.entries()].sort((a, b) => a[0] - b[0])) {
     add({
-      key: `corredera|${length}`,
+      // Las telescópicas conservan la clave de antes (precios guardados).
+      key: slideType === 'telescopica' ? `corredera|${length}` : `corredera|${slideType}|${length}`,
       category: 'herrajes',
-      name: tr(`Correderas telescópicas de ${length} mm`, `${length} mm full-extension drawer slides`),
+      name:
+        slideType === 'cierre-suave'
+          ? tr(`Correderas telescópicas con cierre suave de ${length} mm`, `${length} mm soft-close full-extension drawer slides`)
+          : slideType === 'rodillo'
+            ? tr(`Correderas de rodillos de ${length} mm`, `${length} mm roller drawer slides`)
+            : tr(`Correderas telescópicas de ${length} mm`, `${length} mm full-extension drawer slides`),
       qty,
       unit: 'juego',
-      note: tr('Un par por cajón. Mejor con cierre suave.', 'One pair per drawer. Soft-close is best.'),
+      note:
+        slideType === 'telescopica'
+          ? tr('Un par por cajón. Mejor con cierre suave.', 'One pair per drawer. Soft-close is best.')
+          : slideType === 'rodillo'
+            ? tr('Un par por cajón. Las más económicas; no salen del todo.', 'One pair per drawer. The cheapest kind; they do not extend fully.')
+            : tr('Un par por cajón.', 'One pair per drawer.'),
       defaultOn: true,
     });
   }
@@ -395,12 +410,12 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: 'clavo-fondo',
     category: 'fijaciones',
-    name: drawerCount
+    name: nailedDrawers
       ? tr('Clavos de 1" o grapas para fondos', '1" nails or staples for back panels and drawer bottoms')
       : tr('Clavos de 1" o grapas para el fondo', '1" nails or staples for the back panel'),
     qty: c.backNails,
     unit: 'u',
-    note: drawerCount
+    note: nailedDrawers
       ? tr('Fondo del mueble cada 15 cm y fondos de cajón cada 10 cm', 'Unit back panel every 15 cm and drawer bottoms every 10 cm')
       : tr('Cada 15 cm en el borde, sobre estantes fijos y divisores', 'Every 15 cm along the edge, over fixed shelves and dividers'),
     defaultOn: true,
@@ -466,11 +481,15 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     qty: 1,
     unit: 'u',
     note:
-      unit.back.mode === 'ranurado'
-        ? tr('Para la ranura del fondo y las espigas', 'For the back panel groove and the dowels')
-        : tr('Para espigas o refuerzos', 'For dowels or reinforcement'),
-    defaultOn: unit.back.mode === 'ranurado',
-    optional: unit.back.mode !== 'ranurado',
+      unit.back.mode === 'ranurado' && groovedDrawers
+        ? tr('Para la ranura del fondo, los fondos de cajón y las espigas', 'For the back panel groove, the drawer bottoms and the dowels')
+        : unit.back.mode === 'ranurado'
+          ? tr('Para la ranura del fondo y las espigas', 'For the back panel groove and the dowels')
+          : groovedDrawers
+            ? tr('Un hilo en la ranura de los fondos de cajón', 'A bead in the drawer bottom grooves')
+            : tr('Para espigas o refuerzos', 'For dowels or reinforcement'),
+    defaultOn: unit.back.mode === 'ranurado' || groovedDrawers,
+    optional: unit.back.mode !== 'ranurado' && !groovedDrawers,
   });
   const extra = (key: string, name: string, note: string, qty = 1) => add({ key, category: 'insumos', name, qty, unit: 'u', note, defaultOn: false, optional: true });
   extra('cola-contacto', tr('Cola de contacto', 'Contact cement'), tr('Si pegas tapacanto común a mano', 'If you apply plain edge banding by hand'));
@@ -497,6 +516,15 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
       'plantilla-pernos',
       tr('Broca de 5 mm con tope + plantilla para pernos', '5 mm drill bit with depth stop + shelf pin jig'),
       tr('Para los agujeros de los estantes móviles', 'For the adjustable shelf holes'),
+    );
+  }
+  if (unit.back.mode === 'ranurado' || groovedDrawers) {
+    tool(
+      'fresadora-ranura',
+      tr('Fresadora o sierra de mesa para ranurar', 'Router or table saw for grooves'),
+      groovedDrawers
+        ? tr('Si el centro de corte no hace la ranura del fondo y de los cajones', "If the cutting shop doesn't cut the back and drawer grooves")
+        : tr('Si el centro de corte no hace la ranura del fondo', "If the cutting shop doesn't cut the back panel groove"),
     );
   }
   tool('refilador-tapacanto', tr('Refilador de tapacanto', 'Edge banding trimmer'), tr('Si pegas el tapacanto tú mismo', 'If you apply the edge banding yourself'));

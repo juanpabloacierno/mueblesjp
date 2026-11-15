@@ -1,6 +1,6 @@
 import { newId } from './format';
 import { tr } from './i18n';
-import type { ColumnSpec, DoorSpec, FurnitureKind, MaleteroSpec, Material, ModestySpec, NicheSpec, ShelfUnit } from './types';
+import type { ColumnSpec, DoorSpec, DrawerSpec, FurnitureKind, MaleteroSpec, Material, ModestySpec, NicheSpec, ShelfUnit } from './types';
 
 export const DEFAULT_MATERIAL: Material = {
   brand: 'Egger',
@@ -39,6 +39,7 @@ export const DEFAULT_DOORS: DoorSpec = {
 export const DEFAULT_NICHE: NicheSpec = { enabled: false, width: 1800, height: 2400, depth: 600, sideGap: 5, topGap: 20, backGap: 10 };
 export const DEFAULT_MALETERO: MaleteroSpec = { enabled: false, height: 400, dividers: false };
 export const DEFAULT_MODESTY: ModestySpec = { enabled: true, height: 350 };
+export const DEFAULT_DRAWERS: DrawerSpec = { bottom: 'clavado', grooveDepth: 8, grooveOffset: 12, front: 'embutido', slide: 'telescopica' };
 
 export function column(
   shelves: number,
@@ -57,8 +58,9 @@ export function knee(width: number | null = null): ColumnSpec {
 
 type PresetUnit = Omit<
   ShelfUnit,
-  'id' | 'material' | 'updatedAt' | 'kind' | 'movableClearance' | 'shelfSetback' | 'shopping' | 'progress' | 'doors' | 'niche' | 'maletero' | 'modesty'
+  'id' | 'material' | 'updatedAt' | 'kind' | 'movableClearance' | 'shelfSetback' | 'shopping' | 'progress' | 'doors' | 'niche' | 'maletero' | 'modesty' | 'drawers'
 > & {
+  drawers?: Partial<DrawerSpec>;
   kind?: FurnitureKind;
   doors?: Partial<DoorSpec>;
   niche?: Partial<NicheSpec>;
@@ -279,6 +281,7 @@ export const PRESETS: Preset[] = [
       back: CLAVADO,
       sameShelves: false,
       columns: [column(0, 'fijo', null, [], [CAJONES_3])],
+      drawers: { front: 'superpuesto' },
     },
   }),
   preset({
@@ -543,13 +546,14 @@ export const PRESETS: Preset[] = [
       back: CLAVADO,
       sameShelves: false,
       columns: [column(1, 'fijo', null, [null, 280], [null, { kind: 'cajones', count: 2 }])],
+      drawers: { front: 'superpuesto' },
     },
   }),
   preset({
     key: 'comoda',
     group: 'dormitorio',
     label: ['Cómoda', 'Chest of drawers'],
-    description: ['80 × 90 cm, 4 cajones', '80 × 90 cm, 4 drawers'],
+    description: ['80 × 90 cm, 4 cajones escalonados', '80 × 90 cm, 4 graduated drawers'],
     name: ['Cómoda', 'Chest of drawers'],
     unit: {
       width: 800,
@@ -559,13 +563,14 @@ export const PRESETS: Preset[] = [
       plinth: { enabled: true, height: 80, setback: 20 },
       back: CLAVADO,
       sameShelves: false,
-      columns: [column(0, 'fijo', null, [], [{ kind: 'cajones', count: 4 }])],
+      columns: [column(0, 'fijo', null, [], [{ kind: 'cajones', count: 4, sizing: 'escalonados' }])],
+      drawers: { front: 'superpuesto' },
     },
   }),
 ];
 
 export function createFromPreset(preset: Preset, material: Material = DEFAULT_MATERIAL): ShelfUnit {
-  const { doors, niche, maletero, modesty, kind, ...rest } = structuredClone(preset.unit);
+  const { doors, niche, maletero, modesty, drawers, kind, ...rest } = structuredClone(preset.unit);
   return {
     id: newId(),
     ...rest,
@@ -576,6 +581,7 @@ export function createFromPreset(preset: Preset, material: Material = DEFAULT_MA
     niche: { ...DEFAULT_NICHE, ...niche },
     maletero: { ...DEFAULT_MALETERO, ...maletero },
     modesty: { ...DEFAULT_MODESTY, ...modesty },
+    drawers: { ...DEFAULT_DRAWERS, ...drawers },
     material: { ...material },
     shopping: {},
     progress: {},
@@ -611,6 +617,7 @@ export function normalizeUnit(raw: Partial<ShelfUnit> & { prices?: unknown }): S
     niche: { ...DEFAULT_NICHE, ...raw.niche },
     maletero: { ...DEFAULT_MALETERO, ...raw.maletero },
     modesty: { ...DEFAULT_MODESTY, ...raw.modesty },
+    drawers: { ...DEFAULT_DRAWERS, ...raw.drawers },
     material: normalizeMaterial(raw.material),
     shopping: { ...raw.shopping },
     progress: { ...raw.progress },

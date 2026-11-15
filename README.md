@@ -36,6 +36,10 @@ Cargas las medidas del mueble (o del hueco, si va empotrado) y la app te da:
   (colgado largo, doble colgado, colgado corto + zapatero, cajonera + estantes…). Avisa si
   falta alto o profundidad para colgar y si el mueble armado no se podrá levantar dentro
   del hueco.
+- **Cajones a medida**: en la sección *Cajones* eliges para todo el mueble el fondo del
+  cajón (clavado abajo o en ranura), los frentes (embutidos o superpuestos) y las
+  correderas (telescópicas, con cierre suave o de rodillos); en cada hueco, la cantidad
+  de cajones y si son iguales o escalonados (más altos abajo).
 - **Lista de compras**: todo lo que puede hacer falta, agrupado en tableros y cortes,
   herrajes, tornillos y fijaciones, insumos y herramientas. Lo necesario viene marcado;
   los opcionales (minifix, espigas, amortiguadores, herramientas…) se marcan a mano.
@@ -88,8 +92,11 @@ Todas las medidas son en milímetros.
 | Mueble empotrado | Hueco − 5 mm por costado, − 20 mm arriba, − 10 mm atrás |
 | Estante maletero | Ancho − 2 espesores; las columnas y divisores llegan hasta él |
 | Barra de colgar | Espacio libre de la columna − 2 mm, con el centro a 50 mm del techo del hueco |
-| Frente de cajón | Espacio libre − 6 mm × (alto del hueco − 3 mm por holgura) ÷ cajones |
-| Caja de cajón | Espacio libre − 26 mm (correderas telescópicas) × frente − 30 mm, largo de la corredera |
+| Frente de cajón embutido | Espacio libre − 6 mm × (alto del hueco − 3 mm por holgura) ÷ cajones |
+| Frente de cajón superpuesto | Como una puerta superpuesta: tapa el lateral entero y medio divisor, el piso (o medio estante) abajo; ancho cubierto − 3 mm |
+| Caja de cajón | Espacio libre − 26 mm (13 mm por corredera) × lugar del cajón − 30 mm (máx. 250), largo de la corredera |
+| Fondo de cajón clavado | Largo de la corredera × ancho de la caja |
+| Fondo de cajón en ranura | Caja por dentro + 2 × (profundidad de la ranura − 1 mm), en los dos sentidos |
 | Zapatero inclinado | Espacio libre de la columna × hasta 330 mm de recorrido a 15° (342 mm de pendiente), con tope de 50 mm |
 | Zapatero con barras | 2 barras por nivel de espacio libre − 2 mm: adelante a 60 mm del frente, atrás 200 mm más adentro y 70 mm más arriba |
 | Zapatero plano | Estantes sobre soportes: espacio libre − holgura × profundidad del hueco |
@@ -120,6 +127,20 @@ Todas las medidas son en milímetros.
 - Escritorios: la altura habitual es de 720 a 760 mm. El hueco para las piernas no lleva
   puertas, y un mueble con hueco para las piernas no lleva maletero ni corredizas. Si todas
   las columnas son hueco para las piernas, el escritorio es solo tapa, laterales y faldón.
+- Cajones:
+  - *Fondo*: clavado abajo de la caja (cada 10 cm) o en una ranura de los laterales, el
+    frente y el contrafrente de la caja (por defecto 8 mm de profundidad a 12 mm del canto
+    de abajo, del ancho del fondo + 1 mm). En ranura no lleva clavos, pero la ranura se
+    pide en el centro de corte o se hace con sierra o router.
+  - *Frentes*: embutidos dentro del hueco, con 3 mm de luz, o superpuestos, que tapan los
+    cantos como las puertas superpuestas y suman su espesor al frente del mueble. Detrás de
+    una puerta los cajones quedan siempre embutidos. Con frente superpuesto la caja puede
+    ser más larga (la corredera no descuenta el frente).
+  - *Correderas*: telescópicas de 250 a 600 mm, telescópicas con cierre suave (mismos
+    largos) o de rodillos de 250 a 550 mm (más económicas, no se abren del todo). Se elige
+    la más larga que entra, de 50 en 50 mm.
+  - *Alturas*: iguales, o escalonadas: cada cajón suma un cuarto del alto del de más
+    arriba (4 cajones quedan en proporción 1,75 : 1,5 : 1,25 : 1 de abajo hacia arriba).
 - Zapateros: los niveles se reparten de forma pareja en el hueco; se recomiendan unos
   200 mm por nivel inclinado, 180 con barras y 170 por fila plana. Avisa si quedan muy juntos.
 - Valores por defecto: melamina Egger de 2600 × 1830 × 18 mm, fondo de MDF delgado de

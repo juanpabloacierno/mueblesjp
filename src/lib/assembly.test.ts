@@ -144,4 +144,36 @@ describe('instrucciones de armado ilustradas', () => {
     expect(a.steps[0].fixed).toHaveLength(1);
     expect(a.prep.map((s) => s.key)).toEqual(['cortes', 'marcar', 'perforar']);
   });
+
+  it('cómoda (frentes superpuestos, escalonados): tornillos y clavos suman lo de la lista de compras', () => {
+    const { a, r } = plan('comoda');
+    expect(a.hardware.find((h) => h.kind === 'tornillo')?.qty).toBe(r.counts.screws);
+    expect(a.hardware.filter((h) => h.kind === 'clavo').reduce((s, h) => s + h.qty, 0)).toBe(r.counts.backNails);
+    const added = a.steps.flatMap((s) => s.add);
+    expect(new Set(added).size).toBe(added.length);
+    expect(added.length).toBe(a.scene.length);
+    expect(a.steps.find((s) => s.key === 'a-cajones')?.detail).toContain('separadores de 3 mm');
+  });
+
+  it('fondos de cajón en ranura: sin clavos en los cajones y la ranura se pide con los cortes', () => {
+    const { a, r } = plan('cajonera', (u) => {
+      u.drawers = { ...u.drawers, bottom: 'ranura', slide: 'cierre-suave' };
+    });
+    const cajones = a.steps.find((s) => s.key === 'a-cajones')!;
+    expect(cajones.hardware.some((h) => h.kind === 'clavo')).toBe(false);
+    expect(cajones.hardware.find((h) => h.kind === 'corredera')).toMatchObject({ label: 'Par de correderas telescópicas con cierre suave', qty: 3 });
+    expect(cajones.detail).toContain('ranura');
+    expect(a.hardware.filter((h) => h.kind === 'clavo').reduce((s, h) => s + h.qty, 0)).toBe(r.counts.backNails);
+    expect(a.hardware.find((h) => h.kind === 'tornillo')?.qty).toBe(r.counts.screws);
+    expect(a.prep.find((s) => s.key === 'cortes')?.detail).toContain('ranura para el fondo de los cajones');
+  });
+
+  it('correderas de rodillos: se colocan por el borde de abajo de la caja', () => {
+    const { a } = plan('cajonera', (u) => {
+      u.drawers = { ...u.drawers, slide: 'rodillo' };
+    });
+    const cajones = a.steps.find((s) => s.key === 'a-cajones')!;
+    expect(cajones.hardware.find((h) => h.kind === 'corredera')?.label).toBe('Par de correderas de rodillos');
+    expect(cajones.detail).toContain('Correderas de rodillos');
+  });
 });

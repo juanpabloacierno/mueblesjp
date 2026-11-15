@@ -108,4 +108,29 @@ describe('lista de compras', () => {
       setLang('es');
     }
   });
+
+  it('correderas según su tipo; las telescópicas conservan la clave de antes', () => {
+    const tele = setup('cajonera');
+    const len = tele.result.drawers[0].slide;
+    expect(tele.get(`corredera|${len}`)).toMatchObject({ qty: 3, name: `Correderas telescópicas de ${len} mm` });
+    const soft = setup('cajonera', (u) => void (u.drawers.slide = 'cierre-suave'));
+    expect(soft.get(`corredera|cierre-suave|${len}`)?.name).toBe(`Correderas telescópicas con cierre suave de ${len} mm`);
+    expect(soft.get(`corredera|${len}`)).toBeUndefined();
+    const roller = setup('cajonera', (u) => void (u.drawers.slide = 'rodillo'));
+    const rl = roller.result.drawers[0].slide;
+    expect(roller.get(`corredera|rodillo|${rl}`)?.name).toBe(`Correderas de rodillos de ${rl} mm`);
+  });
+
+  it('fondos de cajón en ranura: sin clavos para los cajones, con cola y la herramienta para ranurar', () => {
+    const nailed = setup('cajonera');
+    const grooved = setup('cajonera', (u) => void (u.drawers.bottom = 'ranura'));
+    expect(nailed.get('clavo-fondo')?.name).toContain('fondos');
+    expect(nailed.get('clavo-fondo')?.note).toContain('cajón');
+    expect(grooved.get('clavo-fondo')?.qty).toBe(grooved.result.counts.backNails);
+    expect(grooved.get('clavo-fondo')?.qty).toBeLessThan(nailed.get('clavo-fondo')!.qty);
+    expect(grooved.get('clavo-fondo')?.note).not.toContain('cajón');
+    expect(grooved.get('cola-vinilica')).toMatchObject({ defaultOn: true });
+    expect(grooved.get('fresadora-ranura')).toMatchObject({ category: 'herramientas', defaultOn: false });
+    expect(nailed.get('fresadora-ranura')).toBeUndefined();
+  });
 });

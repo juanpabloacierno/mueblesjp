@@ -59,16 +59,25 @@ export function buildSteps(input: ShelfUnit, result: ShelfUnitResult, summary: S
         ` (${summary.melamina.pack.sheets.length} ${summary.melamina.material.color} outside and ${summary.interior.pack.sheets.length} ${summary.interior.material.color} inside)`,
       )
     : '';
+  // Fondos de cajón en ranura: la ranura se pide junto con los cortes.
+  const dspec = unit.drawers;
+  const drawerGroove =
+    result.drawers.length && dspec?.bottom === 'ranura'
+      ? tr(
+          ` Pide también la ranura para el fondo de los cajones (${mm(unit.material.backThickness + 1)} × ${mm(dspec.grooveDepth)} mm, a ${mm(dspec.grooveOffset)} mm del canto de abajo) en los laterales, frentes y contrafrentes de cajón; si no la hacen, hazla con una fresadora o en la sierra de mesa.`,
+          ` Also ask for the drawer bottom groove (${mm(unit.material.backThickness + 1)} × ${mm(dspec.grooveDepth)} mm, ${mm(dspec.grooveOffset)} mm above the bottom edge) in the drawer sides, fronts and backs; if they don't do it, cut it with a router or on a table saw.`,
+        )
+      : '';
   steps.push({
     key: 'cortes',
     title: tr('Pide los cortes', 'Order the cuts'),
     detail: tr(
       `Envía la lista de la pestaña Despiece al centro de corte: son ${pieces} piezas en ${boards} ${boards === 1 ? 'tablero' : 'tableros'} de melamina${colors}${
         backBoards ? ` y ${backBoards} de fondo` : ''
-      }. Pide el tapacanto pegado en los lados que indica la lista, del color de cada pieza. Cuando las recibas, mide algunas piezas y escribe la letra de cada una en un canto que no se vea.`,
+      }. Pide el tapacanto pegado en los lados que indica la lista, del color de cada pieza.${drawerGroove} Cuando las recibas, mide algunas piezas y escribe la letra de cada una en un canto que no se vea.`,
       `Send the list from the Cut list tab to the cutting shop: ${pieces} pieces from ${boards} melamine ${boards === 1 ? 'board' : 'boards'}${colors}${
         backBoards ? ` and ${backBoards} back panel ${backBoards === 1 ? 'board' : 'boards'}` : ''
-      }. Ask for edge banding applied on the sides the list shows, in each piece's color. When you get them, measure a few pieces and write each piece's letter on an edge that won't show.`,
+      }. Ask for edge banding applied on the sides the list shows, in each piece's color.${drawerGroove} When you get them, measure a few pieces and write each piece's letter on an edge that won't show.`,
     ),
   });
 
@@ -226,15 +235,61 @@ export function buildSteps(input: ShelfUnit, result: ShelfUnitResult, summary: S
   }
 
   if (result.drawers.length) {
-    const centers = list([...new Set(result.drawers.flatMap((d) => d.slideCenters.map((c) => mm(c))))]);
-    steps.push({
-      key: 'cajones',
-      title: tr('Arma y coloca los cajones', 'Build and fit the drawers'),
-      detail: tr(
-        `Arma cada caja con sus laterales y travesaños, y clávale el fondo por debajo comprobando la escuadra. Atornilla las correderas en el mueble con el centro a ${centers} mm del suelo, engancha las cajas y fija cada frente desde adentro con tornillos 4 × 30, dejando 3 mm de separación entre frentes.`,
-        `Build each box from its sides and cross pieces, and nail the bottom on underneath, checking that it is square. Screw the slides into the unit with their center ${centers} mm above the floor, hook the boxes on and fix each front from the inside with 4 × 30 screws, leaving a 3 mm gap between fronts.`,
-      ),
-    });
+    const slide = dspec?.slide ?? 'telescopica';
+    const parts: string[] = [];
+    // Caja: fondo en ranura (antes de cerrar el último lado) o clavado abajo.
+    parts.push(
+      dspec?.bottom === 'ranura'
+        ? tr(
+            'Arma cada caja: atornilla el frente y el contrafrente entre los laterales con 2 tornillos 4 × 50 por unión, mete el fondo en la ranura antes de cerrar el último lado (con un hilo de cola) y comprueba la escuadra.',
+            'Build each box: screw the front and back pieces between the sides with two 4 × 50 screws per joint, slide the bottom into the groove before closing the last side (with a bead of glue) and check that it is square.',
+          )
+        : tr(
+            'Arma cada caja: atornilla el frente y el contrafrente entre los laterales con 2 tornillos 4 × 50 por unión y clávale el fondo por debajo cada 10 cm, comprobando la escuadra.',
+            'Build each box: screw the front and back pieces between the sides with two 4 × 50 screws per joint and nail the bottom on underneath every 10 cm, checking that it is square.',
+          ),
+    );
+    if (slide === 'rodillo') {
+      const bottoms = list([...new Set(result.drawers.flatMap((d) => d.boxBottoms.map((b) => mm(b))))]);
+      parts.push(
+        tr(
+          `Correderas de rodillos: atornilla la parte del mueble con su borde de abajo a ${bottoms} mm del suelo y la otra al ras del canto de abajo de los costados de cada caja, con la rueda atrás. Apoya las ruedas y empuja.`,
+          `Roller slides: screw the cabinet part with its bottom edge ${bottoms} mm above the floor and the other part flush with the bottom edge of each box's sides, wheel at the back. Rest the wheels on the rails and push the box in.`,
+        ),
+      );
+    } else {
+      const centers = list([...new Set(result.drawers.flatMap((d) => d.slideCenters.map((c) => mm(c))))]);
+      parts.push(
+        slide === 'cierre-suave'
+          ? tr(
+              `Correderas telescópicas con cierre suave: atornilla la parte del mueble con el centro a ${centers} mm del suelo y la otra en los costados de cada caja; engancha las cajas.`,
+              `Soft-close full-extension slides: screw the cabinet part with its center ${centers} mm above the floor and the other part on each box's sides; hook the boxes on.`,
+            )
+          : tr(
+              `Correderas telescópicas: atornilla la parte del mueble con el centro a ${centers} mm del suelo y la otra en los costados de cada caja; engancha las cajas.`,
+              `Full-extension slides: screw the cabinet part with its center ${centers} mm above the floor and the other part on each box's sides; hook the boxes on.`,
+            ),
+      );
+    }
+    const overlay = result.drawers.some((d) => d.overlay);
+    const inset = result.drawers.some((d) => !d.overlay);
+    if (overlay) {
+      parts.push(
+        tr(
+          `${inset ? 'Frentes superpuestos: ' : ''}con el cajón colgado, fija cada frente desde adentro de la caja con 4 tornillos 4 × 30. Van por delante del mueble y tapan los cantos: usa separadores de 3 mm (cartón o tapacanto doblado) para dejarlos centrados y con la misma luz entre frentes.`,
+          `${inset ? 'Overlay fronts: ' : ''}with the drawer hung, fix each front from inside the box with four 4 × 30 screws. They sit in front of the unit and cover the edges: use 3 mm spacers (cardboard or folded edge banding) to center them with the same gap between fronts.`,
+        ),
+      );
+    }
+    if (inset) {
+      parts.push(
+        tr(
+          `${overlay ? 'Frentes embutidos: ' : ''}fija cada frente desde adentro de la caja con 4 tornillos 4 × 30; va dentro del hueco con 3 mm de luz alrededor.`,
+          `${overlay ? 'Inset fronts: ' : ''}fix each front from inside the box with four 4 × 30 screws; it sits inside the opening with a 3 mm gap all round.`,
+        ),
+      );
+    }
+    steps.push({ key: 'cajones', title: tr('Arma y coloca los cajones', 'Build and fit the drawers'), detail: parts.join(' ') });
   }
 
   const racks = result.shoeRacks;

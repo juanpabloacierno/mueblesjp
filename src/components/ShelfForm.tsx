@@ -8,7 +8,7 @@ import { BoardPicker } from './BoardPicker';
 import { resolveUnit } from '../lib/resolve';
 import { TEMPLATES, applyTemplate, type TemplateKey } from '../lib/templates';
 import { autoShoeLevels } from '../lib/shoes';
-import type { ColumnSpec, CompartmentFill, DoorSpec, ShelfUnit, ShelfUnitResult, ShoeRackStyle } from '../lib/types';
+import type { ColumnSpec, CompartmentFill, DoorSpec, DrawerSizing, DrawerSpec, ShelfUnit, ShelfUnitResult, ShoeRackStyle } from '../lib/types';
 import { NumberField, Segmented, Stepper, Switch, TextField } from './ui';
 
 export type Updater = (fn: (draft: ShelfUnit) => void) => void;
@@ -385,6 +385,8 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
         )}
       </Section>
 
+      {unit.columns.some((c) => !c.knee && c.fill?.some((f) => f?.kind === 'cajones')) && <DrawersForm unit={unit} result={result} update={update} />}
+
       {!allKnee && <DoorsForm unit={unit} result={result} update={update} />}
 
       <Section title={tr('Tableros', 'Boards')}>
@@ -694,7 +696,7 @@ function ShelfEditor({
                     className="input"
                     aria-label={tr(`Cantidad de cajones del hueco ${j + 1}`, `Number of drawers in compartment ${j + 1}`)}
                     value={f.count}
-                    onChange={(e) => setFill(j, { kind: 'cajones', count: Number(e.target.value) })}
+                    onChange={(e) => setFill(j, { ...f, count: Number(e.target.value) })}
                   >
                     {[1, 2, 3, 4, 5, 6].map((c) => (
                       <option key={c} value={c}>
@@ -704,6 +706,18 @@ function ShelfEditor({
                   </select>
                 ) : (
                   <span />
+                )}
+                {f?.kind === 'cajones' && (
+                  <div className="hueco-sub">
+                    <Segmented
+                      value={f.sizing ?? 'iguales'}
+                      onChange={(sizing: DrawerSizing) => setFill(j, { ...f, sizing })}
+                      options={[
+                        { value: 'iguales', label: tr('Iguales', 'Equal') },
+                        { value: 'escalonados', label: tr('Escalonados', 'Graduated') },
+                      ]}
+                    />
+                  </div>
                 )}
                 {f?.kind === 'zapatero' && (
                   <div className="hueco-sub">
@@ -727,8 +741,8 @@ function ShelfEditor({
         </div>
         <span className="field-hint">
           {tr(
-            'Alto vacío = automático. La barra de colgar va a 5 cm del techo del hueco; los cajones y el zapatero llenan el hueco en partes iguales. El estante de arriba de una barra, cajones o zapatero queda fijo.',
-            'Empty height = automatic. The hanging rod goes 5 cm below the top of the compartment; drawers and shoe racks fill the compartment evenly. The shelf above a rod, drawers or a shoe rack is fixed.',
+            'Alto vacío = automático. La barra de colgar va a 5 cm del techo del hueco; los cajones llenan el hueco (iguales, o escalonados con los más altos abajo) y el zapatero en partes iguales. El estante de arriba de una barra, cajones o zapatero queda fijo.',
+            'Empty height = automatic. The hanging rod goes 5 cm below the top of the compartment; drawers fill the compartment (equal, or graduated with the tallest at the bottom) and shoe racks fill it evenly. The shelf above a rod, drawers or a shoe rack is fixed.',
           )}
         </span>
       </div>
@@ -772,6 +786,88 @@ function GapInput({ id, value, placeholder, onChange }: { id: string; value: num
         if (Number.isFinite(v) && v > 0) onChange(v);
       }}
     />
+  );
+}
+
+/** Cómo se hacen los cajones de todo el mueble: fondo, frentes y correderas. */
+function DrawersForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUnitResult; update: Updater }) {
+  const d = unit.drawers;
+  const set = <K extends keyof DrawerSpec>(key: K, value: DrawerSpec[K]) => update((u) => void (u.drawers[key] = value));
+  const lengths = [...new Set(result.drawers.map((x) => x.slide))].sort((a, b) => a - b);
+  const insetBehindDoor = d.front === 'superpuesto' && result.drawers.some((x) => !x.overlay);
+  const slideHint =
+    d.slide === 'rodillo'
+      ? tr('Más económicas; no se abren del todo. De 250 a 550 mm.', 'Cheaper; they do not open all the way. 250 to 550 mm.')
+      : d.slide === 'cierre-suave'
+        ? tr('Telescópicas que frenan solas al cerrar. Más caras.', 'Full-extension slides that brake on their own when closing. More expensive.')
+        : tr('De bolas, se abren del todo. De 250 a 600 mm.', 'Ball-bearing; they open all the way. 250 to 600 mm.');
+  return (
+    <Section title={tr('Cajones', 'Drawers')}>
+      <Segmented
+        label={tr('Fondo del cajón', 'Drawer bottom')}
+        value={d.bottom}
+        onChange={(v) => set('bottom', v)}
+        options={[
+          { value: 'clavado', label: tr('Clavado abajo', 'Nailed under') },
+          { value: 'ranura', label: tr('En ranura', 'In a groove') },
+        ]}
+        hint={
+          d.bottom === 'ranura'
+            ? tr(
+                'El fondo entra en una ranura de los laterales, el frente y el contrafrente de la caja: queda más firme y con mejor terminación. Pide la ranura en el centro de corte o hazla con sierra o router.',
+                'The bottom slides into a groove in the sides, front and back of the box: stronger and with a cleaner finish. Ask the cutting service for the groove or cut it with a saw or router.',
+              )
+            : tr('El fondo se clava abajo de la caja, cada 10 cm. Es lo más simple.', 'The bottom is nailed under the box every 10 cm. It is the simplest option.')
+        }
+      />
+      {d.bottom === 'ranura' && (
+        <div className="grid-2">
+          <NumberField
+            id="f-dgroove-d"
+            label={tr('Profundidad de ranura', 'Groove depth')}
+            value={d.grooveDepth}
+            min={1}
+            onChange={(v) => v !== null && set('grooveDepth', v)}
+            hint={tr(`El fondo entra ${mm(d.grooveDepth - 1)} mm de cada lado.`, `The bottom goes ${mm(d.grooveDepth - 1)} mm in on each side.`)}
+          />
+          <NumberField
+            id="f-dgroove-o"
+            label={tr('Altura de la ranura', 'Groove height')}
+            value={d.grooveOffset}
+            onChange={(v) => v !== null && set('grooveOffset', v)}
+            hint={tr('Desde el canto de abajo de la caja.', 'From the bottom edge of the box.')}
+          />
+        </div>
+      )}
+      <Segmented
+        label={tr('Frentes', 'Fronts')}
+        value={d.front}
+        onChange={(v) => set('front', v)}
+        options={[
+          { value: 'embutido', label: tr('Embutidos', 'Inset') },
+          { value: 'superpuesto', label: tr('Superpuestos', 'Overlay') },
+        ]}
+        hint={
+          d.front === 'superpuesto'
+            ? tr(
+                'Tapan los cantos del mueble, como las puertas superpuestas.' + (insetBehindDoor ? ' Los cajones que quedan detrás de una puerta van embutidos.' : ' Detrás de una puerta quedan embutidos.'),
+                'They cover the edges of the unit, like overlay doors.' + (insetBehindDoor ? ' Drawers behind a door stay inset.' : ' Behind a door they stay inset.'),
+              )
+            : tr('Van dentro del hueco, con 3 mm de luz alrededor.', 'They sit inside the compartment with a 3 mm gap all around.')
+        }
+      />
+      <Segmented
+        label={tr('Correderas', 'Slides')}
+        value={d.slide}
+        onChange={(v) => set('slide', v)}
+        options={[
+          { value: 'telescopica', label: tr('Telescópicas', 'Full-extension') },
+          { value: 'cierre-suave', label: tr('Cierre suave', 'Soft-close') },
+          { value: 'rodillo', label: tr('De rodillos', 'Roller') },
+        ]}
+        hint={slideHint + (lengths.length ? tr(` En este mueble: ${lengths.join(', ')} mm.`, ` In this unit: ${lengths.join(', ')} mm.`) : '')}
+      />
+    </Section>
   );
 }
 

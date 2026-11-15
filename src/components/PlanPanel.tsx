@@ -3,13 +3,44 @@ import { CUP_EDGE_DISTANCE, PLATE_FRONT_DISTANCE } from '../lib/doors';
 import { mm } from '../lib/format';
 import { tr } from '../lib/i18n';
 import { SHOE_LABEL } from '../lib/shoes';
-import type { KneeResult, ShelfUnit, ShelfUnitResult } from '../lib/types';
+import type { DrawerResult, KneeResult, ShelfUnit, ShelfUnitResult, SlideType } from '../lib/types';
 import { FRONT_PAD, FrontView, SIDE_PAD, SideView, sideExtra } from './FrontView';
 import { Segmented } from './ui';
 
 interface Props {
   unit: ShelfUnit;
   result: ShelfUnitResult;
+}
+
+/** Tipo de corredera, en minúscula para usar dentro de una frase. */
+function slideLabel(type: SlideType): string {
+  if (type === 'cierre-suave') return tr('correderas telescópicas con cierre suave', 'soft-close full-extension slides');
+  if (type === 'rodillo') return tr('correderas de rodillos', 'roller slides');
+  return tr('correderas telescópicas', 'full-extension slides');
+}
+
+/**
+ * Medidas de cada cajón: una línea si todos son iguales; si no, una por cajón, de arriba hacia
+ * abajo como en el dibujo.
+ */
+function SizeLines({ heights, line }: { heights: number[]; line: (h: number) => string }) {
+  if (heights.every((h) => h === heights[0])) return <>{line(heights[0])}</>;
+  return (
+    <>
+      {[...heights].reverse().map((h, i) => (
+        <span key={i} style={{ display: 'block' }}>
+          {line(h)}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** Fondo de cajón en ranura: largo × ancho. */
+function grooveBottom(unit: ShelfUnit, d: DrawerResult): string {
+  const t = unit.material.thickness;
+  const gIn = unit.drawers.grooveDepth - 1;
+  return `${mm(d.slide - 2 * t + 2 * gIn)} × ${mm(d.boxW - 2 * t + 2 * gIn)}`;
 }
 
 function useElementWidth<T extends HTMLElement>() {
@@ -230,7 +261,16 @@ export function PlanPanel({ unit, result }: Props) {
             </dd>
             {result.doors.extraDepth > 0 && (
               <>
-                <dt>{tr('Profundidad sin puertas · con puertas', 'Depth without doors · with doors')}</dt>
+                <dt>
+                  {(() => {
+                    // Lo que sobresale: puertas superpuestas, frentes de cajón superpuestos o los dos.
+                    const doorsAdd = unit.doors.type === 'batiente' && unit.doors.mount === 'superpuesta' && result.doors.doors.length > 0;
+                    const frontsAdd = result.drawers.some((d) => d.overlay);
+                    if (frontsAdd && !doorsAdd) return tr('Profundidad sin frentes de cajón · con frentes', 'Depth without drawer fronts · with fronts');
+                    if (frontsAdd) return tr('Profundidad sin puertas ni frentes · con puertas y frentes', 'Depth without doors or fronts · with doors and fronts');
+                    return tr('Profundidad sin puertas · con puertas', 'Depth without doors · with doors');
+                  })()}
+                </dt>
                 <dd>
                   {mm(unit.depth)} · {mm(unit.depth + result.doors.extraDepth)}
                 </dd>
@@ -369,33 +409,81 @@ export function PlanPanel({ unit, result }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.drawers.map((d) => (
-                      <tr key={`${d.column}-${d.fronts[0]}`}>
-                        <td>
-                          {d.count} × {result.columns.length > 1 ? `col. ${d.column + 1}` : tr('cajones', 'drawers')}
-                          <span className="piece-notes">
-                            {tr(
-                              `Correderas de ${d.slide} mm, centro a ${d.slideCenters.map((c) => mm(c)).join(' · ')} del suelo`,
-                              `${d.slide} mm slides, center at ${d.slideCenters.map((c) => mm(c)).join(' · ')} from the floor`,
-                            )}
-                          </span>
-                        </td>
-                        <td className="n">
-                          {mm(d.frontW)} × {mm(d.frontH)}
-                        </td>
-                        <td className="n">
-                          {mm(d.boxW)} × {mm(d.boxH)} × {d.slide}
-                        </td>
-                      </tr>
-                    ))}
+                    {result.drawers.map((d) => {
+                      const kind = slideLabel(d.slideType);
+                      const centers = d.slideCenters.map((c) => mm(c)).join(' · ');
+                      return (
+                        <tr key={`${d.column}-${d.fronts[0]}`}>
+                          <td>
+                            {d.count} × {result.columns.length > 1 ? `col. ${d.column + 1}` : tr('cajones', 'drawers')}
+                            <span className="piece-notes">
+                              {tr(
+                                `${kind.charAt(0).toUpperCase() + kind.slice(1)} de ${d.slide} mm, centro a ${centers} del suelo`,
+                                `${d.slide} mm ${kind}, center at ${centers} from the floor`,
+                              )}
+                              {d.overlay ? tr(' · frentes superpuestos', ' · overlay fronts') : ''}
+                              {unit.drawers.bottom === 'ranura'
+                                ? tr(` · fondo en ranura de ${grooveBottom(unit, d)}`, ` · ${grooveBottom(unit, d)} bottom in a groove`)
+                                : ''}
+                            </span>
+                          </td>
+                          <td className="n">
+                            <SizeLines heights={d.frontHs} line={(h) => `${mm(d.frontW)} × ${mm(h)}`} />
+                          </td>
+                          <td className="n">
+                            <SizeLines heights={d.boxHs} line={(h) => `${mm(d.boxW)} × ${mm(h)} × ${d.slide}`} />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
               <p className="field-hint" style={{ margin: '6px 0 0' }}>
-                {tr(
-                  'Frentes embutidos con 3 mm de holgura. La caja va 13 mm más angosta de cada lado para las correderas telescópicas y apoya 10 mm arriba del borde de abajo del frente.',
-                  'Inset fronts with a 3 mm gap. The box is 13 mm narrower on each side for the full-extension drawer slides and sits 10 mm above the bottom edge of the front.',
-                )}
+                {(() => {
+                  const kinds = [...new Set(result.drawers.map((d) => d.slideType))].map(slideLabel).join(tr(' y ', ' and '));
+                  const anyOverlay = result.drawers.some((d) => d.overlay);
+                  const allOverlay = result.drawers.every((d) => d.overlay);
+                  const graduated = result.drawers.some((d) => d.frontHs.some((h) => h !== d.frontHs[0]));
+                  const parts: string[] = [];
+                  if (!anyOverlay) {
+                    parts.push(
+                      tr(
+                        `Frentes embutidos con 3 mm de holgura. La caja va 13 mm más angosta de cada lado para las ${kinds} y apoya 10 mm arriba del borde de abajo del frente.`,
+                        `Inset fronts with a 3 mm gap. The box is 13 mm narrower on each side for the ${kinds} and sits 10 mm above the bottom edge of the front.`,
+                      ),
+                    );
+                  } else {
+                    parts.push(
+                      allOverlay
+                        ? tr(
+                            'Frentes superpuestos: tapan los cantos del mueble (entero en los laterales, la mitad en divisores y estantes), con 3 mm de luz entre ellos.',
+                            'Overlay fronts: they cover the unit edges (fully on the side panels, half on dividers and shelves), with a 3 mm gap between them.',
+                          )
+                        : tr(
+                            'Frentes superpuestos donde no hay puerta delante (tapan los cantos del mueble); detrás de una puerta van embutidos con 3 mm de holgura.',
+                            'Overlay fronts where there is no door in front (they cover the unit edges); behind a door they are inset with a 3 mm gap.',
+                          ),
+                    );
+                    parts.push(
+                      tr(
+                        `La caja va 13 mm más angosta de cada lado para las ${kinds} y apoya 10 mm arriba del piso de su lugar en el hueco.`,
+                        `The box is 13 mm narrower on each side for the ${kinds} and sits 10 mm above the floor of its slot in the compartment.`,
+                      ),
+                    );
+                  }
+                  if (graduated) parts.push(tr('Cajones de distinto alto: de arriba hacia abajo, como en el dibujo.', 'Drawers of different heights: listed top to bottom, as in the drawing.'));
+                  if (unit.drawers.bottom === 'ranura') {
+                    const tb = unit.material.backThickness;
+                    parts.push(
+                      tr(
+                        `Fondo en ranura: ranura de ${mm(tb + 1)} × ${mm(unit.drawers.grooveDepth)} mm a ${mm(unit.drawers.grooveOffset)} mm del canto de abajo en los costados, el frente y el contrafrente de la caja; el fondo entra ${mm(unit.drawers.grooveDepth - 1)} mm de cada lado.`,
+                        `Bottom in a groove: ${mm(tb + 1)} × ${mm(unit.drawers.grooveDepth)} mm groove ${mm(unit.drawers.grooveOffset)} mm above the bottom edge of the box sides, front and back; the bottom goes ${mm(unit.drawers.grooveDepth - 1)} mm in on each side.`,
+                      ),
+                    );
+                  }
+                  return parts.join(' ');
+                })()}
               </p>
             </div>
           )}

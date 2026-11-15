@@ -69,4 +69,18 @@ describe('escena 3D', () => {
     expect(boxes.find((x) => x.name === 'Lateral')).toMatchObject({ z: 0, d: 600 });
     expect(boxes.find((x) => x.name === 'Faldón')).toMatchObject({ z: 0 });
   });
+
+  it('cajones escalonados y superpuestos: un frente por cajón, por delante del mueble', () => {
+    const { boxes, r } = scene('comoda');
+    const d = r.drawers[0];
+    const fronts = boxes.filter((x) => x.name === 'Frente de cajón');
+    expect(fronts.map((f) => f.h)).toEqual(d.frontHs);
+    expect(fronts.every((f) => f.z === r.size.depth && f.w === d.frontW)).toBe(true);
+    // Cada caja a su altura, dentro del hueco y terminando en el frente del mueble.
+    const sides = boxes.filter((x) => x.name === 'Lateral de cajón');
+    expect(sides.map((s) => [s.y, s.h])).toEqual(d.boxBottoms.map((b, i) => [b, d.boxHs[i]]));
+    expect(sides.every((s) => s.z + s.d === r.size.depth)).toBe(true);
+    // El tirador va delante de su frente.
+    expect(boxes.filter((x) => x.name === 'Tirador').every((t) => t.z === r.size.depth + 18)).toBe(true);
+  });
 });

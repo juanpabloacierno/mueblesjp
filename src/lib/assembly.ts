@@ -6,7 +6,7 @@ import { resolveUnit } from './resolve';
 import { buildScene, type SceneBox } from './scene';
 import { screwsPerJoint } from './shelf';
 import { buildSteps, type Step } from './steps';
-import type { BaseSegment, HingeType, Piece, ShelfUnit, ShelfUnitResult } from './types';
+import type { BaseSegment, HingeType, Piece, ShelfUnit, ShelfUnitResult, SlideType } from './types';
 
 /** Herrajes que aparecen en las instrucciones, cada uno con su dibujito. */
 export type HardwareKind =
@@ -94,6 +94,13 @@ function hardwareLabel(kind: HardwareKind): string {
     case 'ruedas':
       return tr('Juego de ruedas', 'Wheel set');
   }
+}
+
+/** Correderas según su tipo. */
+function slideLabel(type: SlideType): string {
+  if (type === 'cierre-suave') return tr('Par de correderas telescópicas con cierre suave', 'Pair of soft-close full-extension drawer slides');
+  if (type === 'rodillo') return tr('Par de correderas de rodillos', 'Pair of roller drawer slides');
+  return tr('Par de correderas telescópicas', 'Pair of full-extension drawer slides');
 }
 
 function hw(kind: HardwareKind, qty: number, label = hardwareLabel(kind)): HardwareUse[] {
@@ -309,7 +316,8 @@ export function buildAssembly(input: ShelfUnit, r: ShelfUnitResult, summary: Sum
   const plinths = scene.filter((b) => b.name.startsWith('Zócalo')).length;
   const mal = r.maletero !== null;
 
-  const drawerNails = r.drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);
+  // Los fondos de cajón en ranura no llevan clavos.
+  const drawerNails = unit.drawers?.bottom === 'ranura' ? 0 : r.drawers.reduce((s, d) => s + d.count * Math.ceil((2 * (d.boxW + d.slide)) / 100), 0);
   if (r.knees.length > 0) {
     buildDeskFrame();
   } else {
@@ -465,7 +473,7 @@ export function buildAssembly(input: ShelfUnit, r: ShelfUnitResult, summary: Sum
       pieceNames: ['Frente de cajón', 'Lateral de cajón', 'Frente y contrafrente de cajón', 'Fondo de cajón'],
       hardware: [
         ...hw('clavo', drawerNails, tr('Clavo 1" (fondos de cajón)', 'Nail 1" (drawer bottoms)')),
-        ...hw('corredera', n),
+        ...hw('corredera', n, slideLabel(unit.drawers?.slide ?? 'telescopica')),
         ...hw('tornillo', n * 8),
         ...hw('tornillo-chico', n * 12),
         ...hw('tornillo-corto', n * 4),

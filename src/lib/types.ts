@@ -98,10 +98,13 @@ export type FurnitureKind = 'estanteria' | 'placard';
 /** Zapatero: estantes inclinados con tope, dos barras por nivel o estantes planos. */
 export type ShoeRackStyle = 'inclinado' | 'barras' | 'plano';
 
+/** Alturas de los cajones de un hueco: todos iguales, o escalonados (más altos abajo). */
+export type DrawerSizing = 'iguales' | 'escalonados';
+
 /** Qué lleva un hueco además de ser espacio libre. */
 export type CompartmentFill =
   | { kind: 'barral' }
-  | { kind: 'cajones'; count: number }
+  | { kind: 'cajones'; count: number; sizing?: DrawerSizing }
   | { kind: 'zapatero'; style: ShoeRackStyle; levels: number };
 
 export interface ColumnSpec {
@@ -143,6 +146,23 @@ export interface MaleteroSpec {
   dividers: boolean;
 }
 
+/** Fondo del cajón clavado abajo de la caja, o metido en una ranura de los cuatro lados. */
+export type DrawerBottom = 'clavado' | 'ranura';
+/** Frente embutido (dentro del hueco) o superpuesto (tapa los cantos del mueble). */
+export type DrawerFront = 'embutido' | 'superpuesto';
+/** Correderas: telescópicas de bolillas, telescópicas con cierre suave o de rodillos. */
+export type SlideType = 'telescopica' | 'cierre-suave' | 'rodillo';
+
+/** Cómo se hacen los cajones de todo el mueble. */
+export interface DrawerSpec {
+  bottom: DrawerBottom;
+  /** Ranura del fondo: profundidad, y distancia de su borde de abajo al canto de abajo de la caja. */
+  grooveDepth: number;
+  grooveOffset: number;
+  front: DrawerFront;
+  slide: SlideType;
+}
+
 /** Faldón de los escritorios. */
 export interface ModestySpec {
   enabled: boolean;
@@ -173,6 +193,8 @@ export interface ShelfUnit {
   maletero: MaleteroSpec;
   /** Faldón: tablero atrás de cada hueco para las piernas, debajo de la tapa. */
   modesty: ModestySpec;
+  /** Fondo, frentes y correderas de los cajones. */
+  drawers: DrawerSpec;
   material: Material;
   /** Ítems de la lista de compras marcados o desmarcados a mano (clave → comprar). */
   shopping: Record<string, boolean>;
@@ -272,17 +294,29 @@ export interface RodResult {
 
 export interface DrawerResult {
   column: number;
+  /** Hueco de la columna donde están los cajones. */
+  compartment: number;
   count: number;
-  /** Frente (tapa) terminado. */
+  /** Frentes superpuestos (tapan los cantos) o embutidos (dentro del hueco). */
+  overlay: boolean;
+  /** Frente (tapa) terminado: ancho, y el alto del más alto. */
   frontW: number;
   frontH: number;
+  /** Alto de cada frente, de abajo hacia arriba (distintos si son escalonados). */
+  frontHs: number[];
   /** Borde de abajo de cada frente, desde el suelo. */
   fronts: number[];
+  /** Borde izquierdo de los frentes, desde el borde exterior izquierdo. */
   x: number;
-  /** Caja del cajón: ancho exterior, alto de los costados y largo (= corredera). */
+  /** Caja del cajón: ancho exterior, alto de los costados (el mayor) y largo (= corredera). */
   boxW: number;
   boxH: number;
+  /** Alto de los costados de cada caja, de abajo hacia arriba. */
+  boxHs: number[];
+  /** Borde de abajo de cada caja (sus costados), desde el suelo. */
+  boxBottoms: number[];
   slide: number;
+  slideType: SlideType;
   /** Centro de cada corredera desde el suelo (para marcar laterales y divisores). */
   slideCenters: number[];
 }

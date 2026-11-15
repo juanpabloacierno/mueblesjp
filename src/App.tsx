@@ -20,6 +20,7 @@ import { computeShelfUnit } from './lib/shelf';
 import { loadState, parseState, saveState, type AppState } from './lib/storage';
 import type { Warning } from './lib/types';
 import { LANGS, loadLang, saveLang, setLang, tr, type Lang } from './lib/i18n';
+import { applyTheme, loadTheme, saveTheme, type Theme } from './lib/theme';
 
 type Tab = 'medidas' | 'plano' | '3d' | 'despiece' | 'placas' | 'compras' | 'armado';
 
@@ -32,16 +33,34 @@ const resultTabs = (): { key: Exclude<Tab, 'medidas'>; label: string }[] => [
   { key: 'armado', label: tr('Armado', 'Assembly') },
 ];
 
-function useIsWide() {
-  const query = '(min-width: 960px)';
-  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+function useMediaQuery(query: string) {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
   useEffect(() => {
     const mq = window.matchMedia(query);
-    const on = () => setWide(mq.matches);
+    const on = () => setMatch(mq.matches);
+    on();
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);
-  }, []);
-  return wide;
+  }, [query]);
+  return match;
+}
+
+const useIsWide = () => useMediaQuery('(min-width: 960px)');
+
+function ThemeIcon({ theme }: { theme: Theme }) {
+  // Muestra el modo al que se pasa: luna en modo claro, sol en modo oscuro.
+  return theme === 'light' ? (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M15.5 12.6A6.5 6.5 0 0 1 7.4 4.5a6.5 6.5 0 1 0 8.1 8.1Z" fill="currentColor" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="3.6" fill="currentColor" />
+      <g stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+        <path d="M10 1.8v2.1M10 16.1v2.1M1.8 10h2.1M16.1 10h2.1M4.2 4.2l1.5 1.5M14.3 14.3l1.5 1.5M4.2 15.8l1.5-1.5M14.3 5.7l1.5-1.5" />
+      </g>
+    </svg>
+  );
 }
 
 /** "3 tableros de melamina", "1 board interior (Blanco)"… sin el número. */
@@ -70,6 +89,10 @@ export default function App() {
   // El idioma se fija antes de calcular y dibujar: todo lo de abajo lo lee.
   setLang(lang);
   const [state, setState] = useState<AppState>(loadState);
+  // Modo claro u oscuro: el elegido, o el del sistema si nunca se eligió.
+  const [themePref, setThemePref] = useState<Theme | null>(loadTheme);
+  const systemDark = useMediaQuery('(prefers-color-scheme: dark)');
+  const theme: Theme = themePref ?? (systemDark ? 'dark' : 'light');
   const [tab, setTab] = useState<Tab>('plano');
   const [toast, setToast] = useState<string | null>(null);
   const [menu, setMenu] = useState<null | 'nuevo' | 'mas'>(null);
@@ -79,6 +102,12 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => saveState(state), [state]);
+
+  // Antes que los efectos de los hijos: la vista 3D lee los colores de la página al repintarse.
+  useLayoutEffect(() => {
+    applyTheme(themePref);
+    saveTheme(themePref);
+  }, [themePref]);
 
   useEffect(() => {
     saveLang(lang);
@@ -200,6 +229,15 @@ export default function App() {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            className="btn theme-toggle"
+            aria-label={theme === 'light' ? tr('Cambiar a modo oscuro', 'Switch to dark mode') : tr('Cambiar a modo claro', 'Switch to light mode')}
+            title={theme === 'light' ? tr('Modo oscuro', 'Dark mode') : tr('Modo claro', 'Light mode')}
+            onClick={() => setThemePref(theme === 'light' ? 'dark' : 'light')}
+          >
+            <ThemeIcon theme={theme} />
+          </button>
           <div className="projectbar">
             <label className="field-label" htmlFor="project-select" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
               {tr('Mueble', 'Unit')}
@@ -437,7 +475,7 @@ export default function App() {
             {activeResultTab === '3d' &&
               (hasPieces ? (
                 <Suspense fallback={<p className="empty-note">{tr('Cargando la vista 3D…', 'Loading the 3D view…')}</p>}>
-                  <Furniture3D unit={built} result={result} />
+                  <Furniture3D unit={built} result={result} theme={theme} />
                 </Suspense>
               ) : (
                 <p className="empty-note">{tr('Corrige los errores de arriba para ver el mueble en 3D.', 'Fix the errors above to see the unit in 3D.')}</p>

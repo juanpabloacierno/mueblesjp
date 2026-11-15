@@ -200,6 +200,22 @@ body::before {
   text-transform: uppercase;
 }
 
+.theme-toggle {
+  flex: none;
+  width: 36px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
 .lang-switch {
   flex: none;
   flex-wrap: nowrap;

@@ -14,6 +14,8 @@ type DoorMode = 'cerradas' | 'abiertas' | 'sin';
 interface Props {
   unit: ShelfUnit;
   result: ShelfUnitResult;
+  /** Modo claro u oscuro de la página: al cambiar se repintan el fondo, el piso y la pared. */
+  theme?: 'light' | 'dark';
 }
 
 /** Generador pseudoaleatorio con semilla: la veta sale igual cada vez. */
@@ -101,7 +103,7 @@ function cssColor(name: string, fallback: string): string {
   return v || fallback;
 }
 
-export default function Furniture3D({ unit, result }: Props) {
+export default function Furniture3D({ unit, result, theme }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -332,7 +334,8 @@ export default function Furniture3D({ unit, result }: Props) {
     const fill = scene.children.find((o) => o instanceof THREE.DirectionalLight && !o.castShadow) as THREE.DirectionalLight;
     fill.position.set(size * 1.2, size * 0.6, size);
     st.render();
-  }, [boxes, looks]);
+    // `theme` solo para repintar: los colores se leen de la página.
+  }, [boxes, looks, theme]);
 
   // --- Puertas: animación entre cerradas y abiertas ---
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { mm } from './format';
+import { tr } from './i18n';
 import type { ShoeRackResult, ShoeRackStyle } from './types';
 
 /** Inclinación de los estantes zapateros. */
@@ -15,9 +16,15 @@ export const BAR_SPACING = 200;
 export const BAR_RISE = 70;
 
 export const SHOE_LABEL: Record<ShoeRackStyle, string> = {
-  inclinado: 'Zapatero inclinado',
-  barras: 'Zapatero con barras',
-  plano: 'Zapatero plano',
+  get inclinado() {
+    return tr('Zapatero inclinado', 'Slanted shoe rack');
+  },
+  get barras() {
+    return tr('Zapatero con barras', 'Shoe rack with bars');
+  },
+  get plano() {
+    return tr('Zapatero plano', 'Flat shoe rack');
+  },
 };
 
 /** Alto mínimo por nivel para que entren zapatos de hombre. */
@@ -63,13 +70,23 @@ export function layoutShoeRack(
 
   if (style === 'inclinado') {
     const run = Math.min(depth - 10, SHOE_RUN_MAX);
-    if (run < 200) return { rack: null, warnings: [`el zapatero inclinado necesita al menos 210 mm de profundidad y hay ${mm(depth)} mm.`] };
+    if (run < 200) return { rack: null, warnings: [tr(`el zapatero inclinado necesita al menos 210 mm de profundidad y hay ${mm(depth)} mm.`, `the slanted shoe rack needs at least 210 mm of depth and there are ${mm(depth)} mm.`)] };
     const rise = Math.round(run * Math.tan((SHOE_ANGLE_DEG * Math.PI) / 180));
     const pitch = (height - SHOE_BASE) / n;
     if (pitch < MIN_PITCH.inclinado) {
-      warnings.push(`${n} niveles de zapatero en ${mm(height)} mm quedan a ${mm(Math.floor(pitch))} mm: usá menos niveles (hacen falta unos ${MIN_PITCH.inclinado} mm por nivel).`);
+      warnings.push(
+        tr(
+          `${n} niveles de zapatero en ${mm(height)} mm quedan a ${mm(Math.floor(pitch))} mm: usa menos niveles (hacen falta unos ${MIN_PITCH.inclinado} mm por nivel).`,
+          `${n} shoe rack levels in ${mm(height)} mm end up ${mm(Math.floor(pitch))} mm apart: use fewer levels (each level needs about ${MIN_PITCH.inclinado} mm).`,
+        ),
+      );
     } else if (pitch - rise - t < 70) {
-      warnings.push(`el último nivel del zapatero queda con ${mm(Math.floor(pitch - rise - t))} mm atrás: bajá un nivel o dejá el hueco más alto.`);
+      warnings.push(
+        tr(
+          `el último nivel del zapatero queda con ${mm(Math.floor(pitch - rise - t))} mm atrás: quita un nivel o deja el hueco más alto.`,
+          `the top shoe rack level is left with ${mm(Math.floor(pitch - rise - t))} mm at the back: remove a level or make the compartment taller.`,
+        ),
+      );
     }
     const levels = Array.from({ length: n }, (_, i) => {
       const front = Math.round(bottom + SHOE_BASE + i * pitch);
@@ -80,11 +97,11 @@ export function layoutShoeRack(
 
   if (style === 'barras') {
     if (depth < BAR_FRONT + BAR_SPACING + 20) {
-      return { rack: null, warnings: [`el zapatero con barras necesita ${BAR_FRONT + BAR_SPACING + 20} mm de profundidad y hay ${mm(depth)} mm.`] };
+      return { rack: null, warnings: [tr(`el zapatero con barras necesita ${BAR_FRONT + BAR_SPACING + 20} mm de profundidad y hay ${mm(depth)} mm.`, `the shoe rack with bars needs ${BAR_FRONT + BAR_SPACING + 20} mm of depth and there are ${mm(depth)} mm.`)] };
     }
     const pitch = (height - 40) / n;
     if (pitch < MIN_PITCH.barras) {
-      warnings.push(`${n} niveles de barras en ${mm(height)} mm quedan a ${mm(Math.floor(pitch))} mm: usá menos niveles.`);
+      warnings.push(tr(`${n} niveles de barras en ${mm(height)} mm quedan a ${mm(Math.floor(pitch))} mm: usa menos niveles.`, `${n} bar levels in ${mm(height)} mm end up ${mm(Math.floor(pitch))} mm apart: use fewer levels.`));
     }
     const levels = Array.from({ length: n }, (_, i) => {
       const front = Math.round(bottom + 40 + i * pitch);
@@ -96,7 +113,7 @@ export function layoutShoeRack(
   // Plano: n filas de zapatos, con n − 1 estantes (el piso del hueco es la primera fila).
   const row = (height - (n - 1) * t) / n;
   if (row < MIN_PITCH.plano) {
-    warnings.push(`${n} filas de zapatos en ${mm(height)} mm quedan de ${mm(Math.floor(row))} mm: usá menos filas.`);
+    warnings.push(tr(`${n} filas de zapatos en ${mm(height)} mm quedan de ${mm(Math.floor(row))} mm: usa menos filas.`, `${n} rows of shoes in ${mm(height)} mm end up ${mm(Math.floor(row))} mm high: use fewer rows.`));
   }
   const levels = Array.from({ length: n - 1 }, (_, i) => {
     const y = Math.round(bottom + (i + 1) * row + i * t);

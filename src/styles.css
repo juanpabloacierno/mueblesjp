@@ -200,6 +200,20 @@ body::before {
   text-transform: uppercase;
 }
 
+.lang-switch {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
+.lang-switch button {
+  flex: none;
+  min-height: 28px;
+  padding: 2px 9px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .projectbar {
   position: relative;
   display: flex;

@@ -1,5 +1,6 @@
 import { backLabel, boardLabel, boardsThatFit, materialFor } from './catalog';
 import { mm, num } from './format';
+import { getLang, pieceName, tr } from './i18n';
 import { packPieces, type PackItem, type PackResult } from './packing';
 import type { CutSize, Finish, Furniture, Material, Piece, Warning } from './types';
 
@@ -29,7 +30,7 @@ export function edgeLabel(piece: Piece): string {
   const parts: string[] = [];
   if (piece.edges.long) parts.push(`${piece.edges.long} × ${mm(piece.length)}`);
   if (piece.edges.short) parts.push(`${piece.edges.short} × ${mm(piece.width)}`);
-  return parts.length ? parts.join(' + ') : 'Sin tapacanto';
+  return parts.length ? parts.join(' + ') : tr('Sin tapacanto', 'No edge banding');
 }
 
 export interface MaterialPlan {
@@ -112,11 +113,17 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
       const size = cutSize(p, pm);
       const fits = pl.kind === 'melamina' ? boardsThatFit(pm, size.length, size.width) : [];
       const tip = fits.length
-        ? ` Entra en ${fits.map((b) => `${b.brand} de ${mm(b.length)} × ${mm(b.width)}`).join(' o ')}: cambiá la placa en la sección Placas.`
+        ? tr(
+            ` Entra en ${fits.map((b) => `${b.brand} de ${mm(b.length)} × ${mm(b.width)}`).join(' o ')}: cambia el tablero en la sección Tableros.`,
+            ` It fits on ${fits.map((b) => `${b.brand} ${mm(b.length)} × ${mm(b.width)}`).join(' or ')}: change the board in the Boards section.`,
+          )
         : '';
       warnings.push({
         level: 'error',
-        text: `La pieza ${p.code} (${p.name}, ${mm(p.length)} × ${mm(p.width)} mm) no entra en la placa de ${pl.boardLabel}${pm.trim ? ` con ${mm(pm.trim)} mm de refilado` : ''}.${tip}`,
+        text: tr(
+          `La pieza ${p.code} (${pieceName(p.name)}, ${mm(p.length)} × ${mm(p.width)} mm) no entra en el tablero de ${pl.boardLabel}${pm.trim ? ` con ${mm(pm.trim)} mm de refilado` : ''}.${tip}`,
+          `Piece ${p.code} (${pieceName(p.name)}, ${mm(p.length)} × ${mm(p.width)} mm) doesn't fit on the ${pl.boardLabel} board${pm.trim ? ` with ${mm(pm.trim)} mm edge trim` : ''}.${tip}`,
+        ),
       });
     }
   }
@@ -134,41 +141,75 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
   };
 }
 
-/** Texto listo para mandar por WhatsApp o mail al corralón / aserradero. */
+/** Texto listo para mandar por WhatsApp o correo a la ferretería / centro de corte. */
 export function cutListText(furniture: Furniture, summary: Summary): string {
   const m = furniture.material;
   const lines: string[] = [];
-  lines.push(`*Despiece: ${furniture.name}*`);
-  lines.push(`Mueble terminado: ${mm(furniture.width)} ancho × ${mm(furniture.height)} alto × ${mm(furniture.depth)} prof. (mm)`);
-  if (m.subtractEdge) lines.push(`Medidas de corte (ya descontado el tapacanto de ${num(m.edgeThickness)} mm)`);
+  lines.push(tr(`*Despiece: ${furniture.name}*`, `*Cut list: ${furniture.name}*`));
+  lines.push(
+    tr(
+      `Mueble terminado: ${mm(furniture.width)} ancho × ${mm(furniture.height)} alto × ${mm(furniture.depth)} prof. (mm)`,
+      `Finished unit: ${mm(furniture.width)} wide × ${mm(furniture.height)} high × ${mm(furniture.depth)} deep (mm)`,
+    ),
+  );
+  if (m.subtractEdge) {
+    lines.push(
+      tr(
+        `Medidas de corte (ya descontado el tapacanto de ${num(m.edgeThickness)} mm)`,
+        `Cutting sizes (${num(m.edgeThickness)} mm edge banding already subtracted)`,
+      ),
+    );
+  }
   lines.push('');
   const block = (pl: MaterialPlan) => {
-    lines.push(`*${pl.label}* (placa ${pl.boardLabel}${pl.kind === 'melamina' && pl.material.hasGrain ? ', con veta: el largo va en el sentido de la veta' : ''})`);
+    const grain = pl.kind === 'melamina' && pl.material.hasGrain;
+    lines.push(
+      tr(
+        `*${pl.label}* (tablero ${pl.boardLabel}${grain ? ', con veta: el largo va en el sentido de la veta' : ''})`,
+        `*${pl.label}* (board ${pl.boardLabel}${grain ? ', with grain: the length runs along the grain' : ''})`,
+      ),
+    );
     for (const p of pl.pieces) {
       const size = cutSize(p, pl.material);
-      const edge = p.edges.long || p.edges.short ? ` · tapacanto: ${edgeLabel(p)}` : '';
-      lines.push(`${p.code}) ${p.name}: ${p.qty} u. de ${mm(size.length)} × ${mm(size.width)}${edge}`);
+      const edge = p.edges.long || p.edges.short ? tr(` · tapacanto: ${edgeLabel(p)}`, ` · edge banding: ${edgeLabel(p)}`) : '';
+      lines.push(
+        tr(
+          `${p.code}) ${pieceName(p.name)}: ${p.qty} u. de ${mm(size.length)} × ${mm(size.width)}${edge}`,
+          `${p.code}) ${pieceName(p.name)}: ${p.qty} pcs at ${mm(size.length)} × ${mm(size.width)}${edge}`,
+        ),
+      );
     }
-    if (pl.edgeToBuy) lines.push(`Tapacanto ${pl.material.color} ${mm(m.edgeWidth)} mm: ${num(pl.edgeMeters, 1)} m (comprar ${pl.edgeToBuy} m)`.replace(/\s+/g, ' '));
+    if (pl.edgeToBuy) {
+      lines.push(
+        tr(
+          `Tapacanto ${pl.material.color} ${mm(m.edgeWidth)} mm: ${num(pl.edgeMeters, 1)} m (comprar ${pl.edgeToBuy} m)`,
+          `Edge banding ${pl.material.color} ${mm(m.edgeWidth)} mm: ${num(pl.edgeMeters, 1)} m (buy ${pl.edgeToBuy} m)`,
+        ).replace(/\s+/g, ' '),
+      );
+    }
     lines.push('');
   };
   for (const b of summary.boards) block(b);
   if (summary.fondo) block(summary.fondo);
-  const counts = summary.boards.map((b) => `${b.pack.sheets.length} de ${b.label}`);
-  if (summary.fondo) counts.push(`${summary.fondo.pack.sheets.length} de fondo`);
-  lines.push(`Placas estimadas: ${counts.join(', ')} (sierra ${mm(m.kerf)} mm)`);
+  const counts = summary.boards.map((b) => tr(`${b.pack.sheets.length} de ${b.label}`, `${b.pack.sheets.length} × ${b.label}`));
+  if (summary.fondo) counts.push(tr(`${summary.fondo.pack.sheets.length} de fondo`, `${summary.fondo.pack.sheets.length} back panel`));
+  lines.push(tr(`Tableros estimados: ${counts.join(', ')} (sierra ${mm(m.kerf)} mm)`, `Estimated boards: ${counts.join(', ')} (saw kerf ${mm(m.kerf)} mm)`));
   return lines.join('\n');
 }
 
-/** CSV con punto y coma (lo abre bien Excel en español). */
+/** CSV con punto y coma en español (lo abre bien Excel en español) y con coma en inglés. */
 export function cutListCsv(furniture: Furniture, pieces: Piece[]): string {
   const m = furniture.material;
-  const header = ['Código', 'Pieza', 'Cantidad', 'Largo', 'Ancho', 'Espesor', 'Material', 'Tapacanto lados largo', 'Tapacanto lados ancho', 'Se puede girar', 'Notas'];
+  const sep = getLang() === 'en' ? ',' : ';';
+  const header =
+    getLang() === 'en'
+      ? ['Code', 'Piece', 'Quantity', 'Length', 'Width', 'Thickness', 'Material', 'Edge banding (long sides)', 'Edge banding (short sides)', 'Can rotate', 'Notes']
+      : ['Código', 'Pieza', 'Cantidad', 'Largo', 'Ancho', 'Espesor', 'Material', 'Tapacanto lados largos', 'Tapacanto lados cortos', 'Se puede girar', 'Notas'];
   const rows = pieces.map((p) => {
     const size = cutSize(p, m);
     return [
       p.code,
-      p.name,
+      pieceName(p.name),
       String(p.qty),
       mm(size.length),
       mm(size.width),
@@ -176,10 +217,10 @@ export function cutListCsv(furniture: Furniture, pieces: Piece[]): string {
       p.material === 'melamina' ? boardLabel(materialFor(m, p.finish ?? 'exterior')) : backLabel(m),
       String(p.edges.long),
       String(p.edges.short),
-      p.canRotate ? 'Sí' : 'No',
+      p.canRotate ? tr('Sí', 'Yes') : 'No',
       p.notes.join(' / '),
     ];
   });
-  const esc = (v: string) => (/[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  return [header, ...rows].map((r) => r.map(esc).join(';')).join('\n');
+  const esc = (v: string) => (v.includes(sep) || /["\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  return [header, ...rows].map((r) => r.map(esc).join(sep)).join('\n');
 }

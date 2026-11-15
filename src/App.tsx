@@ -19,16 +19,17 @@ import { mm, money, newId, num } from './lib/format';
 import { computeShelfUnit } from './lib/shelf';
 import { loadState, parseState, saveState, type AppState } from './lib/storage';
 import type { Warning } from './lib/types';
+import { LANGS, loadLang, saveLang, setLang, tr, type Lang } from './lib/i18n';
 
 type Tab = 'medidas' | 'plano' | '3d' | 'despiece' | 'placas' | 'compras' | 'armado';
 
-const RESULT_TABS: { key: Exclude<Tab, 'medidas'>; label: string }[] = [
-  { key: 'plano', label: 'Plano y espacios' },
+const resultTabs = (): { key: Exclude<Tab, 'medidas'>; label: string }[] => [
+  { key: 'plano', label: tr('Plano y espacios', 'Plan & spaces') },
   { key: '3d', label: '3D' },
-  { key: 'despiece', label: 'Despiece' },
-  { key: 'placas', label: 'Placas' },
-  { key: 'compras', label: 'Compras' },
-  { key: 'armado', label: 'Armado' },
+  { key: 'despiece', label: tr('Despiece', 'Cut list') },
+  { key: 'placas', label: tr('Tableros', 'Boards') },
+  { key: 'compras', label: tr('Compras', 'Shopping') },
+  { key: 'armado', label: tr('Armado', 'Assembly') },
 ];
 
 function useIsWide() {
@@ -43,6 +44,18 @@ function useIsWide() {
   return wide;
 }
 
+/** "3 tableros de melamina", "1 board interior (Blanco)"… sin el número. */
+function boardStatLabel(sheets: number, finish: 'interior' | 'exterior' | null, color: string, boardType: string): string {
+  const one = sheets === 1;
+  if (finish) {
+    const es = `${one ? 'tablero' : 'tableros'} ${finish} (${color})`;
+    const en = `${finish} ${one ? 'board' : 'boards'} (${color})`;
+    return tr(es, en);
+  }
+  const kind = boardType === 'mdf' ? ['de MDF', 'MDF'] : boardType === 'aglomerado' ? ['de aglomerado', 'particleboard'] : ['de melamina', 'melamine'];
+  return tr(`${one ? 'tablero' : 'tableros'} ${kind[0]}`, `${kind[1]} ${one ? 'board' : 'boards'}`);
+}
+
 function BrandMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
@@ -53,6 +66,9 @@ function BrandMark() {
 }
 
 export default function App() {
+  const [lang, setLangState] = useState<Lang>(loadLang);
+  // El idioma se fija antes de calcular y dibujar: todo lo de abajo lo lee.
+  setLang(lang);
   const [state, setState] = useState<AppState>(loadState);
   const [tab, setTab] = useState<Tab>('plano');
   const [toast, setToast] = useState<string | null>(null);
@@ -63,6 +79,12 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => saveState(state), [state]);
+
+  useEffect(() => {
+    saveLang(lang);
+    document.documentElement.lang = lang;
+    document.title = tr('MueblesJP · Despiece de melamina', 'MueblesJP · Melamine cut list');
+  }, [lang]);
 
   // Altura real de la barra superior para las piezas pegajosas.
   useLayoutEffect(() => {
@@ -84,10 +106,12 @@ export default function App() {
   const unit = state.projects.find((p) => p.id === state.activeId) ?? state.projects[0];
   // Medidas reales (en empotrados, el hueco menos las holguras) para todo lo que se calcula y dibuja.
   const built = useMemo(() => resolveUnit(unit), [unit]);
-  const result = useMemo(() => computeShelfUnit(built), [built]);
+  // `lang` en las dependencias: los avisos, la lista de compras y los pasos se escriben en el idioma activo.
+  const result = useMemo(() => computeShelfUnit(built), [built, lang]);
   const summary = useMemo(() => summarize(built, result.pieces), [built, result]);
   const shopping = useMemo(() => buildShoppingList(built, result, summary), [built, result, summary]);
   const assembly = useMemo(() => buildAssembly(built, result, summary), [built, result, summary]);
+  const RESULT_TABS = resultTabs();
   const total = shoppingTotals(built, shopping, state.priceList).total;
 
   const update: Updater = useCallback(
@@ -113,14 +137,14 @@ export default function App() {
     setState((s) => ({ ...s, projects: [...s.projects, created], activeId: created.id }));
     setMenu(null);
     setTab(wide ? 'plano' : 'medidas');
-    notify(`Nuevo mueble: ${preset.label}`);
+    notify(tr(`Nuevo mueble: ${preset.label}`, `New unit: ${preset.label}`));
   };
 
   const duplicate = () => {
-    const copy = { ...structuredClone(unit), id: newId(), name: `${unit.name} (copia)`, updatedAt: Date.now() };
+    const copy = { ...structuredClone(unit), id: newId(), name: `${unit.name} ${tr('(copia)', '(copy)')}`, updatedAt: Date.now() };
     setState((s) => ({ ...s, projects: [...s.projects, copy], activeId: copy.id }));
     setMenu(null);
-    notify('Mueble duplicado');
+    notify(tr('Mueble duplicado', 'Unit duplicated'));
   };
 
   const remove = () => {
@@ -134,7 +158,7 @@ export default function App() {
     });
     setConfirmDelete(false);
     setMenu(null);
-    notify('Mueble eliminado');
+    notify(tr('Mueble eliminado', 'Unit deleted'));
   };
 
   const importFile = async (file: File) => {
@@ -145,9 +169,9 @@ export default function App() {
         const incoming = imported.projects.map((p) => (ids.has(p.id) ? { ...p, id: newId() } : p));
         return { ...s, projects: [...s.projects, ...incoming], activeId: incoming[0].id };
       });
-      notify(`Importados ${imported.projects.length} muebles`);
+      notify(tr(`Se importaron ${imported.projects.length} muebles`, `Imported ${imported.projects.length} units`));
     } catch {
-      notify('No se pudo leer el archivo: tiene que ser un respaldo de esta app (.json)');
+      notify(tr('No se pudo leer el archivo: debe ser un respaldo de esta app (.json)', 'Could not read the file: it must be a backup from this app (.json)'));
     }
   };
 
@@ -166,29 +190,36 @@ export default function App() {
             <BrandMark />
             <div>
               <h1>MueblesJP</h1>
-              <p>Despiece de melamina</p>
+              <p>{tr('Despiece de melamina', 'Melamine cut list')}</p>
             </div>
+          </div>
+          <div className="segmented lang-switch" role="radiogroup" aria-label={tr('Idioma', 'Language')}>
+            {LANGS.map((l) => (
+              <button key={l.key} type="button" role="radio" aria-checked={lang === l.key} lang={l.key} title={l.name} onClick={() => setLangState(l.key)}>
+                {l.label}
+              </button>
+            ))}
           </div>
           <div className="projectbar">
             <label className="field-label" htmlFor="project-select" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>
-              Mueble
+              {tr('Mueble', 'Unit')}
             </label>
             <select id="project-select" value={unit.id} onChange={(e) => setState((s) => ({ ...s, activeId: e.target.value }))}>
               {state.projects.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name || 'Sin nombre'}
+                  {p.name || tr('Sin nombre', 'Untitled')}
                 </option>
               ))}
             </select>
             <div>
               <button type="button" className="btn btn-primary" aria-expanded={menu === 'nuevo'} onClick={() => setMenu((m) => (m === 'nuevo' ? null : 'nuevo'))}>
-                + Nuevo
+                {tr('+ Nuevo', '+ New')}
               </button>
               {menu === 'nuevo' && (
                 <div className="popover" role="menu">
                   {(['placard', 'estanteria'] as const).map((kind) => (
-                    <div key={kind} role="group" aria-label={kind === 'placard' ? 'Placares' : 'Estanterías y muebles'}>
-                      <div className="popover-group">{kind === 'placard' ? 'Placares' : 'Estanterías y muebles'}</div>
+                    <div key={kind} role="group" aria-label={kind === 'placard' ? tr('Clósets', 'Wardrobes') : tr('Estanterías y muebles', 'Shelving and cabinets')}>
+                      <div className="popover-group">{kind === 'placard' ? tr('Clósets', 'Wardrobes') : tr('Estanterías y muebles', 'Shelving and cabinets')}</div>
                       {PRESETS.filter((p) => (p.unit.kind ?? 'estanteria') === kind).map((p) => (
                         <button key={p.key} type="button" role="menuitem" onClick={() => addFromPreset(p.key)}>
                           <strong>{p.label}</strong>
@@ -205,7 +236,7 @@ export default function App() {
                 type="button"
                 className="btn"
                 aria-expanded={menu === 'mas'}
-                aria-label="Más acciones"
+                aria-label={tr('Más acciones', 'More actions')}
                 onClick={() => {
                   setConfirmDelete(false);
                   setMenu((m) => (m === 'mas' ? null : 'mas'));
@@ -216,13 +247,13 @@ export default function App() {
                   <circle cx="8" cy="8" r="1.5" />
                   <circle cx="13" cy="8" r="1.5" />
                 </svg>
-                <span className="menu-label">Más</span>
+                <span className="menu-label">{tr('Más', 'More')}</span>
               </button>
               {menu === 'mas' && (
                 <div className="popover" role="menu">
                   <button type="button" role="menuitem" onClick={duplicate}>
-                    <strong>Duplicar</strong>
-                    <span>Copia de “{unit.name}” para hacer una variante</span>
+                    <strong>{tr('Duplicar', 'Duplicate')}</strong>
+                    <span>{tr(`Copia de “${unit.name}” para hacer una variante`, `Copy of “${unit.name}” to make a variant`)}</span>
                   </button>
                   {!__SINGLE_FILE__ && (
                     <>
@@ -234,8 +265,8 @@ export default function App() {
                           setMenu(null);
                         }}
                       >
-                        <strong>Descargar respaldo</strong>
-                        <span>Todos tus muebles en un archivo .json</span>
+                        <strong>{tr('Descargar respaldo', 'Download backup')}</strong>
+                        <span>{tr('Todos tus muebles en un archivo .json', 'All your units in a .json file')}</span>
                       </button>
                       <button
                         type="button"
@@ -245,21 +276,21 @@ export default function App() {
                           setMenu(null);
                         }}
                       >
-                        <strong>Importar respaldo</strong>
-                        <span>Agrega los muebles de un archivo .json</span>
+                        <strong>{tr('Importar respaldo', 'Import backup')}</strong>
+                        <span>{tr('Agrega los muebles de un archivo .json', 'Adds the units from a .json file')}</span>
                       </button>
                     </>
                   )}
                   <hr />
                   {confirmDelete ? (
                     <button type="button" role="menuitem" className="danger" onClick={remove}>
-                      <strong>Sí, eliminar “{unit.name}”</strong>
-                      <span>No se puede deshacer</span>
+                      <strong>{tr(`Sí, eliminar “${unit.name}”`, `Yes, delete “${unit.name}”`)}</strong>
+                      <span>{tr('No se puede deshacer', 'This cannot be undone')}</span>
                     </button>
                   ) : (
                     <button type="button" role="menuitem" className="danger" onClick={() => setConfirmDelete(true)}>
-                      <strong>Eliminar este mueble</strong>
-                      <span>Te pide confirmación</span>
+                      <strong>{tr('Eliminar este mueble', 'Delete this unit')}</strong>
+                      <span>{tr('Te pide confirmación', 'Asks for confirmation')}</span>
                     </button>
                   )}
                 </div>
@@ -282,23 +313,23 @@ export default function App() {
         </div>
       </header>
 
-      <nav className="tabs mobile-tabs" role="tablist" aria-label="Secciones">
-        {[{ key: 'medidas' as Tab, label: 'Medidas' }, ...RESULT_TABS.map((t) => ({ ...t, label: t.key === 'plano' ? 'Plano' : t.label }))].map((t) => (
+      <nav className="tabs mobile-tabs" role="tablist" aria-label={tr('Secciones', 'Sections')}>
+        {[{ key: 'medidas' as Tab, label: tr('Medidas', 'Dimensions') }, ...RESULT_TABS.map((t) => ({ ...t, label: t.key === 'plano' ? tr('Plano', 'Plan') : t.label }))].map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}>
             {t.label}
           </button>
         ))}
       </nav>
 
-      <main className="workspace">
-        <aside className={`editor ${!wide && tab !== 'medidas' ? 'is-inactive' : ''}`} aria-label="Medidas del mueble">
+      <main className="workspace" key={lang}>
+        <aside className={`editor ${!wide && tab !== 'medidas' ? 'is-inactive' : ''}`} aria-label={tr('Medidas del mueble', 'Unit dimensions')}>
           <ShelfForm
             unit={unit}
             result={result}
             update={update}
             onSaveDefaults={() => {
               setState((s) => ({ ...s, defaults: { material: { ...unit.material } } }));
-              notify('Guardado: los muebles nuevos usan estas placas');
+              notify(tr('Guardado: los muebles nuevos usan estos tableros', 'Saved: new units will use these boards'));
             }}
             customBoards={state.customBoards}
             onSaveBoard={(board) => {
@@ -310,21 +341,21 @@ export default function App() {
                   : [...s.customBoards, board];
                 return { ...s, customBoards };
               });
-              notify(`Guardada en tus placas: ${board.brand}`);
+              notify(tr(`Guardado en tus tableros: ${board.brand}`, `Saved to your boards: ${board.brand}`));
             }}
             onRemoveBoard={(board) => {
               setState((s) => ({
                 ...s,
                 customBoards: s.customBoards.filter((b) => !(b.brand === board.brand && b.type === board.type && b.length === board.length && b.width === board.width)),
               }));
-              notify(`Quitada de tus placas: ${board.brand}`);
+              notify(tr(`Quitado de tus tableros: ${board.brand}`, `Removed from your boards: ${board.brand}`));
             }}
           />
         </aside>
 
-        <section className={`results ${!wide && tab === 'medidas' ? 'is-inactive' : ''}`} aria-label="Resultados">
+        <section className={`results ${!wide && tab === 'medidas' ? 'is-inactive' : ''}`} aria-label={tr('Resultados', 'Results')}>
           <div className="results-head">
-            <h2>{unit.name || 'Sin nombre'}</h2>
+            <h2>{unit.name || tr('Sin nombre', 'Untitled')}</h2>
             <span className="dims">
               {mm(result.size.width)} × {mm(result.size.height)} × {mm(result.size.depth + result.doors.extraDepth)} mm
             </span>
@@ -336,21 +367,14 @@ export default function App() {
                 <div className="stat" key={b.label}>
                   <span className="stat-value">{b.pack.sheets.length}</span>
                   <span className="stat-label">
-                    {b.pack.sheets.length === 1 ? 'placa' : 'placas'}{' '}
-                    {summary.interior
-                      ? `${b.finish === 'interior' ? 'interior' : 'exterior'} (${b.material.color})`
-                      : b.material.boardType === 'mdf'
-                        ? 'de MDF'
-                        : b.material.boardType === 'aglomerado'
-                          ? 'de aglomerado'
-                          : 'de melamina'}
+                    {boardStatLabel(b.pack.sheets.length, summary.interior ? (b.finish === 'interior' ? 'interior' : 'exterior') : null, b.material.color, b.material.boardType)}
                   </span>
                 </div>
               ))}
               {summary.fondo && (
                 <div className="stat">
                   <span className="stat-value">{summary.fondo.pack.sheets.length}</span>
-                  <span className="stat-label">{summary.fondo.pack.sheets.length === 1 ? 'placa' : 'placas'} de fondo</span>
+                  <span className="stat-label">{summary.fondo.pack.sheets.length === 1 ? tr('tablero de fondo', 'back panel board') : tr('tableros de fondo', 'back panel boards')}</span>
                 </div>
               )}
               <div className="stat">
@@ -358,24 +382,28 @@ export default function App() {
                   {num(summary.edgeMeters, 1)}
                   <small>m</small>
                 </span>
-                <span className="stat-label">de tapacanto</span>
+                <span className="stat-label">{tr('de tapacanto', 'of edge banding')}</span>
               </div>
               <div className="stat">
                 <span className="stat-value">{totalPieces}</span>
-                <span className="stat-label">piezas a cortar</span>
+                <span className="stat-label">{tr('piezas a cortar', 'pieces to cut')}</span>
               </div>
               {result.doors.doors.length > 0 && (
                 <div className="stat">
                   <span className="stat-value">{result.doors.doors.length}</span>
                   <span className="stat-label">
-                    {unit.doors.type === 'corrediza' ? 'hojas corredizas' : result.doors.doors.length === 1 ? 'puerta con bisagras' : 'puertas con bisagras'}
+                    {unit.doors.type === 'corrediza'
+                      ? tr('hojas corredizas', 'sliding door panels')
+                      : result.doors.doors.length === 1
+                        ? tr('puerta con bisagras', 'hinged door')
+                        : tr('puertas con bisagras', 'hinged doors')}
                   </span>
                 </div>
               )}
               {total > 0 && (
                 <div className="stat">
                   <span className="stat-value">{money(total)}</span>
-                  <span className="stat-label">materiales tildados</span>
+                  <span className="stat-label">{tr('materiales marcados', 'checked materials')}</span>
                 </div>
               )}
             </div>
@@ -385,14 +413,14 @@ export default function App() {
             <ul className="warnings">
               {allWarnings.map((w, i) => (
                 <li key={i} className={`warning ${w.level}`}>
-                  <span className="warning-tag">{w.level === 'error' ? 'Error' : w.level === 'aviso' ? 'Ojo' : 'Tip'}</span>
+                  <span className="warning-tag">{w.level === 'error' ? 'Error' : w.level === 'aviso' ? tr('Atención', 'Warning') : tr('Consejo', 'Tip')}</span>
                   <span>{w.text}</span>
                 </li>
               ))}
             </ul>
           )}
 
-          <div className="tabs desktop-tabs" role="tablist" aria-label="Resultados">
+          <div className="tabs desktop-tabs" role="tablist" aria-label={tr('Resultados', 'Results')}>
             {RESULT_TABS.map((t) => (
               <button key={t.key} type="button" role="tab" aria-selected={activeResultTab === t.key} onClick={() => setTab(t.key)}>
                 {t.label}
@@ -401,16 +429,16 @@ export default function App() {
           </div>
 
           <div className={`tab-panel ${activeResultTab === 'plano' ? '' : 'is-inactive'}`} role="tabpanel">
-            {hasPieces ? <PlanPanel unit={built} result={result} /> : <p className="empty-note">Corregí los errores de arriba para ver el plano.</p>}
+            {hasPieces ? <PlanPanel unit={built} result={result} /> : <p className="empty-note">{tr('Corrige los errores de arriba para ver el plano.', 'Fix the errors above to see the plan.')}</p>}
           </div>
           <div className={`tab-panel no-print ${activeResultTab === '3d' ? '' : 'is-inactive'}`} role="tabpanel">
             {activeResultTab === '3d' &&
               (hasPieces ? (
-                <Suspense fallback={<p className="empty-note">Cargando la vista 3D…</p>}>
+                <Suspense fallback={<p className="empty-note">{tr('Cargando la vista 3D…', 'Loading the 3D view…')}</p>}>
                   <Furniture3D unit={built} result={result} />
                 </Suspense>
               ) : (
-                <p className="empty-note">Corregí los errores de arriba para ver el mueble en 3D.</p>
+                <p className="empty-note">{tr('Corrige los errores de arriba para ver el mueble en 3D.', 'Fix the errors above to see the unit in 3D.')}</p>
               ))}
           </div>
           <div className={`tab-panel ${activeResultTab === 'despiece' ? '' : 'is-inactive'}`} role="tabpanel">

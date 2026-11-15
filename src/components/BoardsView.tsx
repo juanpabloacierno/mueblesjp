@@ -1,5 +1,6 @@
 import type { MaterialPlan, Summary } from '../lib/cutlist';
 import { mm, num } from '../lib/format';
+import { pieceName, tr } from '../lib/i18n';
 import type { Sheet } from '../lib/packing';
 import type { Piece, ShelfUnit } from '../lib/types';
 
@@ -11,7 +12,7 @@ function SheetDrawing({ sheet, plan, boardL, boardW, trim, grain, id }: { sheet:
   const padTop = fs * 1.8;
 
   return (
-    <svg className="sheet-svg" viewBox={`0 ${-padTop} ${boardL} ${boardW + padTop}`} role="img" aria-label={`Placa de ${mm(boardL)} por ${mm(boardW)} con ${sheet.placements.length} piezas`}>
+    <svg className="sheet-svg" viewBox={`0 ${-padTop} ${boardL} ${boardW + padTop}`} role="img" aria-label={tr(`Tablero de ${mm(boardL)} por ${mm(boardW)} con ${sheet.placements.length} piezas`, `${mm(boardL)} by ${mm(boardW)} board with ${sheet.placements.length} pieces`)}>
       <defs>
         <pattern id={`hatch-${id}`} width={fs * 0.9} height={fs * 0.9} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width={fs * 0.9} height={fs * 0.9} fill="var(--core)" />
@@ -101,7 +102,7 @@ function SheetDrawing({ sheet, plan, boardL, boardW, trim, grain, id }: { sheet:
       {grain && (
         <g>
           <text x={0} y={-fs * 0.55} fontSize={fs * 0.9} style={{ fill: 'var(--muted)' }}>
-            Veta ⟶
+            {tr('Veta ⟶', 'Grain ⟶')}
           </text>
         </g>
       )}
@@ -123,7 +124,10 @@ function PlanSheets({ plan, isBack }: { plan: MaterialPlan; isBack: boolean }) {
       <div className="card-title">
         <h3>{plan.label}</h3>
         <p>
-          {total} {total === 1 ? 'placa' : 'placas'} de {plan.boardLabel} · aprovechamiento {Math.round(plan.pack.efficiency * 100)} %
+          {tr(
+            `${total} ${total === 1 ? 'tablero' : 'tableros'} de ${plan.boardLabel} · aprovechamiento ${Math.round(plan.pack.efficiency * 100)} %`,
+            `${total} ${total === 1 ? 'board' : 'boards'} of ${plan.boardLabel} · ${Math.round(plan.pack.efficiency * 100)}% yield`,
+          )}
         </p>
       </div>
       <div className="sheet-list">
@@ -135,10 +139,10 @@ function PlanSheets({ plan, isBack }: { plan: MaterialPlan; isBack: boolean }) {
             <div key={i}>
               <div className="row-between" style={{ marginBottom: 6 }}>
                 <strong style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Placa {i + 1} de {total}
+                  {tr(`Tablero ${i + 1} de ${total}`, `Board ${i + 1} of ${total}`)}
                 </strong>
                 <span className="field-hint">
-                  {sheet.placements.length} piezas · {pct} % usado
+                  {tr(`${sheet.placements.length} piezas · ${pct} % usado`, `${sheet.placements.length} pieces · ${pct}% used`)}
                 </span>
               </div>
               <SheetDrawing sheet={sheet} plan={plan} boardL={boardL} boardW={boardW} trim={m.trim} grain={!isBack && m.hasGrain} id={`${isBack ? 'b' : 'm'}${i}`} />
@@ -149,7 +153,7 @@ function PlanSheets({ plan, isBack }: { plan: MaterialPlan; isBack: boolean }) {
                     <div key={code}>
                       <span className="code">{code}</span>
                       <span>
-                        {p.name} <span className="num muted">×{qty}</span>
+                        {pieceName(p.name)} <span className="num muted">×{qty}</span>
                       </span>
                     </div>
                   );
@@ -165,20 +169,28 @@ function PlanSheets({ plan, isBack }: { plan: MaterialPlan; isBack: boolean }) {
 
 export function BoardsView({ unit, summary }: { unit: ShelfUnit; summary: Summary }) {
   const m = unit.material;
-  if (summary.melamina.pieces.length === 0) return <p className="empty-note">Corregí los errores de arriba para ver las placas.</p>;
+  if (summary.melamina.pieces.length === 0) return <p className="empty-note">{tr('Corrige los errores de arriba para ver los tableros.', 'Fix the errors above to see the boards.')}</p>;
   return (
     <div className="panel-body">
       <p className="footer-note" style={{ margin: 0 }}>
-        Distribución orientativa con cortes de lado a lado (como una seccionadora), sierra de {mm(m.kerf)} mm y {mm(m.trim)} mm de refilado por borde.
-        {summary.boards.some((b) => b.material.hasGrain) ? ' Las piezas con veta no se giran.' : ' Sin veta: las piezas se pueden girar.'} Las medidas en gris son los sobrantes aprovechables. El
-        aserradero puede acomodarlas distinto.
+        {tr(
+          `Distribución orientativa con cortes de lado a lado (como una seccionadora), sierra de ${mm(m.kerf)} mm y ${mm(m.trim)} mm de refilado por borde.`,
+          `Approximate layout with edge-to-edge cuts (like a panel saw), ${mm(m.kerf)} mm saw kerf and ${mm(m.trim)} mm edge trim on each side.`,
+        )}
+        {summary.boards.some((b) => b.material.hasGrain)
+          ? tr(' Las piezas con veta no se giran.', ' Pieces with grain are not rotated.')
+          : tr(' Sin veta: las piezas se pueden girar.', ' No grain: pieces can be rotated.')}{' '}
+        {tr(
+          'Las medidas en gris son los sobrantes aprovechables. El centro de corte puede acomodarlas distinto.',
+          'The gray sizes are usable offcuts. The cutting service may arrange the pieces differently.',
+        )}
       </p>
       {summary.boards.map((b) => (
         <PlanSheets key={b.label} plan={b} isBack={false} />
       ))}
       {summary.fondo && <PlanSheets plan={summary.fondo} isBack />}
       <p className="field-hint" style={{ margin: 0 }}>
-        Total de piezas: {num(summary.boards.reduce((a, b) => a + b.area, 0) + (summary.fondo?.area ?? 0))} m².
+        {tr('Total de piezas', 'Total pieces')}: {num(summary.boards.reduce((a, b) => a + b.area, 0) + (summary.fondo?.area ?? 0))} m².
       </p>
     </div>
   );

@@ -1,50 +1,54 @@
 # MueblesJP · Despiece de melamina
 
-App web para diseñar muebles de melamina y saber exactamente qué cortar: **placares**
-(empotrados o sueltos), **estanterías, bibliotecas, muebles bajos y estantes de pared**.
+*[English version](README.en.md)*
 
-Cargás las medidas del mueble (o del hueco, si va empotrado) y la app te da:
+App web para diseñar muebles de melamina y saber exactamente qué cortar: **clósets**
+(empotrados o sueltos), **estanterías, libreros, muebles bajos y estantes de pared**.
+La interfaz está en español e inglés (selector ES/EN en la barra superior).
 
-- **Plano con cotas**: vista de frente y corte lateral, con la luz libre de cada hueco y
-  de cada columna.
+Cargas las medidas del mueble (o del hueco, si va empotrado) y la app te da:
+
+- **Plano con cotas**: vista de frente y corte lateral, con el espacio libre de cada hueco
+  y de cada columna.
 - **Espacios y marcas**: a qué altura va cada estante (desde el suelo y desde el piso del
   mueble) y dónde va cada divisor, para marcar antes de armar.
 - **Despiece**: lista de piezas con cantidad, largo, ancho y en qué lados lleva tapacanto.
-  Se copia en un toque para mandarla por WhatsApp al aserradero, o se descarga en CSV.
-- **Elección de placas**: marca, tipo, medida, espesor y color (con el código del
+  Se copia con un toque para enviarla por WhatsApp al taller de corte, o se descarga en CSV.
+- **Elección de tableros**: marca, tipo, medida, espesor y color (con el código del
   diseño) para el exterior, el interior y el fondo. Catálogo de Egger, Faplac y Sadepan
-  con sus líneas y colores, y la opción de cargar y guardar las placas de tu proveedor.
-  Si una pieza no entra, sugiere qué placa sí.
+  con sus líneas y colores, y la opción de cargar y guardar los tableros de tu proveedor.
+  Si una pieza no cabe, sugiere qué tablero sí.
 - **Color exterior e interior**: puertas y frentes de cajón siempre con el color de
   afuera; estantes, divisores y cajones con el de adentro; la caja, a elección. Cada color
-  tiene sus placas, su lista de cortes y su tapacanto.
+  tiene sus tableros, su lista de cortes y su tapacanto.
 - **Vista 3D** con los colores elegidos: se gira y se acerca con el dedo o el mouse, con
   puertas cerradas, abiertas (cajones afuera) o sin puertas.
-- **Placas**: cómo entran las piezas en las placas (cortes de lado a lado, como una
-  seccionadora), cuántas placas comprar y qué sobrantes quedan.
+- **Tableros**: cómo caben las piezas en los tableros (cortes de lado a lado, como una
+  seccionadora), cuántos tableros comprar y qué sobrantes quedan.
 - **Puertas**: con bisagras (superpuestas o embutidas, en todo el alto o solo abajo, en
   las columnas que elijas) o corredizas. Calcula la medida de cada puerta, qué bisagra va
-  (recta, codo 9 o codo 18), a qué altura va cada bisagra y cuánto lugar hace falta
+  (recta, codo 9 o codo 18), a qué altura va cada bisagra y cuánto espacio hace falta
   adelante para abrirlas.
-- **Placares**: medidas del hueco con holguras, maletero arriba con sus puertas, y en cada
-  hueco estantes, **barral**, **cajones** o **zapatero** (estantes inclinados con tope, dos
-  barras por nivel o estantes planos). Hay interiores típicos para armar rápido
-  (colgado largo, doble colgado, colgado corto + zapatero, cajonera + estantes…). Avisa si falta alto o
-  profundidad para colgar y si el mueble armado no se va a poder parar en el hueco.
-- **Lista de compras**: todo lo que puede hacer falta, agrupado en placas y cortes,
-  herrajes, tornillos y fijaciones, insumos y herramientas. Viene tildado lo necesario;
-  los opcionales (minifix, tarugos, amortiguadores, herramientas…) se tildan a mano.
-  Cargás el precio de cada ítem una vez y sirve para todos los muebles.
+- **Clósets**: medidas del hueco con holguras, maletero arriba con sus puertas, y en cada
+  hueco estantes, **barra de colgar**, **cajones** o **zapatero** (estantes inclinados con
+  tope, dos barras por nivel o estantes planos). Hay interiores típicos para armar rápido
+  (colgado largo, doble colgado, colgado corto + zapatero, cajonera + estantes…). Avisa si
+  falta alto o profundidad para colgar y si el mueble armado no se podrá levantar dentro
+  del hueco.
+- **Lista de compras**: todo lo que puede hacer falta, agrupado en tableros y cortes,
+  herrajes, tornillos y fijaciones, insumos y herramientas. Lo necesario viene marcado;
+  los opcionales (minifix, espigas, amortiguadores, herramientas…) se marcan a mano.
+  Cargas el precio de cada artículo una vez y sirve para todos los muebles.
 - **Instrucciones de armado ilustradas**: una hoja con todas las piezas dibujadas (con su
   letra, cantidad, medidas y cantos con tapacanto) y los herrajes, y después los pasos en
   orden, cada uno con su dibujo: lo ya armado en blanco, las piezas nuevas resaltadas y
   separadas, con flechas hasta su lugar y la letra del despiece, más qué piezas y herrajes
   lleva el paso. Los dibujos salen del modelo 3D, así que siempre coinciden con tu mueble.
-- **Avisos**: estantes demasiado largos que se van a pandear, muebles altos que hay que
-  fijar a la pared, piezas que no entran en la placa, etc.
+- **Avisos**: estantes demasiado largos que se van a combar, muebles altos que hay que
+  fijar a la pared, piezas que no caben en el tablero, etc.
 
-Los muebles se guardan solos en el navegador. Desde el menú **⋯** podés duplicarlos,
-borrarlos o bajar un respaldo `.json` para pasarlos a otra compu.
+Los muebles se guardan solos en el navegador. Desde el menú **⋯** puedes duplicarlos,
+borrarlos o descargar un respaldo `.json` para pasarlos a otra computadora.
 
 ## Cómo se calcula
 
@@ -57,73 +61,74 @@ Todas las medidas son en milímetros.
 | Piso | Ancho − 2 espesores. Con zócalo queda elevado a la altura del zócalo |
 | Zócalo | Ancho − 2 espesores × alto del zócalo |
 | Divisores | Alto interior (de piso a techo) |
-| Estantes fijos | Luz de la columna |
-| Estantes móviles | Luz de la columna − holgura (2 mm por defecto) |
+| Estantes fijos | Espacio libre de la columna |
+| Estantes móviles | Espacio libre de la columna − holgura (2 mm por defecto) |
 | Fondo clavado | Ancho − 2 × alto − 2 (queda 1 mm adentro de cada borde) |
-| Fondo en ranura | Luz interior + 2 × (profundidad de ranura − 1) en cada sentido |
-| Puerta superpuesta | Tapa el lateral entero y medio divisor: ancho cubierto ÷ puertas − luz (3 mm) |
-| Puerta embutida | (Luz de la columna − luces) ÷ puertas; alto libre − 2 luces |
+| Fondo en ranura | Espacio libre interior + 2 × (profundidad de ranura − 1) en cada sentido |
+| Puerta superpuesta | Tapa el lateral entero y medio divisor: ancho cubierto ÷ puertas − holgura (3 mm) |
+| Puerta embutida | (Espacio libre de la columna − holguras) ÷ puertas; alto libre − 2 holguras |
 | Puerta corrediza | (Ancho interior + solapes) ÷ hojas; alto libre − descuento del kit |
 | Mueble empotrado | Hueco − 5 mm por costado, − 20 mm arriba, − 10 mm atrás |
 | Estante maletero | Ancho − 2 espesores; las columnas y divisores llegan hasta él |
-| Barral | Luz de la columna − 2 mm, con el centro a 50 mm del techo del hueco |
-| Frente de cajón | Luz − 6 mm × (alto del hueco − 3 mm por luz) ÷ cajones |
-| Caja de cajón | Luz − 26 mm (correderas telescópicas) × frente − 30 mm, largo de la corredera |
-| Zapatero inclinado | Luz de la columna × hasta 330 mm de recorrido a 15° (342 mm de pendiente), con tope de 50 mm |
-| Zapatero con barras | 2 barras por nivel de luz − 2 mm: adelante a 60 mm del frente, atrás 200 mm más adentro y 70 mm más arriba |
-| Zapatero plano | Estantes sobre pernos: luz − holgura × profundidad del hueco |
+| Barra de colgar | Espacio libre de la columna − 2 mm, con el centro a 50 mm del techo del hueco |
+| Frente de cajón | Espacio libre − 6 mm × (alto del hueco − 3 mm por holgura) ÷ cajones |
+| Caja de cajón | Espacio libre − 26 mm (correderas telescópicas) × frente − 30 mm, largo de la corredera |
+| Zapatero inclinado | Espacio libre de la columna × hasta 330 mm de recorrido a 15° (342 mm de pendiente), con tope de 50 mm |
+| Zapatero con barras | 2 barras por nivel de espacio libre − 2 mm: adelante a 60 mm del frente, atrás 200 mm más adentro y 70 mm más arriba |
+| Zapatero plano | Estantes sobre soportes: espacio libre − holgura × profundidad del hueco |
 
-- La **profundidad** que cargás es la total, con el fondo incluido: con fondo clavado, los
+- La **profundidad** que cargas es la total, con el fondo incluido: con fondo clavado, los
   laterales miden la profundidad menos el espesor del fondo.
 - **Largo = sentido de la veta.** Los laterales y divisores llevan la veta vertical; techo,
-  piso y estantes, horizontal. Si la melamina tiene veta, las piezas no se giran en la placa.
-- Los huecos se reparten en milímetros enteros; el sobrante va a los de abajo. Podés fijar
+  piso y estantes, horizontal. Si la melamina tiene veta, las piezas no se giran en el tablero.
+- Los huecos se reparten en milímetros enteros; el sobrante va a los de abajo. Puedes fijar
   la altura de cualquier hueco y el resto se reparte solo.
 - El tapacanto se indica con la medida de cada lado (`1 × 764` = un lado de 764 mm). Con
-  tapacanto grueso (PVC de 1 o 2 mm) activá *Descontar el tapacanto* para que la pieza
+  tapacanto grueso (PVC de 1 o 2 mm) activa *Descontar el tapacanto* para que la pieza
   terminada mida justo.
 - Puertas con bisagras: 2 por columna si la columna mide más de 60 cm. Bisagras por
   puerta según el alto (2 hasta 90 cm, 3 hasta 160 cm, 4 hasta 2 m), a 100 mm de los
   bordes. Recta en los laterales, codo 9 en los divisores, codo 18 si son embutidas;
   con embutidas los estantes de atrás se acortan espesor + 2 mm.
 - Corredizas: estantes y divisores se retiran del frente lo que ocupan los rieles
-  (50 mm por defecto). El descuento de alto depende del kit: revisalo en sus instrucciones.
-- Placares: para colgar hacen falta unos 520 mm de profundidad libre (ideal 550–600),
-  950 mm de alto para camisas y 1500 mm para vestidos o sobretodos. La corredera es la
-  más larga que entra (250 a 600 mm, de a 50). El estante de arriba de un barral o de
-  cajones queda fijo. Para pararlo armado hace falta más alto que la diagonal del lateral.
-- Zapateros: los niveles se reparten parejo en el hueco; se recomiendan unos 200 mm por
-  nivel inclinado, 180 con barras y 170 por fila plana. Avisa si quedan muy juntos.
-- Valores por defecto: melamina Egger de 2600 × 1830 × 18 mm, fondo de fibrofácil de
-  3 mm, sierra de 4 mm, 10 mm de refilado por borde, tapacanto de 22 × 0,45 mm. Las
-  placas se cambian en *Placas* y el resto en *Corte y tapacanto*.
-- Catálogo de referencia (confirmá con tu proveedor): Egger 2600 × 1830 (melamina 15 y
+  (50 mm por defecto). El descuento de alto depende del kit: revísalo en sus instrucciones.
+- Clósets: para colgar hacen falta unos 520 mm de profundidad libre (ideal 550–600),
+  950 mm de alto para camisas y 1500 mm para vestidos o abrigos largos. La corredera es la
+  más larga que cabe (250 a 600 mm, de 50 en 50). El estante de arriba de una barra de
+  colgar o de cajones queda fijo. Para levantarlo armado hace falta más alto que la
+  diagonal del lateral.
+- Zapateros: los niveles se reparten de forma pareja en el hueco; se recomiendan unos
+  200 mm por nivel inclinado, 180 con barras y 170 por fila plana. Avisa si quedan muy juntos.
+- Valores por defecto: melamina Egger de 2600 × 1830 × 18 mm, fondo de MDF delgado de
+  3 mm, sierra de 4 mm, 10 mm de refilado por borde, tapacanto de 22 × 0,45 mm. Los
+  tableros se cambian en *Tableros* y el resto en *Corte y tapacanto*.
+- Catálogo de referencia (confirma con tu proveedor): Egger 2600 × 1830 (melamina 15 y
   18 mm, melamina sobre MDF 18 mm, fondos de 3 y 5,5 mm); Faplac 2750 × 1830 (melamina
   15, 18 y 25 mm, MDF y aglomerado 18 mm); Sadepan 2820 × 1830 (melamina 18 mm);
-  fibrofácil y fondo blanco genéricos 2600 × 1830. Los colores de madera activan la veta.
+  MDF delgado y fondo blanco genéricos 2600 × 1830. Los colores de madera activan la veta.
   Con MDF o aglomerado crudo el tapacanto queda como opcional.
 
-La distribución en placas es orientativa: prueba varias estrategias de corte guillotina
-(con el espesor de sierra y el refilado) y se queda con la que usa menos placas.
+La distribución en tableros es orientativa: prueba varias estrategias de corte guillotina
+(con el espesor de sierra y el refilado) y se queda con la que usa menos tableros.
 
 ### Colores de las marcas
 
 Los colores salen de los sitios de las marcas, sus lanzamientos y listados de comercios
-argentinos (Easy, DAC Maderas, Alnora, DIAC, Maderwil, Trumar, Multiplacas y otros), en
+de Argentina (Easy, DAC Maderas, Alnora, DIAC, Maderwil, Trumar, Multiplacas y otros), en
 noviembre de 2026. Los códigos son los de cada marca (Egger W954, H3170…; Faplac 098,
 135…; Sadepan 780, TM4…). Los marcados "a confirmar" solo aparecieron en comercios. El
-color que se ve en el 3D es una aproximación por el nombre: la placa real puede verse
-distinta. Espesores: Egger en 18 mm (15 mm solo Blanco, Negro, Gris Sombra y Fineline
+color que se ve en el 3D es una aproximación por el nombre: el tablero real puede verse
+distinto. Espesores: Egger en 18 mm (15 mm solo Blanco, Negro, Gris Sombra y Fineline
 Crema); Faplac en 18 mm (15 y 25 mm confirmado en Blanco); Sadepan informa de 10 a 25 mm,
 pero los colores se consiguen sobre todo en 18 mm.
 
 ## Usarla
 
-En la compu o el celular, después de activar GitHub Pages (una sola vez):
+En la computadora o el celular, después de activar GitHub Pages (una sola vez):
 **Settings → Pages → Source: GitHub Actions**. Cada cambio que llega a `main` se publica
 solo en `https://<usuario>.github.io/mueblesjp/`.
 
-Para correrla localmente hace falta Node 22:
+Para ejecutarla localmente hace falta Node 22:
 
 ```bash
 npm install
@@ -136,11 +141,11 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
 ## Código
 
 - `src/lib/shelf.ts`: geometría de la estantería, piezas, posiciones, herrajes y avisos.
-- `src/lib/packing.ts`: optimización de cortes en placa (guillotina, con sierra y refilado).
+- `src/lib/packing.ts`: optimización de cortes en el tablero (guillotina, con sierra y refilado).
 - `src/lib/doors.ts`: puertas con bisagras y corredizas (abajo y en el maletero).
 - `src/lib/resolve.ts` y `src/lib/templates.ts`: medidas del hueco e interiores típicos.
 - `src/lib/shoes.ts`: zapateros.
-- `src/lib/catalog.ts`: catálogo de placas (marcas, tipos, medidas y espesores) y qué
+- `src/lib/catalog.ts`: catálogo de tableros (marcas, tipos, medidas y espesores) y qué
   piezas van con el color exterior o interior.
 - `src/lib/decors.ts`: líneas y colores de cada marca, con color aproximado para el 3D.
 - `src/lib/scene.ts` y `src/components/Furniture3D.tsx`: vista 3D (three.js).
@@ -148,7 +153,9 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
   de cada paso); `src/components/assemblyRender.ts` los dibuja.
 - `src/lib/cutlist.ts`: medidas de corte, tapacanto y textos para exportar.
 - `src/lib/shopping.ts`: lista de compras, precios y totales.
+- `src/lib/i18n.ts`: idiomas. Cada texto visible se escribe en los dos idiomas con
+  `tr('español', 'English')`; los nombres de piezas se muestran con `pieceName()`.
 - `src/components/`: interfaz en React.
 
-Placares y estanterías usan el mismo cálculo (`kind: 'placard' | 'estanteria'`): una caja
-con columnas, y cada hueco puede ser libre, barral, cajones o zapatero.
+Clósets y estanterías usan el mismo cálculo (`kind: 'placard' | 'estanteria'`): una caja
+con columnas, y cada hueco puede ser libre, barra de colgar, cajones o zapatero.

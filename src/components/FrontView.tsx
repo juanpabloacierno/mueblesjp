@@ -1,4 +1,5 @@
 import { mm } from '../lib/format';
+import { tr } from '../lib/i18n';
 import { CUP_EDGE_DISTANCE } from '../lib/doors';
 import { BAR_FRONT, BAR_SPACING, TOPE_HEIGHT } from '../lib/shoes';
 import type { Door, ShelfUnit, ShelfUnitResult } from '../lib/types';
@@ -198,7 +199,7 @@ export function FrontView({ unit, result, fs, scale, showDoors }: Props) {
       width={vbW * scale}
       height={vbH * scale}
       role="img"
-      aria-label={`Vista de frente: ${mm(W)} de ancho por ${mm(H)} de alto`}
+      aria-label={tr(`Vista de frente: ${mm(W)} de ancho por ${mm(H)} de alto`, `Front view: ${mm(W)} wide by ${mm(H)} high`)}
     >
       <defs>
         <pattern id="wall" width={fs * 0.6} height={fs * 0.6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -486,7 +487,7 @@ export function SideView({ unit, result, fs, scale, showDoors, column = 0 }: Pro
       width={vbW * scale}
       height={vbH * scale}
       role="img"
-      aria-label={`Corte lateral: ${mm(D)} de profundidad`}
+      aria-label={tr(`Corte lateral: ${mm(D)} de profundidad`, `Side section: ${mm(D)} deep`)}
     >
       <line x1={-pad - extra} y1={H} x2={D + pad} y2={H} stroke="var(--muted)" strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
       {/* Lateral visto desde adentro */}

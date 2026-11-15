@@ -1,6 +1,7 @@
 import type { Summary } from './cutlist';
 import { HINGE_LABEL } from './doors';
 import { mm } from './format';
+import { tr } from './i18n';
 import { buildScene, type SceneBox } from './scene';
 import { buildSteps, type Step } from './steps';
 import type { HingeType, Piece, ShelfUnit, ShelfUnitResult } from './types';
@@ -59,24 +60,41 @@ export interface AssemblyPlan {
   hardware: HardwareUse[];
 }
 
-const LABELS: Record<HardwareKind, string> = {
-  tornillo: 'Tornillo 4 × 50',
-  'tornillo-corto': 'Tornillo 4 × 30',
-  'tornillo-chico': 'Tornillo 3,5 × 16',
-  clavo: 'Clavo 1"',
-  perno: 'Perno de estante',
-  bisagra: 'Bisagra',
-  corredera: 'Par de correderas',
-  soporte: 'Soporte de barral',
-  barral: 'Barral',
-  tirador: 'Tirador',
-  escuadra: 'Escuadra',
-  tarugo: 'Tarugo de pared',
-  riel: 'Riel',
-  ruedas: 'Juego de ruedas',
-};
+/** Nombre de cada herraje en el idioma activo. */
+function hardwareLabel(kind: HardwareKind): string {
+  switch (kind) {
+    case 'tornillo':
+      return tr('Tornillo 4 × 50', 'Screw 4 × 50');
+    case 'tornillo-corto':
+      return tr('Tornillo 4 × 30', 'Screw 4 × 30');
+    case 'tornillo-chico':
+      return tr('Tornillo 3,5 × 16', 'Screw 3.5 × 16');
+    case 'clavo':
+      return tr('Clavo 1"', 'Nail 1"');
+    case 'perno':
+      return tr('Perno de estante', 'Shelf pin');
+    case 'bisagra':
+      return tr('Bisagra', 'Hinge');
+    case 'corredera':
+      return tr('Par de correderas', 'Pair of drawer slides');
+    case 'soporte':
+      return tr('Soporte de barra', 'Rod support');
+    case 'barral':
+      return tr('Barra de colgar', 'Hanging rod');
+    case 'tirador':
+      return tr('Tirador', 'Handle');
+    case 'escuadra':
+      return tr('Escuadra', 'Angle bracket');
+    case 'tarugo':
+      return tr('Taco de pared', 'Wall plug');
+    case 'riel':
+      return tr('Riel', 'Track');
+    case 'ruedas':
+      return tr('Juego de ruedas', 'Wheel set');
+  }
+}
 
-function hw(kind: HardwareKind, qty: number, label = LABELS[kind]): HardwareUse[] {
+function hw(kind: HardwareKind, qty: number, label = hardwareLabel(kind)): HardwareUse[] {
   return qty > 0 ? [{ kind, label, qty }] : [];
 }
 
@@ -138,8 +156,11 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   const firstSide = take((b) => b.name === 'Lateral' && b.x === 0);
   push({
     key: 'a-base',
-    title: unit.plinth.enabled ? 'Lateral, piso y zócalo' : 'Lateral y piso',
-    detail: `Acostá el lateral izquierdo y atornillale el piso${unit.plinth.enabled ? ' y el zócalo' : ''} en las marcas, con agujero guía.`,
+    title: unit.plinth.enabled ? tr('Lateral, piso y zócalo', 'Side panel, bottom and plinth') : tr('Lateral y piso', 'Side panel and bottom'),
+    detail: tr(
+      `Acuesta el lateral izquierdo y atorníllale el piso${unit.plinth.enabled ? ' y el zócalo' : ''} en las marcas, con agujero guía.`,
+      `Lay the left side panel flat and screw the bottom${unit.plinth.enabled ? ' and the plinth' : ''} to it at the marks, with pilot holes.`,
+    ),
     add: [...firstSide, ...take((b) => b.name === 'Piso' || b.name.startsWith('Zócalo'))],
     fixed: firstSide,
     explode: { x: side, y: 0, z: 0 },
@@ -150,16 +171,19 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   if (unit.top === 'entre') {
     push({
       key: 'a-techo',
-      title: mal ? 'Techo y estante maletero' : 'Techo',
-      detail: `Atornillá el techo${mal ? ' y el estante maletero' : ''} al mismo lateral.`,
+      title: mal ? tr('Techo y estante maletero', 'Top and top storage shelf') : tr('Techo', 'Top'),
+      detail: tr(`Atornilla el techo${mal ? ' y el estante maletero' : ''} al mismo lateral.`, `Screw the top${mal ? ' and the top storage shelf' : ''} to the same side panel.`),
       add: take((b) => b.name === 'Techo' || b.name === 'Estante maletero'),
       explode: { x: side, y: 0, z: 0 },
       hardware: hw('tornillo', spj * (mal ? 2 : 1)),
     });
     push({
       key: 'a-lateral',
-      title: 'Segundo lateral',
-      detail: 'Presentá el otro lateral y atornillalo al piso, al techo y al resto, siempre en las marcas.',
+      title: tr('Segundo lateral', 'Second side panel'),
+      detail: tr(
+        'Coloca el otro lateral y atorníllalo al piso, al techo y al resto, siempre en las marcas.',
+        'Position the other side panel and screw it to the bottom, the top and the rest, always at the marks.',
+      ),
       add: take((b) => b.name === 'Lateral'),
       explode: { x: side, y: 0, z: 0 },
       hardware: hw('tornillo', spj * (2 + (mal ? 1 : 0)) + plinths * 2),
@@ -168,8 +192,8 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
     if (mal) {
       push({
         key: 'a-maletero',
-        title: 'Estante maletero',
-        detail: 'Atornillá el estante maletero al lateral, en su marca.',
+        title: tr('Estante maletero', 'Top storage shelf'),
+        detail: tr('Atornilla el estante maletero al lateral, en su marca.', 'Screw the top storage shelf to the side panel, at its mark.'),
         add: take((b) => b.name === 'Estante maletero'),
         explode: { x: side, y: 0, z: 0 },
         hardware: hw('tornillo', spj),
@@ -177,16 +201,19 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
     }
     push({
       key: 'a-lateral',
-      title: 'Segundo lateral',
-      detail: 'Presentá el otro lateral y atornillalo al piso y al resto.',
+      title: tr('Segundo lateral', 'Second side panel'),
+      detail: tr('Coloca el otro lateral y atorníllalo al piso y al resto.', 'Position the other side panel and screw it to the bottom and the rest.'),
       add: take((b) => b.name === 'Lateral'),
       explode: { x: side, y: 0, z: 0 },
       hardware: hw('tornillo', spj * (1 + (mal ? 1 : 0)) + plinths * 2),
     });
     push({
       key: 'a-techo',
-      title: 'Techo',
-      detail: 'Apoyá el techo sobre los laterales, alineado con el frente, y atornillalo desde arriba.',
+      title: tr('Techo', 'Top'),
+      detail: tr(
+        'Apoya el techo sobre los laterales, alineado con el frente, y atorníllalo desde arriba.',
+        'Rest the top on the side panels, flush with the front, and screw it down from above.',
+      ),
       add: take((b) => b.name === 'Techo'),
       explode: { x: 0, y: Math.max(H * 0.18, 200), z: 0 },
       hardware: hw('tornillo', spj * 2),
@@ -198,11 +225,14 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   if (unit.back.mode !== 'ninguno') {
     push({
       key: 'a-fondo',
-      title: 'Fondo',
+      title: tr('Fondo', 'Back panel'),
       detail:
         unit.back.mode === 'clavado'
           ? `${text('escuadra')?.detail ?? ''}`
-          : 'El fondo va en la ranura: pasalo antes de cerrar con el segundo lateral, con un poco de cola.',
+          : tr(
+              'El fondo va en la ranura: pásalo antes de cerrar con el segundo lateral, con un poco de cola.',
+              'The back panel sits in the groove: slide it in before closing with the second side panel, with a little glue.',
+            ),
       add: take((b) => b.name === 'Fondo'),
       explode: { x: 0, y: 0, z: -Math.max(D * 0.8, 250) },
       view: 'atras',
@@ -219,8 +249,11 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   if (divs.length) {
     push({
       key: 'a-divisores',
-      title: divs.length === 1 ? 'Divisor' : 'Divisores',
-      detail: 'Entrá cada divisor por el frente hasta el fondo y atornillalo desde abajo y desde arriba, en las marcas.',
+      title: divs.length === 1 ? tr('Divisor', 'Divider') : tr('Divisores', 'Dividers'),
+      detail: tr(
+        'Mete cada divisor por el frente hasta el fondo y atorníllalo desde abajo y desde arriba, en las marcas.',
+        'Slide each divider in from the front all the way to the back and screw it from below and above, at the marks.',
+      ),
       add: divs,
       explode: { x: 0, y: 0, z: front },
       hardware: hw('tornillo', divs.length * 2 * spj),
@@ -232,8 +265,11 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   if (fixed.length) {
     push({
       key: 'a-fijos',
-      title: fixed.length === 1 ? 'Estante fijo' : 'Estantes fijos',
-      detail: 'Colocá los estantes fijos de abajo hacia arriba, a nivel, y atornillalos por los costados.',
+      title: fixed.length === 1 ? tr('Estante fijo', 'Fixed shelf') : tr('Estantes fijos', 'Fixed shelves'),
+      detail: tr(
+        'Coloca los estantes fijos de abajo hacia arriba, a nivel, y atorníllalos por los lados.',
+        'Fit the fixed shelves from bottom to top, level, and screw them through the side panels.',
+      ),
       add: fixed,
       explode: { x: 0, y: 0, z: front },
       hardware: hw('tornillo', fixed.length * 2 * spj),
@@ -246,11 +282,11 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
     const supports = r.rods.reduce((s, x) => s + x.supports, 0);
     push({
       key: 'a-barrales',
-      title: rods.length === 1 ? 'Barral' : 'Barrales',
+      title: rods.length === 1 ? tr('Barra de colgar', 'Hanging rod') : tr('Barras de colgar', 'Hanging rods'),
       detail: text('barrales')?.detail ?? '',
       add: rods,
       explode: { x: 0, y: 0, z: front * 0.7 },
-      hardware: [...hw('barral', rods.length, 'Barral cortado a medida'), ...hw('soporte', supports), ...hw('tornillo-chico', supports * 3)],
+      hardware: [...hw('barral', rods.length, tr('Barra de colgar cortada a medida', 'Hanging rod cut to size')), ...hw('soporte', supports), ...hw('tornillo-chico', supports * 3)],
     });
   }
 
@@ -260,13 +296,13 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
     const n = r.drawers.reduce((s, d) => s + d.count, 0);
     push({
       key: 'a-cajones',
-      title: n === 1 ? 'Cajón' : 'Cajones',
+      title: n === 1 ? tr('Cajón', 'Drawer') : tr('Cajones', 'Drawers'),
       detail: text('cajones')?.detail ?? '',
       add: drawerBoxes,
       explode: { x: 0, y: 0, z: front },
       pieceNames: ['Frente de cajón', 'Lateral de cajón', 'Frente y contrafrente de cajón', 'Fondo de cajón'],
       hardware: [
-        ...hw('clavo', drawerNails, 'Clavo 1" (fondos de cajón)'),
+        ...hw('clavo', drawerNails, tr('Clavo 1" (fondos de cajón)', 'Nail 1" (drawer bottoms)')),
         ...hw('corredera', n),
         ...hw('tornillo', n * 8),
         ...hw('tornillo-chico', n * 12),
@@ -284,14 +320,14 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
     const flat = r.shoeRacks.filter((z) => z.style === 'plano').reduce((s, z) => s + z.levels.length, 0);
     push({
       key: 'a-zapatero',
-      title: 'Zapatero',
+      title: tr('Zapatero', 'Shoe rack'),
       detail: text('zapatero')?.detail ?? '',
       add: shoes,
       explode: { x: 0, y: 0, z: front },
       hardware: [
         ...hw('tornillo', inclined * 4),
         ...hw('tornillo-corto', inclined * 3),
-        ...hw('barral', barLevels * 2, 'Barra cortada a medida'),
+        ...hw('barral', barLevels * 2, tr('Barra para zapatos cortada a medida', 'Shoe bar cut to size')),
         ...hw('soporte', barLevels * 4),
         ...hw('tornillo-chico', barLevels * 12),
         ...hw('perno', flat * 4),
@@ -304,8 +340,11 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   if (movable.length) {
     push({
       key: 'a-moviles',
-      title: movable.length === 1 ? 'Estante móvil' : 'Estantes móviles',
-      detail: 'Poné 4 pernos por estante en los agujeros, a la altura que quieras, y apoyá cada estante.',
+      title: movable.length === 1 ? tr('Estante móvil', 'Adjustable shelf') : tr('Estantes móviles', 'Adjustable shelves'),
+      detail: tr(
+        'Pon 4 pernos por estante en los agujeros, a la altura que quieras, y apoya cada estante.',
+        'Push 4 pins per shelf into the holes, at the height you want, and set each shelf on them.',
+      ),
       add: movable,
       explode: { x: 0, y: 0, z: front },
       hardware: hw('perno', movable.length * 4),
@@ -317,22 +356,22 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   if (doorBoxes.length) {
     const doors = r.doors.doors;
     const hinged = unit.doors.type === 'batiente';
-    const hinges = (Object.entries(r.doors.hingeCounts) as [HingeType, number][]).flatMap(([type, qty]) => hw('bisagra', qty, `Bisagra ${HINGE_LABEL[type]}`));
+    const hinges = (Object.entries(r.doors.hingeCounts) as [HingeType, number][]).flatMap(([type, qty]) => hw('bisagra', qty, tr(`Bisagra ${HINGE_LABEL[type]}`, `Hinge, ${HINGE_LABEL[type]}`)));
     const hingeTotal = Object.values(r.doors.hingeCounts).reduce((s, v) => s + v, 0);
     const sets = Math.max(1, r.doors.trackSets);
     push({
       key: 'a-puertas',
-      title: hinged ? (doors.length === 1 ? 'Puerta' : 'Puertas') : 'Puertas corredizas',
+      title: hinged ? (doors.length === 1 ? tr('Puerta', 'Door') : tr('Puertas', 'Doors')) : tr('Puertas corredizas', 'Sliding doors'),
       detail: text('puertas')?.detail ?? '',
       add: doorBoxes,
       explode: { x: 0, y: 0, z: front },
       hardware: hinged
         ? [...hinges, ...hw('tornillo-chico', hingeTotal * 4), ...hw('tirador', doors.length)]
         : [
-            ...hw('riel', sets * 2, `Riel de ${mm(r.doors.trackLength)} mm`),
+            ...hw('riel', sets * 2, tr(`Riel de ${mm(r.doors.trackLength)} mm`, `${mm(r.doors.trackLength)} mm track`)),
             ...hw('ruedas', doors.length),
             ...hw('tornillo-chico', 2 * sets * (Math.ceil(r.doors.trackLength / 150) + 1)),
-            ...hw('tirador', doors.length, 'Tirador embutido'),
+            ...hw('tirador', doors.length, tr('Tirador embutido', 'Recessed handle')),
           ],
     });
   }
@@ -340,7 +379,7 @@ export function buildAssembly(unit: ShelfUnit, r: ShelfUnitResult, summary: Summ
   // Lo que haya quedado sin paso (por si se agregan piezas nuevas a la escena).
   const rest = take(() => true);
   if (rest.length) {
-    push({ key: 'a-resto', title: 'Resto de las piezas', detail: 'Colocá las piezas que faltan.', add: rest, explode: { x: 0, y: 0, z: front }, hardware: [] });
+    push({ key: 'a-resto', title: tr('Resto de las piezas', 'Remaining pieces'), detail: tr('Coloca las piezas que faltan.', 'Fit the remaining pieces.'), add: rest, explode: { x: 0, y: 0, z: front }, hardware: [] });
   }
 
   const pared = text('pared');

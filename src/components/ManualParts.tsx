@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type { HardwareKind, HardwareUse } from '../lib/assembly';
 import { mm } from '../lib/format';
+import { pieceName } from '../lib/i18n';
 import type { Piece } from '../lib/types';
 
 /** Dibujitos de herrajes, en línea, como en un manual de armado. */
@@ -137,7 +138,7 @@ export function PieceCard({ piece }: { piece: Piece }) {
         <span className="code">{piece.code}</span>
         <span className="piece-card-qty num">{piece.qty}×</span>
       </div>
-      <span className="piece-card-name">{piece.name}</span>
+      <span className="piece-card-name">{pieceName(piece.name)}</span>
       <span className="piece-card-dims num">
         {mm(piece.length)} × {mm(piece.width)} × {mm(piece.thickness)}
       </span>

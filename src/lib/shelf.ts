@@ -1,6 +1,7 @@
 import { distribute } from './distribute';
 import { HINGE_LABEL, compartmentBehindInsetDoor, computeDoors, shelfBehindInsetDoor } from './doors';
 import { mm, pieceCode } from './format';
+import { tr } from './i18n';
 import { finishFor, materialFor, pieceGroup } from './catalog';
 import { resolveUnit } from './resolve';
 import { SHOE_ANGLE_DEG, TOPE_HEIGHT, layoutShoeRack, slopeWidth } from './shoes';
@@ -79,9 +80,15 @@ export const HANGING_DEPTH = 520;
 export function layoutDrawers(column: number, x: number, width: number, bottom: number, height: number, depth: number, count: number, t: number): DrawerResult | string {
   const n = Math.max(1, Math.floor(count));
   const frontH = Math.floor((height - (n + 1) * DRAWER_GAP) / n);
-  if (frontH < 80) return `${n} cajones en un hueco de ${mm(height)} mm quedan de ${mm(frontH)} mm de alto: usá menos cajones o un hueco más alto.`;
+  if (frontH < 80) return tr(
+      `${n} cajones en un hueco de ${mm(height)} mm quedan de ${mm(frontH)} mm de alto: usa menos cajones o un hueco más alto.`,
+      `${n} drawers in a ${mm(height)} mm compartment end up ${mm(frontH)} mm high: use fewer drawers or a taller compartment.`,
+    );
   const slide = [...SLIDE_LENGTHS].reverse().find((l) => l <= depth - t - 10);
-  if (!slide) return `no hay profundidad para correderas (${mm(depth)} mm libres; la más corta pide ${SLIDE_LENGTHS[0] + t + 10} mm).`;
+  if (!slide) return tr(
+      `no hay profundidad para correderas (${mm(depth)} mm libres; la más corta pide ${SLIDE_LENGTHS[0] + t + 10} mm).`,
+      `there is not enough depth for drawer slides (${mm(depth)} mm free; the shortest needs ${SLIDE_LENGTHS[0] + t + 10} mm).`,
+    );
   const boxH = Math.min(250, Math.max(60, Math.floor((frontH - 30) / 10) * 10));
   const fronts = Array.from({ length: n }, (_, i) => bottom + DRAWER_GAP + i * (frontH + DRAWER_GAP));
   return {
@@ -149,27 +156,33 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
 
   // --- Validaciones que impiden calcular ---
   if (interiorWidth - (n - 1) * t < 20 * n) {
-    warnings.push({ level: 'error', text: `El ancho (${mm(W)} mm) no alcanza para ${n} columnas con melamina de ${mm(t)} mm.` });
+    warnings.push({ level: 'error', text: tr(`El ancho (${mm(W)} mm) no alcanza para ${n} columnas con melamina de ${mm(t)} mm.`, `The width (${mm(W)} mm) is not enough for ${n} columns with ${mm(t)} mm melamine.`) });
   }
   if (interiorHeight < 20) {
-    warnings.push({ level: 'error', text: `El alto (${mm(H)} mm) es muy chico para el zócalo, el piso y el techo.` });
+    warnings.push({ level: 'error', text: tr(`El alto (${mm(H)} mm) es muy poco para el zócalo, el piso y el techo.`, `The height (${mm(H)} mm) is too small for the plinth, bottom and top.`) });
   }
   if (shelfDepth - frontInset < 20) {
     warnings.push({
       level: 'error',
       text: frontInset
-        ? `La profundidad (${mm(D)} mm) no alcanza para los rieles de ${mm(frontInset)} mm: quedan ${mm(shelfDepth - frontInset)} mm para los estantes.`
-        : `La profundidad (${mm(D)} mm) no alcanza: quedan ${mm(shelfDepth)} mm útiles.`,
+        ? tr(
+            `La profundidad (${mm(D)} mm) no alcanza para los rieles de ${mm(frontInset)} mm: quedan ${mm(shelfDepth - frontInset)} mm para los estantes.`,
+            `The depth (${mm(D)} mm) is not enough for the ${mm(frontInset)} mm tracks: only ${mm(shelfDepth - frontInset)} mm are left for the shelves.`,
+          )
+        : tr(`La profundidad (${mm(D)} mm) no alcanza: quedan ${mm(shelfDepth)} mm útiles.`, `The depth (${mm(D)} mm) is not enough: only ${mm(shelfDepth)} mm are usable.`),
     });
   }
   if (mal && (mal.height < 100 || columnHeight < 200)) {
     warnings.push({
       level: 'error',
-      text: mal.height < 100 ? `El maletero de ${mm(mal.height)} mm es muy bajo.` : `Con un maletero de ${mm(mal.height)} mm no queda lugar abajo: achicalo.`,
+      text:
+        mal.height < 100
+          ? tr(`El maletero de ${mm(mal.height)} mm es muy bajo.`, `The ${mm(mal.height)} mm top storage is too low.`)
+          : tr(`Con un maletero de ${mm(mal.height)} mm no queda espacio abajo: hazlo más bajo.`, `With a ${mm(mal.height)} mm top storage there is no room left below: make it lower.`),
     });
   }
   if (backMode === 'ranurado' && unit.back.grooveDepth >= t) {
-    warnings.push({ level: 'error', text: `La ranura (${mm(unit.back.grooveDepth)} mm) no puede ser tan profunda como la melamina (${mm(t)} mm).` });
+    warnings.push({ level: 'error', text: tr(`La ranura (${mm(unit.back.grooveDepth)} mm) no puede ser tan profunda como la melamina (${mm(t)} mm).`, `The groove (${mm(unit.back.grooveDepth)} mm) cannot be as deep as the melamine is thick (${mm(t)} mm).`) });
   }
   if (warnings.some((w) => w.level === 'error')) return empty;
 
@@ -179,7 +192,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     unit.columns.map((c) => c.width),
   );
   if (colDist.overflow) {
-    warnings.push({ level: 'error', text: 'Los anchos de columna que fijaste suman más que el ancho interior disponible.' });
+    warnings.push({ level: 'error', text: tr('Los anchos de columna que fijaste suman más que el ancho interior disponible.', 'The column widths you set add up to more than the available interior width.') });
     return empty;
   }
   if (colDist.mismatch !== 0) {
@@ -187,12 +200,15 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     colDist.values[last] += colDist.mismatch;
     warnings.push({
       level: 'aviso',
-      text: `Los anchos fijos no completan el mueble: la última columna queda de ${mm(colDist.values[last])} mm. Dejá alguna columna en automático.`,
+      text: tr(
+        `Los anchos fijos no completan el mueble: la última columna queda de ${mm(colDist.values[last])} mm. Deja alguna columna en automático.`,
+        `The fixed widths do not fill the unit: the last column ends up ${mm(colDist.values[last])} mm. Leave some column on automatic.`,
+      ),
     });
   }
   const widths = colDist.values;
   if (widths.some((w) => w < 20)) {
-    warnings.push({ level: 'error', text: 'Alguna columna queda demasiado angosta.' });
+    warnings.push({ level: 'error', text: tr('Alguna columna queda demasiado angosta.', 'A column ends up too narrow.') });
     return empty;
   }
 
@@ -205,16 +221,16 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     const k = Math.max(0, Math.floor(spec.shelves));
     const gapSpecs = Array.from({ length: k + 1 }, (_, j) => spec.gaps[j] ?? null);
     const gapDist = distribute(columnHeight - k * t, gapSpecs);
-    const label = n > 1 ? `Columna ${i + 1}: ` : '';
+    const label = n > 1 ? `${tr('Columna', 'Column')} ${i + 1}: ` : '';
     if (gapDist.overflow) {
-      warnings.push({ level: 'error', text: `${label}las alturas fijas de los huecos no entran en el alto interior (${mm(columnHeight)} mm).` });
+      warnings.push({ level: 'error', text: label + tr(`las alturas fijas de los huecos no entran en el alto interior (${mm(columnHeight)} mm).`, `the fixed compartment heights do not fit in the interior height (${mm(columnHeight)} mm).`) });
       return empty;
     }
     if (gapDist.mismatch !== 0) {
       gapDist.values[k] += gapDist.mismatch;
       warnings.push({
         level: 'aviso',
-        text: `${label}el hueco de arriba se ajustó a ${mm(gapDist.values[k])} mm para completar la altura.`,
+        text: label + tr(`el hueco de arriba se ajustó a ${mm(gapDist.values[k])} mm para completar la altura.`, `the top compartment was adjusted to ${mm(gapDist.values[k])} mm to fill the height.`),
       });
     }
     const gaps = gapDist.values;
@@ -250,7 +266,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     });
     const minGap = Math.min(...gaps);
     if (minGap < 60) {
-      warnings.push({ level: 'aviso', text: `${label}hay un hueco de solo ${mm(minGap)} mm de alto.` });
+      warnings.push({ level: 'aviso', text: label + tr(`hay un hueco de solo ${mm(minGap)} mm de alto.`, `there is a compartment only ${mm(minGap)} mm high.`) });
     }
     columns.push({ index: i, x, width: widths[i], gaps, shelves, compartments });
     x += widths[i];
@@ -279,12 +295,12 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     length: sideHeight,
     width: carcassDepth,
     edges: { long: 1, short: unit.top === 'entre' ? 1 : 0 },
-    notes: ['Veta vertical'],
+    notes: [tr('Veta vertical', 'Vertical grain')],
   });
   if (unit.top === 'entre') {
     add({ name: 'Techo', qty: 1, length: interiorWidth, width: carcassDepth, edges: { long: 1, short: 0 } });
   } else {
-    add({ name: 'Techo', qty: 1, length: W, width: carcassDepth, edges: { long: 1, short: 2 }, notes: ['Apoya sobre los laterales'] });
+    add({ name: 'Techo', qty: 1, length: W, width: carcassDepth, edges: { long: 1, short: 2 }, notes: [tr('Apoya sobre los laterales', 'Rests on top of the side panels')] });
   }
   add({ name: 'Piso', qty: 1, length: interiorWidth, width: carcassDepth, edges: { long: 1, short: 0 } });
   if (unit.plinth.enabled) {
@@ -294,16 +310,16 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       length: interiorWidth,
       width: zh,
       edges: { long: 0, short: 0 },
-      notes: unit.plinth.setback > 0 ? [`Retirado ${mm(unit.plinth.setback)} mm del frente`] : ['Al ras del frente'],
+      notes: unit.plinth.setback > 0 ? [tr(`Retirado ${mm(unit.plinth.setback)} mm del frente`, `Set back ${mm(unit.plinth.setback)} mm from the front`)] : [tr('Al ras del frente', 'Flush with the front')],
     });
     if (backMode !== 'clavado') {
-      add({ name: 'Zócalo trasero', qty: 1, length: interiorWidth, width: zh, edges: { long: 0, short: 0 }, notes: ['Refuerzo atrás'] });
+      add({ name: 'Zócalo trasero', qty: 1, length: interiorWidth, width: zh, edges: { long: 0, short: 0 }, notes: [tr('Refuerzo atrás', 'Rear reinforcement')] });
     }
   }
   if (n > 1) {
-    const notes = ['Veta vertical'];
-    if (backMode === 'ranurado') notes.push('Termina contra el fondo');
-    if (frontInset) notes.push(`Retirado ${mm(frontInset)} mm del frente por los rieles`);
+    const notes = [tr('Veta vertical', 'Vertical grain')];
+    if (backMode === 'ranurado') notes.push(tr('Termina contra el fondo', 'Ends against the back panel'));
+    if (frontInset) notes.push(tr(`Retirado ${mm(frontInset)} mm del frente por los rieles`, `Set back ${mm(frontInset)} mm from the front for the tracks`));
     add({
       name: 'Divisor',
       qty: n - 1,
@@ -320,7 +336,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       length: interiorWidth,
       width: backMode === 'ranurado' ? interiorDepth : carcassDepth,
       edges: { long: 1, short: 0 },
-      notes: ['Fijo, de lateral a lateral'],
+      notes: [tr('Fijo, de lateral a lateral', 'Fixed, from side panel to side panel')],
     });
     if (mal.dividers && n > 1) {
       add({
@@ -329,7 +345,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         length: mal.height,
         width: (backMode === 'ranurado' ? interiorDepth : carcassDepth) - frontInset,
         edges: { long: 1, short: 0 },
-        notes: ['Alineado con los divisores de abajo'],
+        notes: [tr('Alineado con los divisores de abajo', 'Aligned with the dividers below')],
       });
     }
   }
@@ -342,7 +358,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         length: fixed ? col.width : col.width - unit.movableClearance,
         width: s.depth,
         edges: { long: 1, short: 0 },
-        notes: fixed ? [] : [`${mm(unit.movableClearance)} mm de holgura`],
+        notes: fixed ? [] : [tr(`${mm(unit.movableClearance)} mm de holgura`, `${mm(unit.movableClearance)} mm clearance`)],
         cols: [col.index + 1],
       });
     }
@@ -353,14 +369,14 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       if (!d) continue;
       const cols = [col.index + 1];
       add({ name: 'Frente de cajón', qty: d.count, length: d.frontW, width: d.frontH, edges: { long: 2, short: 2 }, cols });
-      add({ name: 'Lateral de cajón', qty: d.count * 2, length: d.slide, width: d.boxH, edges: { long: 1, short: 0 }, notes: ['Tapacanto en el canto de arriba'], cols });
+      add({ name: 'Lateral de cajón', qty: d.count * 2, length: d.slide, width: d.boxH, edges: { long: 1, short: 0 }, notes: [tr('Tapacanto en el canto de arriba', 'Edge banding on the top edge')], cols });
       add({
         name: 'Frente y contrafrente de cajón',
         qty: d.count * 2,
         length: d.boxW - 2 * t,
         width: d.boxH,
         edges: { long: 1, short: 0 },
-        notes: ['Van entre los laterales de la caja'],
+        notes: [tr('Van entre los laterales de la caja', 'Fit between the drawer box sides')],
         cols,
       });
       raw.push({
@@ -373,7 +389,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
         finish: null,
         edges: { long: 0, short: 0 },
         canRotate: true,
-        notes: ['Clavado abajo de la caja'],
+        notes: [tr('Clavado abajo de la caja', 'Nailed under the box')],
         cols,
       });
     }
@@ -390,7 +406,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
           length: col.width,
           width: slopeWidth(z.run),
           edges: { long: 0, short: 0 },
-          notes: [`Inclinado ${SHOE_ANGLE_DEG}°, atornillado a los costados`, 'El tope tapa el canto de adelante'],
+          notes: [tr(`Inclinado ${SHOE_ANGLE_DEG}°, atornillado a los costados`, `Slanted ${SHOE_ANGLE_DEG}°, screwed to the sides`), tr('El tope tapa el canto de adelante', 'The stop covers the front edge')],
           cols,
         });
         add({
@@ -399,7 +415,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
           length: col.width,
           width: TOPE_HEIGHT,
           edges: { long: 1, short: 0 },
-          notes: ['Atornillado al frente del estante inclinado'],
+          notes: [tr('Atornillado al frente del estante inclinado', 'Screwed to the front of the slanted shelf')],
           cols,
         });
       } else if (z.style === 'plano' && z.levels.length) {
@@ -409,7 +425,7 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
           length: col.width - unit.movableClearance,
           width: comp.depth,
           edges: { long: 1, short: 0 },
-          notes: [`${mm(unit.movableClearance)} mm de holgura`],
+          notes: [tr(`${mm(unit.movableClearance)} mm de holgura`, `${mm(unit.movableClearance)} mm clearance`)],
           cols,
         });
       }
@@ -423,7 +439,9 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
       length: d.h,
       width: d.w,
       edges: { long: 2, short: 2 },
-      notes: isSliding ? [`Solape ${mm(unit.doors.overlap)} mm`, 'Veta vertical'] : [`Bisagra ${HINGE_LABEL[d.hingeType!]}`, 'Veta vertical'],
+      notes: isSliding
+        ? [tr(`Solape ${mm(unit.doors.overlap)} mm`, `${mm(unit.doors.overlap)} mm overlap`), tr('Veta vertical', 'Vertical grain')]
+        : [tr(`Bisagra ${HINGE_LABEL[d.hingeType!]}`, `Hinge: ${HINGE_LABEL[d.hingeType!]}`), tr('Veta vertical', 'Vertical grain')],
       cols: d.column !== null ? [d.column + 1] : [],
     });
   }
@@ -434,11 +452,17 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     const backWid = backMode === 'clavado' ? W - 2 : interiorWidth + 2 * (unit.back.grooveDepth - 1);
     const board = usableBoard(m.backBoardLength, m.backBoardWidth, m.trim);
     const parts = splitBack(backLen, backWid, board.length, board.width, backMode === 'clavado' ? dividers.map((d) => d.left + t / 2 - 1) : []);
-    const notes = backMode === 'clavado' ? ['Va clavado atrás, 1 mm adentro de cada borde'] : [`Entra ${mm(unit.back.grooveDepth - 1)} mm en cada ranura`];
+    const notes =
+      backMode === 'clavado'
+        ? [tr('Va clavado atrás, 1 mm adentro de cada borde', 'Nailed on the back, 1 mm in from each edge')]
+        : [tr(`Entra ${mm(unit.back.grooveDepth - 1)} mm en cada ranura`, `Goes ${mm(unit.back.grooveDepth - 1)} mm into each groove`)];
     if (parts.length > 1) {
       warnings.push({
         level: 'aviso',
-        text: `El fondo (${mm(backLen)} × ${mm(backWid)} mm) no entra en una placa: se corta en ${parts.length} partes. Cada unión tiene que caer sobre un divisor, un estante fijo o un listón.`,
+        text: tr(
+          `El fondo (${mm(backLen)} × ${mm(backWid)} mm) no entra en un tablero: se corta en ${parts.length} partes. Cada unión tiene que caer sobre un divisor, un estante fijo o un listón.`,
+          `The back panel (${mm(backLen)} × ${mm(backWid)} mm) does not fit on one board: it is cut in ${parts.length} parts. Each joint must land on a divider, a fixed shelf or a batten.`,
+        ),
       });
     }
     for (const p of uniqueParts(parts)) {
@@ -498,7 +522,12 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     if (col.shelves.length > 0 && col.width > span) {
       warnings.push({
         level: 'aviso',
-        text: `${n > 1 ? `Columna ${col.index + 1}: ` : ''}estantes de ${mm(col.width)} mm de luz. Con ${mm(t)} mm conviene no pasar de ${span} mm si van a cargar peso (libros): agregá un divisor o usá una placa más gruesa.`,
+        text:
+          (n > 1 ? `${tr('Columna', 'Column')} ${col.index + 1}: ` : '') +
+          tr(
+            `estantes de ${mm(col.width)} mm de luz. Con ${mm(t)} mm conviene no pasar de ${span} mm si van a cargar peso (libros): agrega un divisor o usa un tablero más grueso.`,
+            `shelves with a ${mm(col.width)} mm span. With ${mm(t)} mm it is best not to exceed ${span} mm if they will carry weight (books): add a divider or use a thicker board.`,
+          ),
       });
     }
   });
@@ -508,7 +537,10 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
     if (a.some((sa) => b.some((sb) => Math.abs(sa.bottom - sb.bottom) < 30))) {
       warnings.push({
         level: 'info',
-        text: `Hay estantes fijos a la misma altura a los dos lados del divisor ${i + 1}: los tornillos chocarían. Atornillá uno y fijá el otro con tarugos o minifix, o desfasalos unos centímetros.`,
+        text: tr(
+          `Hay estantes fijos a la misma altura a los dos lados del divisor ${i + 1}: los tornillos chocarían. Atornilla uno y fija el otro con espigas o minifix, o desfásalos unos centímetros.`,
+          `There are fixed shelves at the same height on both sides of divider ${i + 1}: the screws would collide. Screw one and fix the other with dowels or cam locks, or offset them a few centimeters.`,
+        ),
       });
       break;
     }
@@ -517,53 +549,82 @@ export function computeShelfUnit(input: ShelfUnit): ShelfUnitResult {
   const drawers: DrawerResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.drawers ? [comp.drawers] : [])));
   const shoeRacks: ShoeRackResult[] = columns.flatMap((c) => c.compartments.flatMap((comp) => (comp.shoes ? [comp.shoes] : [])));
   for (const col of columns) {
-    const label = n > 1 ? `Columna ${col.index + 1}: ` : '';
+    const label = n > 1 ? `${tr('Columna', 'Column')} ${col.index + 1}: ` : '';
     for (const comp of col.compartments) {
       if (!comp.rod) continue;
       if (comp.rod.hanging < 850) {
         warnings.push({
           level: 'aviso',
-          text: `${label}el barral deja solo ${mm(comp.rod.hanging)} mm para colgar. Las camisas piden unos 950 mm y los vestidos o sobretodos 1500 mm.`,
+          text:
+            label +
+            tr(
+              `la barra de colgar deja solo ${mm(comp.rod.hanging)} mm para colgar. Las camisas piden unos 950 mm y los vestidos o abrigos 1500 mm.`,
+              `the hanging rod leaves only ${mm(comp.rod.hanging)} mm for hanging. Shirts need about 950 mm and dresses or coats 1500 mm.`,
+            ),
         });
       }
       if (comp.depth < HANGING_DEPTH) {
         warnings.push({
           level: 'aviso',
-          text: `${label}para colgar perchas hacen falta al menos ${HANGING_DEPTH} mm de profundidad libre (ideal 550 a 600) y hay ${mm(comp.depth)} mm.`,
+          text:
+            label +
+            tr(
+              `para colgar ganchos hacen falta al menos ${HANGING_DEPTH} mm de profundidad libre (ideal 550 a 600) y hay ${mm(comp.depth)} mm.`,
+              `hangers need at least ${HANGING_DEPTH} mm of free depth (ideally 550 to 600) and there are ${mm(comp.depth)} mm.`,
+            ),
         });
       }
       if (comp.rod.length > 1000) {
-        warnings.push({ level: 'info', text: `${label}el barral mide ${mm(comp.rod.length)} mm: poné un soporte central para que no se combe.` });
+        warnings.push({ level: 'info', text: label + tr(`la barra de colgar mide ${mm(comp.rod.length)} mm: pon un soporte central para que no se doble.`, `the hanging rod is ${mm(comp.rod.length)} mm long: add a center support so it does not sag.`) });
       }
     }
     if (unit.doors.type === 'corrediza' && col.compartments.some((c) => c.drawers)) {
       warnings.push({
         level: 'info',
-        text: `${label}cajones detrás de corredizas: usá tiradores embutidos o de perfil (que no sobresalgan más de 2 mm), así no rozan la hoja de atrás.`,
+        text:
+          label +
+          tr(
+            `cajones detrás de corredizas: usa tiradores embutidos o de perfil (que no sobresalgan más de 2 mm), así no rozan la hoja de atrás.`,
+            `drawers behind sliding doors: use recessed or profile handles (sticking out no more than 2 mm) so they do not rub the rear door panel.`,
+          ),
       });
     }
     if (unit.doors.type === 'batiente' && col.compartments.some((c) => c.drawers) && (unit.doors.columns[col.index] ?? true)) {
       warnings.push({
         level: 'info',
-        text: `${label}cajones detrás de puertas con bisagras: poné un suplemento de 20 mm a cada lado (o achicá los cajones) para que no choquen con las bisagras.`,
+        text:
+          label +
+          tr(
+            `cajones detrás de puertas con bisagras: pon un suplemento de 20 mm a cada lado (o haz los cajones más angostos) para que no choquen con las bisagras.`,
+            `drawers behind hinged doors: add a 20 mm spacer on each side (or make the drawers narrower) so they do not hit the hinges.`,
+          ),
       });
     }
   }
   if (input.niche.enabled && diagonal > input.niche.height) {
     warnings.push({
       level: 'aviso',
-      text: `La diagonal del lateral mide ${mm(diagonal)} mm y el hueco ${mm(input.niche.height)} mm: armado no se puede parar. Armalo parado en el lugar o achicá el alto.`,
+      text: tr(
+        `La diagonal del lateral mide ${mm(diagonal)} mm y el hueco ${mm(input.niche.height)} mm: ya armado no se puede levantar. Ármalo de pie en su lugar o reduce el alto.`,
+        `The side panel diagonal is ${mm(diagonal)} mm and the alcove ${mm(input.niche.height)} mm: once assembled it cannot be stood up. Assemble it upright in place or reduce the height.`,
+      ),
     });
   } else if (H > 2000) {
     warnings.push({
       level: 'info',
-      text: `Para pararlo ya armado hacen falta ${mm(diagonal)} mm de alto libre (la diagonal del lateral). Medí el techo antes de armarlo acostado.`,
+      text: tr(
+        `Para levantarlo ya armado hacen falta ${mm(diagonal)} mm de alto libre (la diagonal del lateral). Mide el techo antes de armarlo acostado.`,
+        `To stand it up once assembled you need ${mm(diagonal)} mm of free height (the side panel diagonal). Measure the ceiling before assembling it lying down.`,
+      ),
     });
   }
   if (H > 1200) {
     warnings.push({
       level: H / D > 5 ? 'aviso' : 'info',
-      text: `Fijá el mueble a la pared con escuadras: mide ${mm(H)} mm de alto y ${mm(D)} mm de profundidad, y puede volcar.`,
+      text: tr(
+        `Fija el mueble a la pared con escuadras: mide ${mm(H)} mm de alto y ${mm(D)} mm de profundidad, y puede volcarse.`,
+        `Fix the unit to the wall with angle brackets: it is ${mm(H)} mm high and ${mm(D)} mm deep, and it can tip over.`,
+      ),
     });
   }
 
@@ -680,7 +741,7 @@ function mergePieces(raw: RawPiece[], columnCount: number): Piece[] {
   return merged.map((p, i) => {
     const notes = [...p.notes];
     if (columnCount > 1 && p.cols.length > 0 && p.cols.length < columnCount) {
-      notes.unshift(`${p.cols.length === 1 ? 'Columna' : 'Columnas'} ${p.cols.sort((a, b) => a - b).join(', ')}`);
+      notes.unshift(`${p.cols.length === 1 ? tr('Columna', 'Column') : tr('Columnas', 'Columns')} ${p.cols.sort((a, b) => a - b).join(', ')}`);
     }
     return {
       code: pieceCode(i),

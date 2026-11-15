@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { getLang, tr } from '../lib/i18n';
 
 function toText(value: number | null): string {
-  return value === null || Number.isNaN(value) ? '' : String(value).replace('.', ',');
+  if (value === null || Number.isNaN(value)) return '';
+  return getLang() === 'en' ? String(value) : String(value).replace('.', ',');
 }
 
 function parse(text: string): number | null {
@@ -159,11 +161,11 @@ export function Stepper({ label, value, min, max, onChange }: StepperProps) {
         {label}
       </span>
       <div className="stepper" role="group" aria-labelledby={labelId}>
-        <button type="button" aria-label={`Menos ${label.toLowerCase()}`} disabled={value <= min} onClick={() => onChange(value - 1)}>
+        <button type="button" aria-label={tr(`Menos ${label.toLowerCase()}`, `Fewer ${label.toLowerCase()}`)} disabled={value <= min} onClick={() => onChange(value - 1)}>
           −
         </button>
         <output aria-live="polite">{value}</output>
-        <button type="button" aria-label={`Más ${label.toLowerCase()}`} disabled={value >= max} onClick={() => onChange(value + 1)}>
+        <button type="button" aria-label={tr(`Más ${label.toLowerCase()}`, `More ${label.toLowerCase()}`)} disabled={value >= max} onClick={() => onChange(value + 1)}>
           +
         </button>
       </div>
@@ -190,7 +192,7 @@ export function CopyButton({ text, label, onCopied, className = 'btn' }: { text:
           try {
             navigator.clipboard
               .writeText(value)
-              .then(() => onCopied('Copiado al portapapeles'))
+              .then(() => onCopied(tr('Copiado al portapapeles', 'Copied to clipboard')))
               .catch(() => setFallback(value));
           } catch {
             setFallback(value);
@@ -201,16 +203,19 @@ export function CopyButton({ text, label, onCopied, className = 'btn' }: { text:
         {label}
       </button>
       {fallback !== null && (
-        <div className="overlay" role="dialog" aria-modal="true" aria-label="Copiar texto" onClick={() => setFallback(null)}>
+        <div className="overlay" role="dialog" aria-modal="true" aria-label={tr('Copiar texto', 'Copy text')} onClick={() => setFallback(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Copiá el texto</h3>
+            <h3>{tr('Copia el texto', 'Copy the text')}</h3>
             <p className="muted" style={{ margin: 0 }}>
-              El navegador no dejó copiar automáticamente. Ya está seleccionado: usá Copiar del menú o Ctrl+C.
+              {tr(
+                'El navegador no permitió copiar automáticamente. Ya está seleccionado: usa Copiar del menú o Ctrl+C.',
+                'The browser did not allow copying automatically. The text is already selected: use Copy from the menu or Ctrl+C.',
+              )}
             </p>
-            <textarea ref={areaRef} readOnly value={fallback} aria-label="Texto para copiar" />
+            <textarea ref={areaRef} readOnly value={fallback} aria-label={tr('Texto para copiar', 'Text to copy')} />
             <div className="row" style={{ justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-primary" onClick={() => setFallback(null)}>
-                Listo
+                {tr('Listo', 'Done')}
               </button>
             </div>
           </div>

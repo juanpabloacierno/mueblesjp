@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { materialFor } from '../lib/catalog';
 import { backLook, decorLook, type DecorLook } from '../lib/decor';
+import { tr } from '../lib/i18n';
 import { buildScene, sceneBounds, type SceneBox, type SceneFinish } from '../lib/scene';
 import type { ShelfUnit, ShelfUnitResult } from '../lib/types';
 import { Segmented } from './ui';
@@ -374,8 +375,8 @@ export default function Furniture3D({ unit, result }: Props) {
   return (
     <div className="card">
       <div className="card-title">
-        <h3>Vista 3D</h3>
-        <p>Arrastrá para girar, pellizcá o usá la rueda para acercar.</p>
+        <h3>{tr('Vista 3D', '3D view')}</h3>
+        <p>{tr('Arrastra para girar; pellizca o usa la rueda para acercar.', 'Drag to rotate; pinch or use the wheel to zoom.')}</p>
       </div>
       <div className="toolbar no-print" style={{ marginBottom: 10, alignItems: 'center' }}>
         {hasDoors && (
@@ -384,9 +385,9 @@ export default function Furniture3D({ unit, result }: Props) {
               value={doorMode}
               onChange={setDoorMode}
               options={[
-                { value: 'cerradas', label: 'Cerrado' },
-                { value: 'abiertas', label: 'Abierto' },
-                { value: 'sin', label: 'Sin puertas' },
+                { value: 'cerradas', label: tr('Cerrado', 'Closed') },
+                { value: 'abiertas', label: tr('Abierto', 'Open') },
+                { value: 'sin', label: tr('Sin puertas', 'No doors') },
               ]}
             />
           </div>
@@ -408,7 +409,7 @@ export default function Furniture3D({ unit, result }: Props) {
             st.render();
           }}
         >
-          Centrar
+          {tr('Centrar', 'Recenter')}
         </button>
         {!__SINGLE_FILE__ && (
           <button
@@ -431,25 +432,25 @@ export default function Furniture3D({ unit, result }: Props) {
               }, 'image/png');
             }}
           >
-            Guardar imagen
+            {tr('Guardar imagen', 'Save image')}
           </button>
         )}
       </div>
       {failed ? (
-        <p className="empty-note">Este navegador no puede mostrar 3D (WebGL desactivado).</p>
+        <p className="empty-note">{tr('Este navegador no puede mostrar 3D (WebGL desactivado).', 'This browser cannot show 3D (WebGL is disabled).')}</p>
       ) : (
-        <div ref={mountRef} className="viewer3d" role="img" aria-label={`Vista 3D de ${unit.name}`} />
+        <div ref={mountRef} className="viewer3d" role="img" aria-label={tr(`Vista 3D de ${unit.name}`, `3D view of ${unit.name}`)} />
       )}
       <div className="legend">
         <span>
-          <i className="swatch" style={{ background: looks.exterior.hex }} /> Exterior: {materialFor(m, 'exterior').color || 'sin color'}
+          <i className="swatch" style={{ background: looks.exterior.hex }} /> Exterior: {materialFor(m, 'exterior').color || tr('sin color', 'no color')}
         </span>
         {m.interior.enabled && (
           <span>
             <i className="swatch" style={{ background: looks.interior.hex }} /> Interior: {m.interior.color}
           </span>
         )}
-        <span className="muted">Colores aproximados: la placa real puede verse distinta.</span>
+        <span className="muted">{tr('Colores aproximados: el tablero real puede verse distinto.', 'Approximate colors: the real board may look different.')}</span>
       </div>
     </div>
   );

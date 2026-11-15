@@ -2,16 +2,46 @@ import type { Summary } from './cutlist';
 import { backLabel, boardLabel, isGenericBrand, isRawBoard } from './catalog';
 import { HINGE_LABEL } from './doors';
 import { mm, money, num } from './format';
+import { tr } from './i18n';
 import type { HingeType, Material, ShelfUnit, ShelfUnitResult } from './types';
 
 export type ShoppingCategory = 'placas' | 'herrajes' | 'fijaciones' | 'insumos' | 'herramientas';
 
+// Los textos son getters: cambian con el idioma activo.
 export const CATEGORIES: { key: ShoppingCategory; label: string; hint?: string }[] = [
-  { key: 'placas', label: 'Placas y cortes' },
-  { key: 'herrajes', label: 'Herrajes' },
-  { key: 'fijaciones', label: 'Tornillos y fijaciones' },
-  { key: 'insumos', label: 'Insumos' },
-  { key: 'herramientas', label: 'Herramientas', hint: 'Solo si no las tenés' },
+  {
+    key: 'placas',
+    get label() {
+      return tr('Tableros y cortes', 'Boards and cutting');
+    },
+  },
+  {
+    key: 'herrajes',
+    get label() {
+      return tr('Herrajes', 'Hardware');
+    },
+  },
+  {
+    key: 'fijaciones',
+    get label() {
+      return tr('Tornillos y fijaciones', 'Screws and fasteners');
+    },
+  },
+  {
+    key: 'insumos',
+    get label() {
+      return tr('Insumos', 'Supplies');
+    },
+  },
+  {
+    key: 'herramientas',
+    get label() {
+      return tr('Herramientas', 'Tools');
+    },
+    get hint() {
+      return tr('Solo si no las tienes', "Only if you don't have them");
+    },
+  },
 ];
 
 export type ShoppingUnit = 'placa' | 'm' | 'u' | 'juego';
@@ -72,11 +102,16 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: boardKey(pm),
       category: 'placas',
-      // "Placa de melamina Egger Blanco 18 mm", "Placa de MDF crudo Faplac 18 mm".
-      name: `Placa de ${boardLabel(pm).replace(/^(Melamina|Aglomerado)/, (w) => w.toLowerCase())}${summary.interior ? (plan.finish === 'interior' ? ' (interior)' : ' (exterior)') : ''}`,
+      // "Tablero de melamina Egger Blanco 18 mm", "Tablero de MDF crudo Faplac 18 mm".
+      name:
+        tr(`Tablero de ${boardLabel(pm).replace(/^(Melamina|Aglomerado)/, (w) => w.toLowerCase())}`, `Board: ${boardLabel(pm)}`) +
+        (summary.interior ? (plan.finish === 'interior' ? ' (interior)' : ' (exterior)') : ''),
       qty: plan.pack.sheets.length,
       unit: 'placa',
-      note: `${plan.boardLabel} · aprovechamiento ${Math.round(plan.pack.efficiency * 100)} %`,
+      note: tr(
+        `${plan.boardLabel} · aprovechamiento ${Math.round(plan.pack.efficiency * 100)} %`,
+        `${plan.boardLabel} · ${Math.round(plan.pack.efficiency * 100)} % yield`,
+      ),
       defaultOn: true,
     });
   }
@@ -84,7 +119,7 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: backBoardKey(m),
       category: 'placas',
-      name: `Placa de fondo: ${backLabel(m)}`,
+      name: tr(`Tablero de fondo: ${backLabel(m)}`, `Back panel board: ${backLabel(m)}`),
       qty: backBoards,
       unit: 'placa',
       note: summary.fondo.boardLabel,
@@ -94,10 +129,10 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: CUT_KEY,
     category: 'placas',
-    name: 'Servicio de corte en seccionadora',
+    name: tr('Servicio de corte en seccionadora', 'Panel saw cutting service'),
     qty: melSheets + backBoards,
     unit: 'placa',
-    note: 'Pedilo con la lista de cortes de la pestaña Despiece',
+    note: tr('Pídelo con la lista de cortes de la pestaña Despiece', 'Order it with the list from the Cut list tab'),
     defaultOn: true,
   });
   // Un tapacanto por color (si el interior es del mismo color, se suman en un solo ítem).
@@ -112,10 +147,18 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key,
       category: 'placas',
-      name: `Tapacanto ${em.color.trim()} ${mm(m.edgeWidth)} × ${num(m.edgeThickness)} mm`.replace(/\s+/g, ' '),
+      name: tr(
+        `Tapacanto ${em.color.trim()} ${mm(m.edgeWidth)} × ${num(m.edgeThickness)} mm`,
+        `Edge banding ${em.color.trim()} ${mm(m.edgeWidth)} × ${num(m.edgeThickness)} mm`,
+      ).replace(/\s+/g, ' '),
       qty: Math.ceil(meters * 1.1),
       unit: 'm',
-      note: isRawBoard(em) ? 'Opcional en placa cruda: si la vas a pintar, los cantos se masillan y lijan' : `${num(meters, 1)} m justos + 10 % para recortes`,
+      note: isRawBoard(em)
+        ? tr(
+            'Opcional en tablero crudo: si lo vas a pintar, los cantos se rellenan con masilla y se lijan',
+            "Optional on a raw board: if you're going to paint it, fill and sand the edges instead",
+          )
+        : tr(`${num(meters, 1)} m justos + 10 % para recortes`, `${num(meters, 1)} m exact + 10 % for offcuts`),
       defaultOn: !isRawBoard(em),
       optional: isRawBoard(em),
     });
@@ -123,10 +166,10 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: 'pegado-tapacanto',
     category: 'placas',
-    name: 'Pegado de tapacanto (servicio)',
+    name: tr('Pegado de tapacanto (servicio)', 'Edge banding application (service)'),
     qty: Math.ceil(summary.edgeMeters),
     unit: 'm',
-    note: 'Si te lo pega el aserradero',
+    note: tr('Si te lo pega el centro de corte', 'If the cutting shop applies it'),
     defaultOn: false,
     optional: true,
   });
@@ -137,29 +180,29 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
       add({
         key: `bisagra|${type}`,
         category: 'herrajes',
-        name: `Bisagra cazoleta 35 mm ${HINGE_LABEL[type]}`,
+        name: tr(`Bisagra cazoleta 35 mm ${HINGE_LABEL[type]}`, `35 mm concealed hinge, ${HINGE_LABEL[type]}`),
         qty: result.doors.hingeCounts[type],
         unit: 'u',
-        note: 'Con base (calzo). Mejor de cierre suave.',
+        note: tr('Con base (calzo). Mejor de cierre suave.', 'With mounting plate. Soft-close is best.'),
         defaultOn: true,
       });
     }
     add({
       key: 'tirador',
       category: 'herrajes',
-      name: 'Tirador para puerta',
+      name: tr('Tirador para puerta', 'Door handle'),
       qty: doors.length,
       unit: 'u',
-      note: 'Con sus tornillos',
+      note: tr('Con sus tornillos', 'With screws'),
       defaultOn: true,
     });
     add({
       key: 'amortiguador',
       category: 'herrajes',
-      name: 'Amortiguador de cierre para puerta',
+      name: tr('Amortiguador de cierre para puerta', 'Soft-close damper for doors'),
       qty: doors.length,
       unit: 'u',
-      note: 'Solo si las bisagras no son de cierre suave',
+      note: tr('Solo si las bisagras no son de cierre suave', "Only if the hinges aren't soft-close"),
       defaultOn: false,
       optional: true,
     });
@@ -167,28 +210,56 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   if (sliding) {
     const sets = Math.max(1, result.doors.trackSets);
     const meters = (Math.round(result.doors.trackLength) * sets) / 1000;
-    const trackNote = `${sets} ${sets === 1 ? 'tramo' : 'tramos'} de ${mm(result.doors.trackLength)} mm${sets > 1 ? ' (abajo y en el maletero)' : ''}. Se vende en tiras de 2 o 3 m.`;
-    add({ key: 'riel-superior', category: 'herrajes', name: 'Riel superior doble para corredizas', qty: meters, unit: 'm', note: trackNote, defaultOn: true });
-    add({ key: 'riel-inferior', category: 'herrajes', name: 'Riel inferior doble para corredizas', qty: meters, unit: 'm', note: trackNote, defaultOn: true });
+    const trackNote = tr(
+      `${sets} ${sets === 1 ? 'tramo' : 'tramos'} de ${mm(result.doors.trackLength)} mm${sets > 1 ? ' (abajo y en el maletero)' : ''}. Se vende en tiras de 2 o 3 m.`,
+      `${sets} ${sets === 1 ? 'length' : 'lengths'} of ${mm(result.doors.trackLength)} mm${sets > 1 ? ' (main section and top storage)' : ''}. Sold in 2 or 3 m lengths.`,
+    );
+    add({
+      key: 'riel-superior',
+      category: 'herrajes',
+      name: tr('Riel superior doble para corredizas', 'Double top track for sliding doors'),
+      qty: meters,
+      unit: 'm',
+      note: trackNote,
+      defaultOn: true,
+    });
+    add({
+      key: 'riel-inferior',
+      category: 'herrajes',
+      name: tr('Riel inferior doble para corredizas', 'Double bottom track for sliding doors'),
+      qty: meters,
+      unit: 'm',
+      note: trackNote,
+      defaultOn: true,
+    });
     add({
       key: 'ruedas-corrediza',
       category: 'herrajes',
-      name: 'Juego de ruedas y guías para puerta corrediza',
+      name: tr('Juego de ruedas y guías para puerta corrediza', 'Wheel and guide set for sliding doors'),
       qty: doors.length,
       unit: 'juego',
-      note: 'Uno por hoja. Muchos kits traen rieles y ruedas juntos.',
+      note: tr('Uno por hoja. Muchos kits traen rieles y ruedas juntos.', 'One per door panel. Many kits include tracks and wheels together.'),
       defaultOn: true,
     });
     add({
       key: 'tirador-embutido',
       category: 'herrajes',
-      name: 'Tirador embutido (uñero) para corrediza',
+      name: tr('Tirador embutido (uñero) para corrediza', 'Recessed finger pull for sliding doors'),
       qty: doors.length,
       unit: 'u',
-      note: 'Embutido para que las hojas pasen una delante de otra',
+      note: tr('Embutido para que las hojas pasen una delante de otra', 'Recessed so the panels can slide past each other'),
       defaultOn: true,
     });
-    add({ key: 'tope-corrediza', category: 'herrajes', name: 'Topes para riel', qty: 2, unit: 'u', note: 'Si el kit no los trae', defaultOn: false, optional: true });
+    add({
+      key: 'tope-corrediza',
+      category: 'herrajes',
+      name: tr('Topes para riel', 'Track stops'),
+      qty: 2,
+      unit: 'u',
+      note: tr('Si el kit no los trae', "If the kit doesn't include them"),
+      defaultOn: false,
+      optional: true,
+    });
   }
   if (barLengths.length) {
     const lengths = new Map<number, number>();
@@ -196,19 +267,27 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: 'barral',
       category: 'herrajes',
-      name: 'Barral ovalado cromado',
+      name: tr('Barra ovalada cromada', 'Chrome oval rod'),
       qty: Math.round(barLengths.reduce((m, l) => m + l, 0)) / 1000,
       unit: 'm',
-      note: `Cortado en ${[...lengths.entries()].map(([l, q]) => `${q} de ${mm(l)} mm`).join(', ')}`,
+      note: tr(
+        `Cortada en ${[...lengths.entries()].map(([l, q]) => `${q} de ${mm(l)} mm`).join(', ')}`,
+        `Cut into ${[...lengths.entries()].map(([l, q]) => `${q} × ${mm(l)} mm`).join(', ')}`,
+      ),
       defaultOn: true,
     });
     add({
       key: 'soporte-barral',
       category: 'herrajes',
-      name: 'Soportes de barral',
+      name: tr('Soportes de barra', 'Rod supports'),
       qty: rodSupports,
       unit: 'u',
-      note: shoeBars.length ? 'Dos por barral (y por barra de zapatero), más uno central en los de más de 1 m' : 'Dos por barral, más uno central en los de más de 1 m',
+      note: shoeBars.length
+        ? tr(
+            'Dos por barra de colgar (y por barra de zapatero), más uno central en las de más de 1 m',
+            'Two per hanging rod (and per shoe bar), plus one in the middle on rods over 1 m',
+          )
+        : tr('Dos por barra, más uno central en las de más de 1 m', 'Two per rod, plus one in the middle on rods over 1 m'),
       defaultOn: true,
     });
   }
@@ -218,30 +297,38 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: `corredera|${length}`,
       category: 'herrajes',
-      name: `Correderas telescópicas de ${length} mm`,
+      name: tr(`Correderas telescópicas de ${length} mm`, `${length} mm full-extension drawer slides`),
       qty,
       unit: 'juego',
-      note: 'Un par por cajón. Mejor con cierre suave.',
+      note: tr('Un par por cajón. Mejor con cierre suave.', 'One pair per drawer. Soft-close is best.'),
       defaultOn: true,
     });
   }
-  add({ key: 'tirador-cajon', category: 'herrajes', name: 'Tirador para cajón', qty: drawerCount, unit: 'u', note: 'Con sus tornillos', defaultOn: true });
+  add({
+    key: 'tirador-cajon',
+    category: 'herrajes',
+    name: tr('Tirador para cajón', 'Drawer handle'),
+    qty: drawerCount,
+    unit: 'u',
+    note: tr('Con sus tornillos', 'With screws'),
+    defaultOn: true,
+  });
   add({
     key: 'perno-estante',
     category: 'herrajes',
-    name: 'Soportes para estante (pernos de 5 mm)',
+    name: tr('Soportes para estante (pernos de 5 mm)', 'Shelf supports (5 mm pins)'),
     qty: result.counts.shelfPins,
     unit: 'u',
-    note: '4 por estante móvil',
+    note: tr('4 por estante móvil', '4 per adjustable shelf'),
     defaultOn: true,
   });
   add({
     key: 'escuadra-pared',
     category: 'herrajes',
-    name: 'Escuadras para fijar a la pared',
+    name: tr('Escuadras para fijar a la pared', 'Angle brackets for wall fixing'),
     qty: 2,
     unit: 'u',
-    note: tall ? 'Evitan que el mueble vuelque' : 'Para asegurarlo o colgarlo',
+    note: tall ? tr('Evitan que el mueble se vuelque', 'Keep the unit from tipping over') : tr('Para asegurarlo o colgarlo', 'To secure or hang it'),
     defaultOn: tall,
     optional: !tall,
   });
@@ -249,10 +336,10 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: 'regaton',
       category: 'herrajes',
-      name: 'Regatones o patas niveladoras',
+      name: tr('Patas niveladoras o protectores de base', 'Leveling feet or furniture glides'),
       qty: result.size.width > 1200 ? 6 : 4,
       unit: 'u',
-      note: 'Protegen la base y nivelan el mueble',
+      note: tr('Protegen la base y nivelan el mueble', 'Protect the base and level the unit'),
       defaultOn: true,
     });
   }
@@ -262,10 +349,13 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: 'tornillo-4x50',
     category: 'fijaciones',
-    name: 'Tornillos para aglomerado 4 × 50 mm',
+    name: tr('Tornillos para aglomerado 4 × 50 mm', 'Particleboard screws 4 × 50 mm'),
     qty: c.screws,
     unit: 'u',
-    note: `${c.screwsPerJoint} por unión, con agujero guía. También sirven confirmat 7 × 50.`,
+    note: tr(
+      `${c.screwsPerJoint} por unión, con agujero guía. También sirven tornillos confirmat 7 × 50.`,
+      `${c.screwsPerJoint} per joint, with a pilot hole. Confirmat 7 × 50 screws also work.`,
+    ),
     defaultOn: true,
   });
   const hingeScrews = Object.values(result.doors.hingeCounts).reduce((s, v) => s + v, 0) * 4;
@@ -275,14 +365,14 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: 'tornillo-3.5x16',
     category: 'fijaciones',
-    name: 'Tornillos 3,5 × 16 mm',
+    name: tr('Tornillos 3,5 × 16 mm', 'Screws 3.5 × 16 mm'),
     qty: hingeScrews + trackScrews + slideScrews + supportScrews,
     unit: 'u',
     note: [
-      hingeScrews ? '4 por bisagra' : '',
-      trackScrews ? 'rieles cada 15 cm' : '',
-      slideScrews ? '12 por par de correderas' : '',
-      supportScrews ? '3 por soporte de barral' : '',
+      hingeScrews ? tr('4 por bisagra', '4 per hinge') : '',
+      trackScrews ? tr('rieles cada 15 cm', 'tracks every 15 cm') : '',
+      slideScrews ? tr('12 por par de correderas', '12 per pair of slides') : '',
+      supportScrews ? tr('3 por soporte de barra', '3 per rod support') : '',
     ]
       .filter(Boolean)
       .join(', '),
@@ -291,57 +381,66 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: 'tornillo-4x30',
     category: 'fijaciones',
-    name: 'Tornillos 4 × 30 mm',
+    name: tr('Tornillos 4 × 30 mm', 'Screws 4 × 30 mm'),
     qty: drawerCount * 4 + topes * 3,
     unit: 'u',
-    note: [drawerCount ? 'Frentes de cajón desde adentro, 4 por cajón' : '', topes ? 'topes del zapatero, 3 por tope' : ''].filter(Boolean).join('; '),
+    note: [
+      drawerCount ? tr('Frentes de cajón desde adentro, 4 por cajón', 'Drawer fronts from the inside, 4 per drawer') : '',
+      topes ? tr('topes del zapatero, 3 por tope', 'shoe stops, 3 per stop') : '',
+    ]
+      .filter(Boolean)
+      .join('; '),
     defaultOn: true,
   });
   add({
     key: 'clavo-fondo',
     category: 'fijaciones',
-    name: drawerCount ? 'Clavos de 1" o grapas para fondos' : 'Clavos de 1" o grapas para el fondo',
+    name: drawerCount
+      ? tr('Clavos de 1" o grapas para fondos', '1" nails or staples for back panels and drawer bottoms')
+      : tr('Clavos de 1" o grapas para el fondo', '1" nails or staples for the back panel'),
     qty: c.backNails,
     unit: 'u',
-    note: drawerCount ? 'Fondo del mueble cada 15 cm y fondos de cajón cada 10 cm' : 'Cada 15 cm en el borde, sobre estantes fijos y divisores',
+    note: drawerCount
+      ? tr('Fondo del mueble cada 15 cm y fondos de cajón cada 10 cm', 'Unit back panel every 15 cm and drawer bottoms every 10 cm')
+      : tr('Cada 15 cm en el borde, sobre estantes fijos y divisores', 'Every 15 cm along the edge, over fixed shelves and dividers'),
     defaultOn: true,
   });
   add({
     key: `tapatornillo|${color.toLowerCase()}`,
     category: 'fijaciones',
-    name: `Tapatornillos adhesivos ${color}`.trim(),
+    name: tr(`Tapatornillos adhesivos ${color}`, `Adhesive screw caps ${color}`).trim(),
     qty: c.visibleScrews,
     unit: 'u',
-    note: 'Para las cabezas que quedan a la vista',
+    note: tr('Para las cabezas que quedan a la vista', 'For screw heads left in view'),
     defaultOn: true,
   });
   add({
     key: 'taco-pared',
     category: 'fijaciones',
-    name: 'Tarugos de 8 mm y tornillos para pared',
+    name: tr('Tacos de 8 mm y tornillos para pared', '8 mm wall plugs and screws'),
     qty: 4,
     unit: 'u',
-    note: 'Para las escuadras',
+    note: tr('Para las escuadras', 'For the angle brackets'),
     defaultOn: tall,
     optional: !tall,
   });
   add({
     key: 'tarugo-madera',
     category: 'fijaciones',
-    name: 'Tarugos de madera 8 × 30 mm',
+    name: tr('Espigas de madera 8 × 30 mm', 'Wooden dowels 8 × 30 mm'),
     qty: c.joints * 2,
     unit: 'u',
-    note: 'Opcional: uniones más firmes, con cola',
+    note: tr('Opcional: uniones más firmes, con cola', 'Optional: stronger joints, with glue'),
     defaultOn: false,
     optional: true,
   });
   add({
     key: 'minifix',
     category: 'fijaciones',
-    name: 'Minifix (excéntrica + perno)',
+    name: tr('Minifix (excéntrica + perno)', 'Minifix (cam + bolt)'),
     qty: c.joints * 2,
     unit: 'u',
-    note: 'Opcional: uniones desarmables y sin tornillos a la vista',
+    note: tr('Opcional: uniones desarmables y sin tornillos a la vista', 'Optional: knock-down joints with no visible screws'),
     defaultOn: false,
     optional: true,
   });
@@ -350,10 +449,10 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: 'tapajunta',
       category: 'insumos',
-      name: 'Tapajunta o varilla de terminación',
+      name: tr('Tapajuntas o moldura de terminación', 'Trim strip or finishing molding'),
       qty: Math.ceil((2 * result.size.height + result.size.width) / 100) / 10,
       unit: 'm',
-      note: 'Para tapar la luz entre el mueble y la pared',
+      note: tr('Para tapar la separación entre el mueble y la pared', 'To cover the gap between the unit and the wall'),
       defaultOn: false,
       optional: true,
     });
@@ -363,26 +462,46 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: 'cola-vinilica',
     category: 'insumos',
-    name: 'Cola vinílica para carpintería',
+    name: tr('Cola blanca para carpintería', 'Wood glue'),
     qty: 1,
     unit: 'u',
-    note: unit.back.mode === 'ranurado' ? 'Para la ranura del fondo y los tarugos' : 'Para tarugos o refuerzos',
+    note:
+      unit.back.mode === 'ranurado'
+        ? tr('Para la ranura del fondo y las espigas', 'For the back panel groove and the dowels')
+        : tr('Para espigas o refuerzos', 'For dowels or reinforcement'),
     defaultOn: unit.back.mode === 'ranurado',
     optional: unit.back.mode !== 'ranurado',
   });
-  add({ key: 'cola-contacto', category: 'insumos', name: 'Cola de contacto', qty: 1, unit: 'u', note: 'Si pegás tapacanto común a mano', defaultOn: false, optional: true });
-  add({ key: 'cinta-papel', category: 'insumos', name: 'Cinta de papel', qty: 1, unit: 'u', note: 'Para marcar sin rayar y evitar astillas al cortar', defaultOn: false, optional: true });
-  add({ key: 'lija-180', category: 'insumos', name: 'Lija fina grano 180', qty: 2, unit: 'u', note: 'Para repasar los cantos del tapacanto', defaultOn: false, optional: true });
+  const extra = (key: string, name: string, note: string, qty = 1) => add({ key, category: 'insumos', name, qty, unit: 'u', note, defaultOn: false, optional: true });
+  extra('cola-contacto', tr('Cola de contacto', 'Contact cement'), tr('Si pegas tapacanto común a mano', 'If you apply plain edge banding by hand'));
+  extra(
+    'cinta-papel',
+    tr('Cinta de enmascarar', 'Masking tape'),
+    tr('Para marcar sin rayar y evitar astillas al cortar', 'To mark without scratching and to avoid chipping when cutting'),
+  );
+  extra('lija-180', tr('Lija fina grano 180', 'Fine sandpaper, 180 grit'), tr('Para repasar los cantos del tapacanto', 'To smooth the edge banding'), 2);
 
   // --- Herramientas ---
   const tool = (key: string, name: string, note: string, qty = 1, unitName: ShoppingUnit = 'u') =>
     add({ key, category: 'herramientas', name, qty, unit: unitName, note, defaultOn: false, optional: true });
-  if (hinged) tool('mecha-cazoleta', 'Mecha Forstner de 35 mm', 'Para la cazoleta de las bisagras');
-  tool('mechas-guia', 'Mechas de 3 y 4 mm + avellanador', 'Agujeros guía para que no se abra el aglomerado', 1, 'juego');
-  if (c.shelfPins > 0) tool('plantilla-pernos', 'Mecha de 5 mm con tope + plantilla para pernos', 'Para los agujeros de los estantes móviles');
-  tool('refilador-tapacanto', 'Refilador de tapacanto', 'Si pegás el tapacanto vos');
-  tool('sargentos', 'Prensas tipo sargento', 'Para sostener las piezas al atornillar', 2);
-  tool('escuadra-carpintero', 'Escuadra de carpintero', 'Para controlar que todo quede a 90°');
+  if (hinged) tool('mecha-cazoleta', tr('Broca Forstner de 35 mm', '35 mm Forstner bit'), tr('Para la cazoleta de las bisagras', 'For the hinge cups'));
+  tool(
+    'mechas-guia',
+    tr('Brocas de 3 y 4 mm + avellanador', '3 and 4 mm drill bits + countersink'),
+    tr('Agujeros guía para que no se abra el aglomerado', "Pilot holes so the particleboard doesn't split"),
+    1,
+    'juego',
+  );
+  if (c.shelfPins > 0) {
+    tool(
+      'plantilla-pernos',
+      tr('Broca de 5 mm con tope + plantilla para pernos', '5 mm drill bit with depth stop + shelf pin jig'),
+      tr('Para los agujeros de los estantes móviles', 'For the adjustable shelf holes'),
+    );
+  }
+  tool('refilador-tapacanto', tr('Refilador de tapacanto', 'Edge banding trimmer'), tr('Si pegas el tapacanto tú mismo', 'If you apply the edge banding yourself'));
+  tool('sargentos', tr('Prensas tipo sargento', 'Bar clamps'), tr('Para sostener las piezas al atornillar', 'To hold the pieces while you screw them'), 2);
+  tool('escuadra-carpintero', tr('Escuadra de carpintero', "Carpenter's square"), tr('Para comprobar que todo quede a 90°', 'To check that everything is at 90°'));
 
   return items;
 }
@@ -394,18 +513,21 @@ export function isChecked(unit: ShelfUnit, item: ShoppingItem): boolean {
 export function formatQty(qty: number, unit: ShoppingUnit): string {
   switch (unit) {
     case 'placa':
-      return `${qty} ${qty === 1 ? 'placa' : 'placas'}`;
+      return qty === 1 ? tr(`${qty} tablero`, `${qty} board`) : tr(`${qty} tableros`, `${qty} boards`);
     case 'm':
       return `${num(qty)} m`;
     case 'juego':
-      return `${qty} ${qty === 1 ? 'juego' : 'juegos'}`;
+      return qty === 1 ? tr(`${qty} juego`, `${qty} set`) : tr(`${qty} juegos`, `${qty} sets`);
     default:
-      return `${qty} u.`;
+      return tr(`${qty} u.`, `${qty} pcs`);
   }
 }
 
 export function unitLabel(unit: ShoppingUnit): string {
-  return unit === 'placa' ? 'placa' : unit === 'm' ? 'metro' : unit === 'juego' ? 'juego' : 'unidad';
+  if (unit === 'placa') return tr('tablero', 'board');
+  if (unit === 'm') return tr('metro', 'meter');
+  if (unit === 'juego') return tr('juego', 'set');
+  return tr('unidad', 'unit');
 }
 
 export interface ShoppingTotals {
@@ -431,7 +553,7 @@ export function shoppingTotals(unit: ShelfUnit, items: ShoppingItem[], prices: P
 
 /** Lista para mandar por WhatsApp: solo lo marcado, agrupado por rubro. */
 export function shoppingText(unit: ShelfUnit, items: ShoppingItem[], prices: PriceList): string {
-  const lines = [`*Lista de compras: ${unit.name}*`];
+  const lines = [tr(`*Lista de compras: ${unit.name}*`, `*Shopping list: ${unit.name}*`)];
   for (const cat of CATEGORIES) {
     const list = items.filter((it) => it.category === cat.key && isChecked(unit, it));
     if (!list.length) continue;
@@ -443,7 +565,14 @@ export function shoppingText(unit: ShelfUnit, items: ShoppingItem[], prices: Pri
   }
   const totals = shoppingTotals(unit, items, prices);
   if (totals.total > 0) {
-    lines.push('', `Total estimado: ${money(totals.total)}${totals.missingPrice ? ` (faltan precios de ${totals.missingPrice} ítems)` : ''}`);
+    const missing = totals.missingPrice;
+    lines.push(
+      '',
+      tr(
+        `Total estimado: ${money(totals.total)}${missing ? ` (faltan precios de ${missing} ${missing === 1 ? 'ítem' : 'ítems'})` : ''}`,
+        `Estimated total: ${money(totals.total)}${missing ? ` (${missing} ${missing === 1 ? 'item' : 'items'} without a price)` : ''}`,
+      ),
+    );
   }
   return lines.join('\n');
 }

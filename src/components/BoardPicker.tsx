@@ -2,17 +2,19 @@ import { useState } from 'react';
 import {
   BACK_TYPES,
   BOARD_TYPES,
-  COLOR_SUGGESTIONS,
   CUSTOM_BRAND,
   boardsFor,
+  brandLabel,
+  colorSuggestions,
   edgeWidthFor,
   looksLikeWood,
   type BackType,
   type BoardType,
   type CatalogBoard,
 } from '../lib/catalog';
-import { decorsForBoard, matchDecor } from '../lib/decors';
+import { decorsForBoard, lineLabel, matchDecor } from '../lib/decors';
 import { mm } from '../lib/format';
+import { tr } from '../lib/i18n';
 import type { Material } from '../lib/types';
 import { NumberField, Switch } from './ui';
 
@@ -122,21 +124,21 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
       <div className="grid-2">
         <div className="field">
           <label className="field-label" htmlFor={`f-${id}-brand`}>
-            Marca
+            {tr('Marca', 'Brand')}
           </label>
           <select id={`f-${id}-brand`} className="input" value={isCustom ? CUSTOM_BRAND : cur.brand} onChange={(e) => pick(e.target.value)}>
             {brands.map((b) => (
               <option key={b} value={b}>
-                {b}
-                {custom.some((c) => c.brand === b) ? ' (mía)' : ''}
+                {brandLabel(b)}
+                {custom.some((c) => c.brand === b) ? tr(' (mía)', ' (mine)') : ''}
               </option>
             ))}
-            <option value={CUSTOM_BRAND}>Otra: medidas a mano</option>
+            <option value={CUSTOM_BRAND}>{tr('Otra: medidas a mano', 'Other: enter sizes by hand')}</option>
           </select>
         </div>
         <div className="field">
           <label className="field-label" htmlFor={`f-${id}-type`}>
-            Tipo
+            {tr('Tipo', 'Type')}
           </label>
           <select
             id={`f-${id}-type`}
@@ -156,17 +158,17 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
       {isCustom ? (
         <>
           <div className="grid-3">
-            <NumberField id={`f-${id}-l`} label="Largo" value={cur.length} min={1} onChange={(v) => v !== null && change((m) => write(m, role, { length: v }))} />
-            <NumberField id={`f-${id}-w`} label="Ancho" value={cur.width} min={1} onChange={(v) => v !== null && change((m) => write(m, role, { width: v }))} />
+            <NumberField id={`f-${id}-l`} label={tr('Largo', 'Length')} value={cur.length} min={1} onChange={(v) => v !== null && change((m) => write(m, role, { length: v }))} />
+            <NumberField id={`f-${id}-w`} label={tr('Ancho', 'Width')} value={cur.width} min={1} onChange={(v) => v !== null && change((m) => write(m, role, { width: v }))} />
             {role === 'interior' ? (
               <div className="field">
-                <span className="field-label">Espesor</span>
+                <span className="field-label">{tr('Espesor', 'Thickness')}</span>
                 <span className="input num" style={{ display: 'flex', alignItems: 'center' }}>
                   {mm(cur.thickness)} mm
                 </span>
               </div>
             ) : (
-              <NumberField id={`f-${id}-t`} label="Espesor" value={cur.thickness} min={1} onChange={(v) => v !== null && change((m) => write(m, role, { thickness: v }))} />
+              <NumberField id={`f-${id}-t`} label={tr('Espesor', 'Thickness')} value={cur.thickness} min={1} onChange={(v) => v !== null && change((m) => write(m, role, { thickness: v }))} />
             )}
           </div>
           <div className="save-board">
@@ -174,8 +176,8 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
               id={`f-${id}-save`}
               className="input"
               type="text"
-              placeholder="Marca o proveedor, p. ej. Maderera López"
-              aria-label="Nombre para guardar esta placa"
+              placeholder={tr('Marca o proveedor, p. ej. Maderas López', 'Brand or supplier, e.g. Smith Lumber')}
+              aria-label={tr('Nombre para guardar este tablero', 'Name to save this board')}
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
             />
@@ -190,7 +192,7 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
                 setSaveName('');
               }}
             >
-              Guardar en mis placas
+              {tr('Guardar en mis tableros', 'Save to my boards')}
             </button>
           </div>
         </>
@@ -198,7 +200,7 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
         <div className="grid-2">
           <div className="field">
             <label className="field-label" htmlFor={`f-${id}-size`}>
-              Medida
+              {tr('Medida', 'Size')}
             </label>
             <select id={`f-${id}-size`} className="input" value={sizeKey(cur)} onChange={(e) => pick(cur.brand, cur.type, e.target.value)}>
               {sizes.map((b) => (
@@ -210,10 +212,10 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
           </div>
           <div className="field">
             <label className="field-label" htmlFor={`f-${id}-thick`}>
-              Espesor
+              {tr('Espesor', 'Thickness')}
             </label>
             {role === 'interior' ? (
-              <input id={`f-${id}-thick`} className="input" readOnly value={`${mm(cur.thickness)} mm`} title="El interior va del mismo espesor que el exterior" />
+              <input id={`f-${id}-thick`} className="input" readOnly value={`${mm(cur.thickness)} mm`} title={tr('El interior va del mismo espesor que el exterior', 'The interior uses the same thickness as the exterior')} />
             ) : (
               <select id={`f-${id}-thick`} className="input" value={cur.thickness} onChange={(e) => change((m) => write(m, role, { thickness: Number(e.target.value) }))}>
                 {thicknesses.map((t) => (
@@ -229,14 +231,14 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
 
       <span className="field-hint">
         {role === 'interior' && !isCustom && selected && !selected.thicknesses.includes(cur.thickness) && (
-          <strong>Esta placa no figura en {mm(cur.thickness)} mm: confirmalo con tu proveedor. </strong>
+          <strong>{tr(`Este tablero no figura en ${mm(cur.thickness)} mm: confírmalo con tu proveedor. `, `This board is not listed in ${mm(cur.thickness)} mm: check with your supplier. `)}</strong>
         )}
         {typeHint}
         {!isCustom && selected?.custom && (
           <>
             {' '}
             <button type="button" className="link-btn" onClick={() => onRemoveCustom(selected)}>
-              Quitar de mis placas
+              {tr('Quitar de mis tableros', 'Remove from my boards')}
             </button>
           </>
         )}
@@ -267,27 +269,32 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
                 }}
               >
                 {lines.map((line) => (
-                  <optgroup key={line} label={line}>
+                  <optgroup key={line} label={lineLabel(line)}>
                     {decors
                       .filter((d) => d.line === line)
                       .map((d) => (
                         <option key={d.name} value={d.name}>
                           {d.name}
                           {d.alias ? ` · ${d.alias}` : ''}
-                          {d.uncertain ? ' (a confirmar)' : ''}
+                          {d.uncertain ? tr(' (a confirmar)', ' (to be confirmed)') : ''}
                         </option>
                       ))}
                   </optgroup>
                 ))}
-                <option value={OTHER}>Otro color (escribir)</option>
+                <option value={OTHER}>{tr('Otro color (escribir)', 'Other color (type it)')}</option>
               </select>
               {decor && (
                 <span className="decor-chip">
                   <i className="swatch" style={{ background: decor.hex }} />
-                  {decor.wood ? 'Diseño madera, con veta' : 'Liso'}
-                  {decor.code ? ` · código ${decor.code}` : ''}
+                  {decor.wood ? tr('Diseño de madera, con veta', 'Wood design, with grain') : tr('Liso', 'Solid color')}
+                  {decor.code ? tr(` · código ${decor.code}`, ` · code ${decor.code}`) : ''}
                   {decor.thicknesses && !decor.thicknesses.includes(cur.thickness) && (
-                    <strong> · figura en {decor.thicknesses.map((x) => mm(x)).join(', ')} mm: confirmá {mm(cur.thickness)} mm</strong>
+                    <strong>
+                      {tr(
+                        ` · figura en ${decor.thicknesses.map((x) => mm(x)).join(', ')} mm: confirma ${mm(cur.thickness)} mm`,
+                        ` · listed in ${decor.thicknesses.map((x) => mm(x)).join(', ')} mm: confirm ${mm(cur.thickness)} mm`,
+                      )}
+                    </strong>
                   )}
                 </span>
               )}
@@ -296,7 +303,7 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
           {cur.type !== 'mdf' && cur.type !== 'aglomerado' && (decors.length === 0 || !decor) && (
             <div className="field">
               <label className="field-label" htmlFor={`f-${id}-color`}>
-                {decors.length ? 'Nombre del color' : 'Color o diseño'}
+                {decors.length ? tr('Nombre del color', 'Color name') : tr('Color o diseño', 'Color or design')}
               </label>
               <input
                 id={`f-${id}-color`}
@@ -304,7 +311,7 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
                 type="text"
                 list="color-suggestions"
                 value={role === 'interior' ? material.interior.color : material.color}
-                placeholder="Blanco, Roble, Gris humo…"
+                placeholder={tr('Blanco, Roble, Gris humo…', 'White, Oak, Smoke grey…')}
                 onChange={(e) => {
                   const color = e.target.value;
                   change((m) => {
@@ -319,7 +326,7 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
           )}
           <Switch
             id={`f-${id}-grain`}
-            label="Tiene veta (las piezas no se giran en la placa)"
+            label={tr('Tiene veta (las piezas no se giran en el tablero)', 'Has grain (pieces are not rotated on the board)')}
             checked={role === 'interior' ? material.interior.hasGrain : material.hasGrain}
             onChange={(v) => change((m) => void ((role === 'interior' ? m.interior : m).hasGrain = v))}
           />
@@ -327,7 +334,7 @@ export function BoardPicker({ role, material, custom, change, onSaveCustom, onRe
       )}
       {role === 'cuerpo' && (
         <datalist id="color-suggestions">
-          {COLOR_SUGGESTIONS.map((c) => (
+          {colorSuggestions().map((c) => (
             <option key={c} value={c} />
           ))}
         </datalist>

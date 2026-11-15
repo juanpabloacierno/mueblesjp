@@ -1,4 +1,5 @@
 import { newId } from './format';
+import { tr } from './i18n';
 import type { ColumnSpec, DoorSpec, FurnitureKind, MaleteroSpec, Material, NicheSpec, ShelfUnit } from './types';
 
 export const DEFAULT_MATERIAL: Material = {
@@ -68,16 +69,37 @@ export interface Preset {
   unit: PresetUnit;
 }
 
+type Text = [es: string, en: string];
+
+/** Modelo con textos en los dos idiomas: se leen en el idioma activo (también el nombre del mueble). */
+function preset(d: { key: string; label: Text; description: Text; name: Text; unit: Omit<PresetUnit, 'name'> }): Preset {
+  return {
+    key: d.key,
+    get label() {
+      return tr(...d.label);
+    },
+    get description() {
+      return tr(...d.description);
+    },
+    unit: {
+      ...d.unit,
+      get name() {
+        return tr(...d.name);
+      },
+    },
+  };
+}
+
 const CLAVADO = { mode: 'clavado' as const, grooveDepth: 8, grooveOffset: 12 };
 
 export const PRESETS: Preset[] = [
-  {
+  preset({
     key: 'placard-corredizo',
-    label: 'Placard con corredizas',
-    description: 'Empotrado 180 × 240, cajonera, zapatero y maletero',
+    label: ['Clóset con corredizas', 'Wardrobe with sliding doors'],
+    description: ['Empotrado de 180 × 240, cajonera, zapatero y maletero', 'Built-in 180 × 240, drawers, shoe rack and top storage'],
+    name: ['Clóset del dormitorio', 'Bedroom wardrobe'],
     unit: {
       kind: 'placard',
-      name: 'Placard dormitorio',
       width: 1790,
       height: 2380,
       depth: 590,
@@ -94,14 +116,14 @@ export const PRESETS: Preset[] = [
       maletero: { enabled: true, height: 400 },
       doors: { type: 'corrediza', leaves: 2 },
     },
-  },
-  {
+  }),
+  preset({
     key: 'placard-batiente',
-    label: 'Placard con puertas de abrir',
-    description: '120 × 220, colgado y cajonera, maletero',
+    label: ['Clóset con puertas batientes', 'Wardrobe with hinged doors'],
+    description: ['120 × 220, barra de colgar, cajonera y maletero', '120 × 220, hanging rod, drawers and top storage'],
+    name: ['Clóset con puertas', 'Wardrobe with doors'],
     unit: {
       kind: 'placard',
-      name: 'Placard con puertas',
       width: 1200,
       height: 2200,
       depth: 580,
@@ -113,14 +135,14 @@ export const PRESETS: Preset[] = [
       maletero: { enabled: true, height: 350, dividers: true },
       doors: { type: 'batiente', mount: 'superpuesta' },
     },
-  },
-  {
+  }),
+  preset({
     key: 'interior-placard',
-    label: 'Interior de placard',
-    description: 'Para un hueco con frente ya hecho',
+    label: ['Interior de clóset', 'Wardrobe interior'],
+    description: ['Para un hueco con el frente ya hecho', 'For an alcove whose front is already built'],
+    name: ['Interior de clóset', 'Wardrobe interior'],
     unit: {
       kind: 'placard',
-      name: 'Interior de placard',
       width: 1490,
       height: 2480,
       depth: 590,
@@ -132,13 +154,13 @@ export const PRESETS: Preset[] = [
       columns: [column(1, 'fijo', null, [], [BARRAL, BARRAL]), column(4, 'movil', null, [560], [CAJONES_3])],
       maletero: { enabled: true, height: 450, dividers: true },
     },
-  },
-  {
+  }),
+  preset({
     key: 'biblioteca',
-    label: 'Biblioteca',
-    description: '80 × 180 cm, 4 estantes móviles',
+    label: ['Librero', 'Bookcase'],
+    description: ['80 × 180 cm, 4 estantes móviles', '80 × 180 cm, 4 adjustable shelves'],
+    name: ['Librero', 'Bookcase'],
     unit: {
-      name: 'Biblioteca',
       width: 800,
       height: 1800,
       depth: 300,
@@ -148,13 +170,13 @@ export const PRESETS: Preset[] = [
       sameShelves: true,
       columns: [column(4)],
     },
-  },
-  {
+  }),
+  preset({
     key: 'biblioteca-puertas',
-    label: 'Biblioteca con puertas abajo',
-    description: '80 × 190 cm, 2 puertas con bisagras',
+    label: ['Librero con puertas abajo', 'Bookcase with lower doors'],
+    description: ['80 × 190 cm, 2 puertas con bisagras', '80 × 190 cm, 2 hinged doors'],
+    name: ['Librero con puertas', 'Bookcase with doors'],
     unit: {
-      name: 'Biblioteca con puertas',
       width: 800,
       height: 1900,
       depth: 350,
@@ -165,13 +187,13 @@ export const PRESETS: Preset[] = [
       columns: [column(4, 'fijo', null, [600])],
       doors: { type: 'batiente', mount: 'superpuesta', perColumn: 2, upToShelf: 1 },
     },
-  },
-  {
+  }),
+  preset({
     key: 'aparador',
-    label: 'Mueble bajo con puertas',
-    description: '100 × 85 cm, 2 columnas con puerta',
+    label: ['Mueble bajo con puertas', 'Low cabinet with doors'],
+    description: ['100 × 85 cm, 2 columnas con puerta', '100 × 85 cm, 2 columns with doors'],
+    name: ['Mueble bajo', 'Low cabinet'],
     unit: {
-      name: 'Mueble bajo',
       width: 1000,
       height: 850,
       depth: 400,
@@ -182,13 +204,13 @@ export const PRESETS: Preset[] = [
       columns: [column(1, 'movil'), column(1, 'movil')],
       doors: { type: 'batiente', mount: 'superpuesta' },
     },
-  },
-  {
+  }),
+  preset({
     key: 'armario',
-    label: 'Armario con corredizas',
-    description: '120 × 180 cm, 2 hojas corredizas',
+    label: ['Armario con corredizas', 'Cabinet with sliding doors'],
+    description: ['120 × 180 cm, 2 hojas corredizas', '120 × 180 cm, 2 sliding door panels'],
+    name: ['Armario con corredizas', 'Cabinet with sliding doors'],
     unit: {
-      name: 'Armario con corredizas',
       width: 1200,
       height: 1800,
       depth: 500,
@@ -199,13 +221,13 @@ export const PRESETS: Preset[] = [
       columns: [column(4, 'movil'), column(4, 'movil')],
       doors: { type: 'corrediza', leaves: 2 },
     },
-  },
-  {
+  }),
+  preset({
     key: 'baja',
-    label: 'Estantería baja',
-    description: '120 × 80 cm, 2 columnas abiertas',
+    label: ['Estantería baja', 'Low shelving unit'],
+    description: ['120 × 80 cm, 2 columnas abiertas', '120 × 80 cm, 2 open columns'],
+    name: ['Estantería baja', 'Low shelving unit'],
     unit: {
-      name: 'Estantería baja',
       width: 1200,
       height: 800,
       depth: 350,
@@ -215,13 +237,13 @@ export const PRESETS: Preset[] = [
       sameShelves: true,
       columns: [column(1, 'fijo'), column(1, 'fijo')],
     },
-  },
-  {
+  }),
+  preset({
     key: 'cubos',
-    label: 'Organizador 3 × 3',
-    description: '9 cubos iguales',
+    label: ['Organizador 3 × 3', '3 × 3 cube organizer'],
+    description: ['9 cubos iguales', '9 equal cubes'],
+    name: ['Organizador de cubos', 'Cube organizer'],
     unit: {
-      name: 'Organizador de cubos',
       width: 1050,
       height: 1050,
       depth: 350,
@@ -231,13 +253,13 @@ export const PRESETS: Preset[] = [
       sameShelves: true,
       columns: [column(2, 'fijo'), column(2, 'fijo'), column(2, 'fijo')],
     },
-  },
-  {
+  }),
+  preset({
     key: 'tv',
-    label: 'Mueble de TV',
-    description: '160 cm, puertas a los costados',
+    label: ['Mueble de TV', 'TV unit'],
+    description: ['160 cm, puertas a los costados', '160 cm, doors on the sides'],
+    name: ['Mueble de TV', 'TV unit'],
     unit: {
-      name: 'Mueble de TV',
       width: 1600,
       height: 500,
       depth: 400,
@@ -248,13 +270,13 @@ export const PRESETS: Preset[] = [
       columns: [column(1, 'fijo'), column(1, 'movil', 700), column(1, 'fijo')],
       doors: { type: 'batiente', mount: 'superpuesta', columns: [true, false, true] },
     },
-  },
-  {
+  }),
+  preset({
     key: 'pared',
-    label: 'Estante de pared',
-    description: 'Caja abierta para colgar',
+    label: ['Estante de pared', 'Wall shelf'],
+    description: ['Caja abierta para colgar', 'Open box to hang on the wall'],
+    name: ['Estante de pared', 'Wall shelf'],
     unit: {
-      name: 'Estante de pared',
       width: 800,
       height: 250,
       depth: 200,
@@ -264,7 +286,7 @@ export const PRESETS: Preset[] = [
       sameShelves: true,
       columns: [column(0)],
     },
-  },
+  }),
 ];
 
 export function createFromPreset(preset: Preset, material: Material = DEFAULT_MATERIAL): ShelfUnit {
@@ -287,7 +309,7 @@ export function createFromPreset(preset: Preset, material: Material = DEFAULT_MA
 
 /**
  * Completa un material guardado con versiones anteriores. Los que no tenían marca
- * quedan como placa "Otra" con sus mismas medidas.
+ * quedan como tablero "Otra" con sus mismas medidas.
  */
 export function normalizeMaterial(raw: Partial<Material> | undefined): Material {
   if (!raw) return { ...DEFAULT_MATERIAL };

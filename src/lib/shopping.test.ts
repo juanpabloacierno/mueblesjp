@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { summarize } from './cutlist';
+import { cutListCsv, summarize } from './cutlist';
 import { PRESETS, createFromPreset } from './defaults';
+import { setLang } from './i18n';
 import { computeShelfUnit } from './shelf';
 import { boardKey, buildShoppingList, isChecked, shoppingText, shoppingTotals } from './shopping';
 import { parseState } from './storage';
@@ -80,7 +81,7 @@ describe('lista de compras', () => {
     const text = shoppingText(unit, items, prices);
     expect(text).not.toContain('pernos');
     expect(text).toContain('Minifix');
-    expect(text).toContain('1 placa · Placa de melamina Egger Blanco 18 mm');
+    expect(text).toContain('1 tablero · Tablero de melamina Egger Blanco 18 mm');
   });
 
   it('pasa los precios de la versión anterior a la lista de precios', () => {
@@ -91,5 +92,20 @@ describe('lista de compras', () => {
     expect(state.priceList['tapacanto|blanco|22x0.45']).toBe(900);
     expect('prices' in state.projects[0]).toBe(false);
     expect(state.projects[0].doors.type).toBe('ninguna');
+  });
+
+  it('en inglés cambian los textos, no las claves ni las cantidades', () => {
+    const es = setup('placard-corredizo');
+    setLang('en');
+    try {
+      const en = setup('placard-corredizo');
+      expect(en.items.map((i) => [i.key, i.qty, i.unit, i.defaultOn])).toEqual(es.items.map((i) => [i.key, i.qty, i.unit, i.defaultOn]));
+      expect(en.get(boardKey(en.unit.material))?.name).toMatch(/^Board: /);
+      expect(en.get('tornillo-4x50')?.name).toBe('Particleboard screws 4 × 50 mm');
+      expect(shoppingText(en.unit, en.items, {})).toContain('*Shopping list: ');
+      expect(cutListCsv(en.unit, en.result.pieces).split('\n')[0]).toMatch(/^Code,Piece,Quantity,/);
+    } finally {
+      setLang('es');
+    }
   });
 });

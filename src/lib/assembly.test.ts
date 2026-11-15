@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildAssembly } from './assembly';
 import { summarize } from './cutlist';
 import { PRESETS, createFromPreset } from './defaults';
+import { setLang } from './i18n';
 import { computeShelfUnit } from './shelf';
 import type { ShelfUnit } from './types';
 
@@ -83,5 +84,19 @@ describe('instrucciones de armado ilustradas', () => {
     const keys = a.steps.map((s) => s.key);
     expect(keys.indexOf('a-techo')).toBeGreaterThan(keys.indexOf('a-lateral'));
     expect(a.steps.find((s) => s.key === 'a-techo')?.explode.y).toBeGreaterThan(0);
+  });
+
+  it('en inglés, los mismos pasos, piezas y herrajes', () => {
+    const es = plan('placard-batiente');
+    setLang('en');
+    try {
+      const en = plan('placard-batiente');
+      expect(en.a.steps.map((s) => [s.key, s.pieces])).toEqual(es.a.steps.map((s) => [s.key, s.pieces]));
+      expect(en.a.hardware.map((h) => [h.kind, h.qty])).toEqual(es.a.hardware.map((h) => [h.kind, h.qty]));
+      expect(en.a.steps[0].hardware[0].label).toBe('Screw 4 × 50');
+      expect(en.a.prep.find((s) => s.key === 'cortes')?.title).toBe('Order the cuts');
+    } finally {
+      setLang('es');
+    }
   });
 });

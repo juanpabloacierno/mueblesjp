@@ -1,28 +1,85 @@
 import { mm } from './format';
+import { tr } from './i18n';
 import type { BackType, BoardType, Finish, Material } from './types';
 
 export type { BackType, BoardType };
 
 export const BOARD_TYPES: { value: BoardType; label: string; hint: string }[] = [
-  { value: 'melamina', label: 'Melamina', hint: 'Melamina sobre aglomerado: la más común y económica.' },
-  { value: 'melamina-mdf', label: 'Melamina sobre MDF', hint: 'Cantos más firmes y mejor agarre de tornillos y bisagras. Más cara y pesada.' },
-  { value: 'mdf', label: 'MDF crudo', hint: 'Para pintar o laquear. El tapacanto pasa a ser opcional.' },
-  { value: 'aglomerado', label: 'Aglomerado crudo', hint: 'Para enchapar o para partes que no se ven.' },
+  {
+    value: 'melamina',
+    get label() {
+      return typeLabel('melamina');
+    },
+    get hint() {
+      return tr('Melamina sobre aglomerado: la más común y económica.', 'Melamine on particleboard: the most common and cheapest.');
+    },
+  },
+  {
+    value: 'melamina-mdf',
+    get label() {
+      return typeLabel('melamina-mdf');
+    },
+    get hint() {
+      return tr(
+        'Cantos más firmes y mejor agarre de tornillos y bisagras. Más cara y pesada.',
+        'Firmer edges and a better hold for screws and hinges. More expensive and heavier.',
+      );
+    },
+  },
+  {
+    value: 'mdf',
+    get label() {
+      return typeLabel('mdf');
+    },
+    get hint() {
+      return tr('Para pintar o laquear. El tapacanto pasa a ser opcional.', 'For painting or lacquering. Edge banding becomes optional.');
+    },
+  },
+  {
+    value: 'aglomerado',
+    get label() {
+      return typeLabel('aglomerado');
+    },
+    get hint() {
+      return tr('Para enchapar o para partes que no se ven.', 'For veneering or for parts that are not seen.');
+    },
+  },
 ];
 
 export const BACK_TYPES: { value: BackType; label: string; hint: string }[] = [
-  { value: 'fibrofacil', label: 'Fibrofácil', hint: 'MDF fino crudo: el fondo más barato.' },
-  { value: 'fondo-blanco', label: 'Fondo blanco', hint: 'MDF fino con una cara blanca: queda prolijo por dentro.' },
+  {
+    value: 'fibrofacil',
+    get label() {
+      return typeLabel('fibrofacil');
+    },
+    get hint() {
+      return tr('MDF delgado sin recubrir: el fondo más barato.', 'Uncoated thin MDF: the cheapest back panel.');
+    },
+  },
+  {
+    value: 'fondo-blanco',
+    get label() {
+      return typeLabel('fondo-blanco');
+    },
+    get hint() {
+      return tr('MDF delgado con una cara blanca: queda limpio por dentro.', 'Thin MDF with one white face: looks clean inside.');
+    },
+  },
 ];
 
-export const TYPE_LABEL: Record<BoardType | BackType, string> = {
-  melamina: 'Melamina',
-  'melamina-mdf': 'Melamina sobre MDF',
-  mdf: 'MDF crudo',
-  aglomerado: 'Aglomerado crudo',
-  fibrofacil: 'Fibrofácil',
-  'fondo-blanco': 'Fondo blanco',
+const TYPE_LABELS: Record<BoardType | BackType, [es: string, en: string]> = {
+  melamina: ['Melamina', 'Melamine'],
+  'melamina-mdf': ['Melamina sobre MDF', 'Melamine on MDF'],
+  mdf: ['MDF crudo', 'Raw MDF'],
+  aglomerado: ['Aglomerado crudo', 'Raw particleboard'],
+  fibrofacil: ['MDF delgado', 'Thin MDF'],
+  'fondo-blanco': ['Fondo blanco', 'White back panel'],
 };
+
+/** Nombre del tipo de tablero en el idioma activo. */
+export function typeLabel(type: BoardType | BackType): string {
+  return tr(...TYPE_LABELS[type]);
+}
 
 export interface CatalogBoard {
   brand: string;
@@ -36,8 +93,17 @@ export interface CatalogBoard {
 
 /** Marca para cargar las medidas a mano. */
 export const CUSTOM_BRAND = 'Otra';
+/** Marca de los fondos sin marca (valor guardado; se muestra traducido con brandLabel). */
+export const GENERIC_BRAND = 'Genérica';
 /** Marcas que no se distinguen al guardar precios (mismo precio que antes de existir el catálogo). */
-const GENERIC_BRANDS = [CUSTOM_BRAND, 'Genérica'];
+const GENERIC_BRANDS = [CUSTOM_BRAND, GENERIC_BRAND];
+
+/** Nombre de una marca para mostrar: las genéricas se traducen, las reales quedan igual. */
+export function brandLabel(brand: string): string {
+  if (brand === GENERIC_BRAND) return tr('Genérica', 'Generic');
+  if (brand === CUSTOM_BRAND) return tr('Otra', 'Other');
+  return brand;
+}
 
 /**
  * Formatos de referencia que se venden en Argentina. Las medidas y espesores varían
@@ -59,25 +125,16 @@ export const CATALOG: CatalogBoard[] = [
   { brand: 'Genérica', type: 'fondo-blanco', length: 2600, width: 1830, thicknesses: [3] },
 ];
 
-export const COLOR_SUGGESTIONS = [
-  'Blanco',
-  'Negro',
-  'Gris',
-  'Gris humo',
-  'Grafito',
-  'Almendra',
-  'Roble',
-  'Roble claro',
-  'Nogal',
-  'Cerezo',
-  'Wengue',
-  'Cedro',
-  'Haya',
-  'Teca',
-  'Fresno',
-];
+const COLORS_ES = ['Blanco', 'Negro', 'Gris', 'Gris humo', 'Grafito', 'Almendra', 'Roble', 'Roble claro', 'Nogal', 'Cerezo', 'Wengue', 'Cedro', 'Haya', 'Teca', 'Fresno'];
+const COLORS_EN = ['White', 'Black', 'Grey', 'Smoke grey', 'Graphite', 'Almond', 'Oak', 'Light oak', 'Walnut', 'Cherry', 'Wenge', 'Cedar', 'Beech', 'Teak', 'Ash'];
 
-const WOOD = /roble|nogal|cerezo|wengu|cedro|haya|teca|fresno|olmo|pino|peral|guindo|madera|caoba|maple|arce|abedul|eucalip|petirib|para[ií]so|cerejeira|carvalho|melo|vintage|r[uú]stic|n[oó]rdic|ceniza|kendal|nebraska|moro|vicenza|venato|vetas?/i;
+/** Colores para sugerir al escribir uno a mano, en el idioma activo. */
+export function colorSuggestions(): string[] {
+  return tr(COLORS_ES.join('|'), COLORS_EN.join('|')).split('|');
+}
+
+const WOOD =
+  /roble|nogal|cerezo|wengu|cedro|haya|teca|fresno|olmo|pino|peral|guindo|madera|caoba|maple|arce|abedul|eucalip|petirib|para[ií]so|cerejeira|carvalho|melo|vintage|r[uú]stic|n[oó]rdic|ceniza|kendal|nebraska|moro|vicenza|venato|vetas?|oak|walnut|cherry|wenge|cedar|beech|teak|\bash\b|elm|pine|birch|wood/i;
 
 /** Los diseños que imitan madera tienen veta: las piezas no se pueden girar en la placa. */
 export function looksLikeWood(color: string): boolean {
@@ -109,17 +166,17 @@ export function isRawBoard(m: Material): boolean {
   return m.boardType === 'mdf' || m.boardType === 'aglomerado';
 }
 
-/** "Melamina Egger Blanco 18 mm", "MDF crudo Faplac 18 mm". */
+/** "Melamina Egger Blanco 18 mm", "MDF crudo Faplac 18 mm" (en inglés: "Melamine Egger Blanco 18 mm"). */
 export function boardLabel(m: Material): string {
   const brand = GENERIC_BRANDS.includes(m.brand) ? '' : m.brand;
   const color = isRawBoard(m) ? '' : m.color;
-  return `${TYPE_LABEL[m.boardType]} ${brand} ${color} ${mm(m.thickness)} mm`.replace(/\s+/g, ' ').trim();
+  return `${typeLabel(m.boardType)} ${brand} ${color} ${mm(m.thickness)} mm`.replace(/\s+/g, ' ').trim();
 }
 
-/** "Fibrofácil 3 mm", "Fondo blanco Egger 3 mm". */
+/** "MDF delgado 3 mm", "Fondo blanco Egger 3 mm" (en inglés: "Thin MDF 3 mm"). */
 export function backLabel(m: Material): string {
   const brand = GENERIC_BRANDS.includes(m.backBrand) ? '' : m.backBrand;
-  return `${TYPE_LABEL[m.backType]} ${brand} ${mm(m.backThickness)} mm`.replace(/\s+/g, ' ').trim();
+  return `${typeLabel(m.backType)} ${brand} ${mm(m.backThickness)} mm`.replace(/\s+/g, ' ').trim();
 }
 
 /** Para guardar precios: las marcas genéricas usan la misma clave que antes del catálogo. */

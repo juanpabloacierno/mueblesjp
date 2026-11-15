@@ -1,5 +1,6 @@
 import type { CatalogBoard } from './catalog';
 import { DEFAULT_MATERIAL, PRESETS, createFromPreset, normalizeMaterial, normalizeUnit } from './defaults';
+import { tr } from './i18n';
 import { CUT_KEY, backBoardKey, boardKey, edgeKey, type PriceList } from './shopping';
 import type { Furniture, LegacyPrices, Material } from './types';
 
@@ -12,13 +13,13 @@ export interface AppState {
   defaults: { material: Material };
   /** Precios por ítem de la lista de compras, compartidos por todos los muebles. */
   priceList: PriceList;
-  /** Placas que cargó el usuario además del catálogo ("Mis placas"). */
+  /** Tableros que cargó el usuario además del catálogo ("Mis tableros"). */
   customBoards: CatalogBoard[];
 }
 
 export function initialState(): AppState {
   const sample = createFromPreset(PRESETS.find((p) => p.key === 'biblioteca')!);
-  sample.name = 'Biblioteca (ejemplo)';
+  sample.name = tr('Librero (ejemplo)', 'Bookcase (example)');
   return {
     projects: [sample],
     activeId: sample.id,
@@ -40,7 +41,7 @@ export function loadState(): AppState {
 
 export function parseState(data: unknown): AppState {
   const d = data as Partial<AppState> & { projects?: (Partial<Furniture> & { prices?: LegacyPrices })[] };
-  if (!d || !Array.isArray(d.projects) || d.projects.length === 0) throw new Error('Archivo sin muebles');
+  if (!d || !Array.isArray(d.projects) || d.projects.length === 0) throw new Error(tr('El archivo no tiene muebles', 'The file has no units'));
   const priceList: PriceList = { ...(d.priceList ?? {}) };
 
   // Versión anterior: precios guardados en cada mueble.

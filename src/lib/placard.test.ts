@@ -70,9 +70,9 @@ describe('placard empotrado con corredizas', () => {
     expect(piece('Puerta corrediza de maletero')).toMatchObject({ qty: 2, length: 380 });
   });
 
-  it('avisa que armado no se puede parar en el hueco', () => {
+  it('avisa que ya armado no se puede levantar en el hueco', () => {
     expect(r.diagonal).toBe(2452);
-    expect(r.warnings.some((w) => w.text.includes('no se puede parar'))).toBe(true);
+    expect(r.warnings.some((w) => w.text.includes('no se puede levantar'))).toBe(true);
   });
 
   it('lista de compras con barrales, correderas y rieles dobles', () => {
@@ -108,8 +108,8 @@ describe('placard empotrado con corredizas', () => {
       'terminar',
     ]);
     expect(steps.find((s) => s.key === 'barrales')?.detail).toContain('1894 mm');
-    // No entra parado en el hueco: se arma parado en el lugar.
-    expect(steps.find((s) => s.key === 'caja')?.title).toBe('Armá la caja parada, en el lugar');
+    // No entra de pie en el hueco: se arma de pie en el lugar.
+    expect(steps.find((s) => s.key === 'caja')?.title).toBe('Arma la caja de pie, en el lugar');
     const other = preset('placard-batiente');
     const ro = computeShelfUnit(other);
     expect(buildSteps(other, ro, summarize(other, ro.pieces)).find((s) => s.key === 'parar')?.detail).toContain('2275 mm');
@@ -157,7 +157,7 @@ describe('avisos de colgado', () => {
     unit.columns[1] = { ...unit.columns[1], gaps: [200], fill: [{ kind: 'cajones', count: 3 }] };
     const r = computeShelfUnit(unit);
     expect(r.columns[1].compartments[0].drawers).toBeUndefined();
-    expect(r.warnings.some((w) => w.text.includes('usá menos cajones'))).toBe(true);
+    expect(r.warnings.some((w) => w.text.includes('usa menos cajones'))).toBe(true);
   });
 });
 
@@ -247,6 +247,6 @@ describe('zapateros', () => {
 
   it('avisa si los niveles quedan muy juntos', () => {
     const { r } = withShoes('inclinado', 6);
-    expect(r.warnings.some((w) => w.text.includes('usá menos niveles'))).toBe(true);
+    expect(r.warnings.some((w) => w.text.includes('usa menos niveles'))).toBe(true);
   });
 });

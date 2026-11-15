@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decorLook } from './decor';
-import { DECORS, decorsFor, decorsForBoard, matchDecor } from './decors';
+import { DECORS, decorsFor, decorsForBoard, lineLabel, matchDecor } from './decors';
+import { setLang } from './i18n';
 
 describe('catálogo de diseños', () => {
   it('tiene diseños de las tres marcas, sin repetidos y con color válido', () => {
@@ -28,5 +29,18 @@ describe('catálogo de diseños', () => {
     expect(decorLook('Egger', 'Roble Kendal Natural H3170', 'melamina', false).wood).toBe(true);
     // Un color que no está en el catálogo se aproxima por el nombre.
     expect(decorLook('Otra', 'Roble gris claro', 'melamina', true)).toEqual({ hex: '#a59d92', wood: true });
+    // También en inglés, para quien escribe el color en ese idioma.
+    expect(decorLook('Otra', 'Light grey oak', 'melamina', true)).toEqual({ hex: '#a59d92', wood: true });
+  });
+
+  it('traduce las líneas descriptivas y deja los nombres comerciales', () => {
+    expect(lineLabel('Piacere (maderados)')).toBe('Piacere (maderas)');
+    setLang('en');
+    try {
+      expect(lineLabel('Lisos')).toBe('Solid colors');
+      expect(lineLabel('Nature')).toBe('Nature');
+    } finally {
+      setLang('es');
+    }
   });
 });

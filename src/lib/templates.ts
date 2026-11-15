@@ -1,3 +1,4 @@
+import { tr } from './i18n';
 import { autoShoeLevels } from './shoes';
 import type { ColumnSpec } from './types';
 
@@ -12,16 +13,26 @@ export type TemplateKey =
   | 'zapatero'
   | 'zapatero-estantes';
 
+const tpl = (key: TemplateKey, label: [string, string], description: [string, string]) => ({
+  key,
+  get label() {
+    return tr(...label);
+  },
+  get description() {
+    return tr(...description);
+  },
+});
+
 export const TEMPLATES: { key: TemplateKey; label: string; description: string }[] = [
-  { key: 'colgado-largo', label: 'Colgado largo', description: 'Vestidos, sobretodos, camperas largas' },
-  { key: 'doble-colgado', label: 'Doble colgado', description: 'Dos barrales para camisas y sacos' },
-  { key: 'colgado-estantes', label: 'Colgado corto + estantes', description: 'Barral arriba, estantes abajo' },
-  { key: 'colgado-zapatero', label: 'Colgado corto + zapatero', description: 'Barral arriba, zapatero inclinado abajo' },
-  { key: 'cajonera-estantes', label: 'Cajonera + estantes', description: '3 cajones abajo y estantes arriba' },
-  { key: 'cajonera-colgado', label: 'Cajonera + colgado', description: '3 cajones abajo y barral arriba' },
-  { key: 'estantes', label: 'Estantes', description: 'Ropa doblada, cada 33 cm' },
-  { key: 'zapatero', label: 'Zapatero', description: 'Toda la columna con estantes inclinados' },
-  { key: 'zapatero-estantes', label: 'Zapatero + estantes', description: '3 niveles de zapatos abajo, estantes arriba' },
+  tpl('colgado-largo', ['Colgado largo', 'Long hanging'], ['Vestidos, abrigos, chaquetas largas', 'Dresses, coats, long jackets']),
+  tpl('doble-colgado', ['Doble colgado', 'Double hanging'], ['Dos barras de colgar para camisas y sacos', 'Two hanging rods for shirts and blazers']),
+  tpl('colgado-estantes', ['Colgado corto + estantes', 'Short hanging + shelves'], ['Barra de colgar arriba, estantes abajo', 'Hanging rod on top, shelves below']),
+  tpl('colgado-zapatero', ['Colgado corto + zapatero', 'Short hanging + shoe rack'], ['Barra de colgar arriba, zapatero inclinado abajo', 'Hanging rod on top, slanted shoe rack below']),
+  tpl('cajonera-estantes', ['Cajonera + estantes', 'Drawers + shelves'], ['3 cajones abajo y estantes arriba', '3 drawers below, shelves on top']),
+  tpl('cajonera-colgado', ['Cajonera + colgado', 'Drawers + hanging'], ['3 cajones abajo y barra de colgar arriba', '3 drawers below, hanging rod on top']),
+  tpl('estantes', ['Estantes', 'Shelves'], ['Ropa doblada, cada 33 cm', 'Folded clothes, every 33 cm']),
+  tpl('zapatero', ['Zapatero', 'Shoe rack'], ['Toda la columna con estantes inclinados', 'The whole column with slanted shelves']),
+  tpl('zapatero-estantes', ['Zapatero + estantes', 'Shoe rack + shelves'], ['3 niveles de zapatos abajo, estantes arriba', '3 shoe levels below, shelves on top']),
 ];
 
 /** Alto libre de un hueco de colgado corto (camisas y sacos). */

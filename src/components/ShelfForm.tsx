@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { column } from '../lib/defaults';
 import { mm } from '../lib/format';
+import { getLang, tr } from '../lib/i18n';
 import type { CatalogBoard } from '../lib/catalog';
 import { columnHasDoors } from '../lib/doors';
 import { BoardPicker } from './BoardPicker';
@@ -30,8 +31,8 @@ function Section({ title, children, collapsible, defaultOpen = true, aside }: { 
           <div className="section-head">
             <h2>{title}</h2>
             <span className="chev">
-              <span className="chev-open">Ocultar ▲</span>
-              <span className="chev-closed">Mostrar ▼</span>
+              <span className="chev-open">{tr('Ocultar ▲', 'Hide ▲')}</span>
+              <span className="chev-closed">{tr('Mostrar ▼', 'Show ▼')}</span>
             </span>
           </div>
         </summary>
@@ -85,11 +86,11 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
 
   return (
     <div>
-      <Section title={unit.niche.enabled ? 'Medidas del hueco' : 'Medidas exteriores'}>
-        <TextField id="f-name" label="Nombre del mueble" value={unit.name} onChange={(v) => update((d) => void (d.name = v))} />
+      <Section title={unit.niche.enabled ? tr('Medidas del hueco', 'Alcove dimensions') : tr('Medidas exteriores', 'Outside dimensions')}>
+        <TextField id="f-name" label={tr('Nombre del mueble', 'Unit name')} value={unit.name} onChange={(v) => update((d) => void (d.name = v))} />
         <Switch
           id="f-niche"
-          label="Va empotrado en un hueco de pared"
+          label={tr('Va empotrado en un hueco de pared', 'Built into a wall alcove')}
           checked={unit.niche.enabled}
           onChange={(v) =>
             update((d) => {
@@ -108,17 +109,20 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
         {unit.niche.enabled ? (
           <>
             <div className="grid-3">
-              <NumberField id="f-niche-w" label="Ancho hueco" value={unit.niche.width} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.width = v))} />
-              <NumberField id="f-niche-h" label="Alto hueco" value={unit.niche.height} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.height = v))} />
-              <NumberField id="f-niche-d" label="Prof. hueco" value={unit.niche.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.depth = v))} />
+              <NumberField id="f-niche-w" label={tr('Ancho del hueco', 'Alcove width')} value={unit.niche.width} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.width = v))} />
+              <NumberField id="f-niche-h" label={tr('Alto del hueco', 'Alcove height')} value={unit.niche.height} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.height = v))} />
+              <NumberField id="f-niche-d" label={tr('Prof. del hueco', 'Alcove depth')} value={unit.niche.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.niche.depth = v))} />
             </div>
             <div className="grid-3">
-              <NumberField id="f-niche-sg" label="Luz por costado" value={unit.niche.sideGap} onChange={(v) => v !== null && update((d) => void (d.niche.sideGap = v))} />
-              <NumberField id="f-niche-tg" label="Luz arriba" value={unit.niche.topGap} onChange={(v) => v !== null && update((d) => void (d.niche.topGap = v))} />
-              <NumberField id="f-niche-bg" label="Luz atrás" value={unit.niche.backGap} onChange={(v) => v !== null && update((d) => void (d.niche.backGap = v))} />
+              <NumberField id="f-niche-sg" label={tr('Holgura por lado', 'Side clearance')} value={unit.niche.sideGap} onChange={(v) => v !== null && update((d) => void (d.niche.sideGap = v))} />
+              <NumberField id="f-niche-tg" label={tr('Holgura arriba', 'Top clearance')} value={unit.niche.topGap} onChange={(v) => v !== null && update((d) => void (d.niche.topGap = v))} />
+              <NumberField id="f-niche-bg" label={tr('Holgura atrás', 'Back clearance')} value={unit.niche.backGap} onChange={(v) => v !== null && update((d) => void (d.niche.backGap = v))} />
             </div>
             <span className="field-hint">
-              Cargá la medida más chica del hueco (las paredes nunca están derechas). El mueble queda de{' '}
+              {tr(
+                'Ingresa la medida más pequeña del hueco (las paredes nunca están rectas). El mueble queda de',
+                'Enter the smallest measurement of the alcove (walls are never straight). The unit will be',
+              )}{' '}
               <strong className="num">
                 {mm(result.size.width)} × {mm(result.size.height)} × {mm(result.size.depth)}
               </strong>{' '}
@@ -128,103 +132,127 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
         ) : (
           <>
             <div className="grid-3">
-              <NumberField id="f-width" label="Ancho" value={unit.width} min={1} onChange={(v) => v !== null && update((d) => void (d.width = v))} />
-              <NumberField id="f-height" label="Alto" value={unit.height} min={1} onChange={(v) => v !== null && update((d) => void (d.height = v))} />
-              <NumberField id="f-depth" label="Profundidad" value={unit.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.depth = v))} />
+              <NumberField id="f-width" label={tr('Ancho', 'Width')} value={unit.width} min={1} onChange={(v) => v !== null && update((d) => void (d.width = v))} />
+              <NumberField id="f-height" label={tr('Alto', 'Height')} value={unit.height} min={1} onChange={(v) => v !== null && update((d) => void (d.height = v))} />
+              <NumberField id="f-depth" label={tr('Profundidad', 'Depth')} value={unit.depth} min={1} onChange={(v) => v !== null && update((d) => void (d.depth = v))} />
             </div>
-            <span className="field-hint">Medidas totales del mueble terminado, con el fondo incluido. Es el lugar que ocupa en la pared.</span>
+            <span className="field-hint">
+              {tr(
+                'Medidas totales del mueble terminado, con el fondo incluido. Es el espacio que ocupa en la pared.',
+                'Overall size of the finished unit, back panel included. This is the space it takes up on the wall.',
+              )}
+            </span>
           </>
         )}
       </Section>
 
-      <Section title="Estructura">
+      <Section title={tr('Estructura', 'Structure')}>
         <Segmented
-          label="Techo"
+          label={tr('Techo', 'Top')}
           value={unit.top}
           onChange={(v) => update((d) => void (d.top = v))}
           options={[
-            { value: 'entre', label: 'Entre laterales', icon: <TopIcon over={false} /> },
-            { value: 'sobre', label: 'Sobre laterales', icon: <TopIcon over /> },
+            { value: 'entre', label: tr('Entre laterales', 'Between sides'), icon: <TopIcon over={false} /> },
+            { value: 'sobre', label: tr('Sobre laterales', 'On top of sides'), icon: <TopIcon over /> },
           ]}
-          hint={unit.top === 'entre' ? 'Los laterales llegan hasta arriba. Lo más común en bibliotecas altas.' : 'El techo cubre los laterales: queda una tapa lisa, ideal para muebles bajos.'}
+          hint={
+            unit.top === 'entre'
+              ? tr('Los laterales llegan hasta arriba. Lo más común en libreros altos.', 'The sides run all the way up. Most common for tall bookcases.')
+              : tr('El techo cubre los laterales: queda una tapa lisa, ideal para muebles bajos.', 'The top covers the sides, leaving a clean flat top. Ideal for low units.')
+          }
         />
 
-        <Switch id="f-plinth" label="Zócalo (el piso queda elevado)" checked={unit.plinth.enabled} onChange={(v) => update((d) => void (d.plinth.enabled = v))} />
+        <Switch id="f-plinth" label={tr('Zócalo (el piso queda elevado)', 'Plinth (raises the bottom)')} checked={unit.plinth.enabled} onChange={(v) => update((d) => void (d.plinth.enabled = v))} />
         {unit.plinth.enabled && (
           <div className="grid-2">
-            <NumberField id="f-plinth-h" label="Alto del zócalo" value={unit.plinth.height} min={1} onChange={(v) => v !== null && update((d) => void (d.plinth.height = v))} />
-            <NumberField id="f-plinth-s" label="Retiro del frente" value={unit.plinth.setback} onChange={(v) => v !== null && update((d) => void (d.plinth.setback = v))} hint="0 = al ras" />
+            <NumberField id="f-plinth-h" label={tr('Alto del zócalo', 'Plinth height')} value={unit.plinth.height} min={1} onChange={(v) => v !== null && update((d) => void (d.plinth.height = v))} />
+            <NumberField id="f-plinth-s" label={tr('Retiro del frente', 'Front setback')} value={unit.plinth.setback} onChange={(v) => v !== null && update((d) => void (d.plinth.setback = v))} hint={tr('0 = al ras', '0 = flush')} />
           </div>
         )}
 
         <Segmented
-          label="Fondo"
+          label={tr('Fondo', 'Back panel')}
           value={unit.back.mode}
           onChange={(v) => update((d) => void (d.back.mode = v))}
           options={[
-            { value: 'clavado', label: 'Clavado atrás' },
-            { value: 'ranurado', label: 'En ranura' },
-            { value: 'ninguno', label: 'Sin fondo' },
+            { value: 'clavado', label: tr('Clavado atrás', 'Nailed on') },
+            { value: 'ranurado', label: tr('En ranura', 'In a groove') },
+            { value: 'ninguno', label: tr('Sin fondo', 'No back') },
           ]}
           hint={
             unit.back.mode === 'clavado'
-              ? `Fibrofácil de ${mm(m.backThickness)} mm clavado o atornillado sobre los cantos traseros. Es lo más simple y le da escuadra al mueble.`
+              ? tr(
+                  `MDF delgado de ${mm(m.backThickness)} mm clavado o atornillado sobre los cantos traseros. Es lo más simple y mantiene el mueble a escuadra.`,
+                  `${mm(m.backThickness)} mm thin MDF nailed or screwed onto the back edges. It is the simplest option and keeps the unit square.`,
+                )
               : unit.back.mode === 'ranurado'
-                ? 'El fondo entra en una ranura hecha en laterales, piso y techo. Necesita sierra o router para la ranura.'
-                : 'Sin fondo el mueble se puede descuadrar: conviene atornillarlo a la pared.'
+                ? tr(
+                    'El fondo entra en una ranura hecha en laterales, piso y techo. Necesitas sierra o router para la ranura.',
+                    'The back panel slides into a groove cut in the sides, bottom and top. You need a saw or router for the groove.',
+                  )
+                : tr('Sin fondo el mueble se puede descuadrar: conviene atornillarlo a la pared.', 'Without a back panel the unit can rack out of square: screw it to the wall.')
           }
         />
         {unit.back.mode === 'ranurado' && (
           <div className="grid-2">
-            <NumberField id="f-groove-d" label="Profundidad de ranura" value={unit.back.grooveDepth} min={1} onChange={(v) => v !== null && update((d) => void (d.back.grooveDepth = v))} />
-            <NumberField id="f-groove-o" label="Distancia al borde trasero" value={unit.back.grooveOffset} onChange={(v) => v !== null && update((d) => void (d.back.grooveOffset = v))} />
+            <NumberField id="f-groove-d" label={tr('Profundidad de ranura', 'Groove depth')} value={unit.back.grooveDepth} min={1} onChange={(v) => v !== null && update((d) => void (d.back.grooveDepth = v))} />
+            <NumberField id="f-groove-o" label={tr('Distancia al borde trasero', 'Distance from back edge')} value={unit.back.grooveOffset} onChange={(v) => v !== null && update((d) => void (d.back.grooveOffset = v))} />
           </div>
         )}
 
-        <Switch id="f-maletero" label="Maletero arriba (estante de lado a lado)" checked={unit.maletero.enabled} onChange={(v) => update((d) => void (d.maletero.enabled = v))} />
+        <Switch id="f-maletero" label={tr('Maletero arriba (estante de lado a lado)', 'Top storage (full-width shelf)')} checked={unit.maletero.enabled} onChange={(v) => update((d) => void (d.maletero.enabled = v))} />
         {unit.maletero.enabled && (
           <>
             <NumberField
               id="f-maletero-h"
-              label="Alto libre del maletero"
+              label={tr('Alto libre del maletero', 'Top storage clear height')}
               value={unit.maletero.height}
               min={1}
               onChange={(v) => v !== null && update((d) => void (d.maletero.height = v))}
-              hint={result.maletero ? `Estante maletero: cara de abajo a ${mm(result.maletero.shelfBottom)} mm del suelo. Las columnas llegan hasta ahí.` : undefined}
+              hint={
+                result.maletero
+                  ? tr(
+                      `Estante maletero: cara de abajo a ${mm(result.maletero.shelfBottom)} mm del suelo. Las columnas llegan hasta ahí.`,
+                      `Top storage shelf: underside at ${mm(result.maletero.shelfBottom)} mm from the floor. The columns end there.`,
+                    )
+                  : undefined
+              }
             />
             {n > 1 && (
-              <Switch id="f-maletero-div" label="Divisores también en el maletero" checked={unit.maletero.dividers} onChange={(v) => update((d) => void (d.maletero.dividers = v))} />
+              <Switch id="f-maletero-div" label={tr('Divisores también en el maletero', 'Dividers in the top storage too')} checked={unit.maletero.dividers} onChange={(v) => update((d) => void (d.maletero.dividers = v))} />
             )}
           </>
         )}
       </Section>
 
-      <Section title="Columnas y estantes">
+      <Section title={tr('Columnas y estantes', 'Columns and shelves')}>
         <div className="row-between">
-          <Stepper label="Columnas" value={n} min={1} max={8} onChange={setColumns} />
+          <Stepper label={tr('Columnas', 'Columns')} value={n} min={1} max={8} onChange={setColumns} />
           {n > 1 && (
             <span className="field-hint" style={{ textAlign: 'right' }}>
-              {n - 1} {n - 1 === 1 ? 'divisor' : 'divisores'} de {mm(m.thickness)} mm
+              {tr(`${n - 1} ${n - 1 === 1 ? 'divisor' : 'divisores'} de ${mm(m.thickness)} mm`, `${n - 1} ${mm(m.thickness)} mm ${n - 1 === 1 ? 'divider' : 'dividers'}`)}
             </span>
           )}
         </div>
 
         {n > 1 && (
           <div className="field">
-            <span className="field-label">Ancho libre de cada columna</span>
+            <span className="field-label">{tr('Ancho libre de cada columna', 'Clear width of each column')}</span>
             <div className="gap-grid">
               {unit.columns.map((c, i) => (
                 <ColumnWidthInput key={i} index={i} spec={c} computed={result.columns[i]?.width} update={update} />
               ))}
             </div>
-            <span className="field-hint">Vacío = se reparte en partes iguales. Escribí una medida para fijar esa columna.</span>
+            <span className="field-hint">
+              {tr('Vacío = se reparte en partes iguales. Escribe una medida para fijar esa columna.', 'Empty = split evenly. Type a size to fix that column.')}
+            </span>
           </div>
         )}
 
         {n > 1 && (
           <Switch
             id="f-same"
-            label="Mismos estantes en todas las columnas"
+            label={tr('Mismos estantes en todas las columnas', 'Same shelves in every column')}
             checked={unit.sameShelves}
             onChange={(v) =>
               update((d) => {
@@ -242,7 +270,7 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           <ShelfEditor
             key={i}
             index={i}
-            title={unit.sameShelves || n === 1 ? null : `Columna ${i + 1}`}
+            title={unit.sameShelves || n === 1 ? null : tr(`Columna ${i + 1}`, `Column ${i + 1}`)}
             spec={unit.columns[i]}
             gaps={result.columns[i]?.gaps ?? []}
             columnHeight={result.columnsTop - result.interior.baseY}
@@ -255,9 +283,9 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
 
       <DoorsForm unit={unit} result={result} update={update} />
 
-      <Section title="Placas">
+      <Section title={tr('Tableros', 'Boards')}>
         <div className="subcard">
-          <h3>{m.interior.enabled ? 'Color exterior' : 'Placa del mueble'}</h3>
+          <h3>{m.interior.enabled ? tr('Color exterior', 'Exterior color') : tr('Tablero del mueble', 'Unit board')}</h3>
           <BoardPicker
             role="cuerpo"
             material={m}
@@ -268,10 +296,10 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           />
         </div>
         <div className="subcard">
-          <h3>Color interior</h3>
+          <h3>{tr('Color interior', 'Interior color')}</h3>
           <Switch
             id="f-int"
-            label="El interior va de otro color"
+            label={tr('El interior va de otro color', 'Interior in a different color')}
             checked={m.interior.enabled}
             onChange={(v) =>
               update((d) => {
@@ -292,26 +320,32 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
                 onRemoveCustom={onRemoveBoard}
               />
               <Segmented
-                label="Laterales, techo, piso y zócalo"
+                label={tr('Laterales, techo, piso y zócalo', 'Sides, top, bottom and plinth')}
                 value={m.interior.body}
                 onChange={(v) => update((d) => void (d.material.interior.body = v))}
                 options={[
-                  { value: 'exterior', label: 'Color exterior' },
-                  { value: 'interior', label: 'Color interior' },
+                  { value: 'exterior', label: tr('Color exterior', 'Exterior color') },
+                  { value: 'interior', label: tr('Color interior', 'Interior color') },
                 ]}
                 hint={
                   m.interior.body === 'exterior'
-                    ? 'Puertas, frentes de cajón y la caja van con el color exterior; estantes, divisores y cajones, con el interior.'
-                    : 'Solo puertas y frentes de cajón van con el color exterior: ideal para un empotrado, donde la caja no se ve.'
+                    ? tr(
+                        'Puertas, frentes de cajón y la caja van con el color exterior; estantes, divisores y cajones, con el interior.',
+                        'Doors, drawer fronts and the carcass use the exterior color; shelves, dividers and drawer boxes use the interior color.',
+                      )
+                    : tr(
+                        'Solo puertas y frentes de cajón van con el color exterior: ideal para un empotrado, donde la caja no se ve.',
+                        'Only doors and drawer fronts use the exterior color: ideal for a built-in unit, where the carcass is hidden.',
+                      )
                 }
               />
             </>
           ) : (
-            <span className="field-hint">Por ejemplo, frentes en Roble y todo el interior en Blanco.</span>
+            <span className="field-hint">{tr('Por ejemplo, frentes en Roble y todo el interior en Blanco.', 'For example, oak fronts and an all-white interior.')}</span>
           )}
         </div>
         <div className="subcard">
-          <h3>Placa del fondo</h3>
+          <h3>{tr('Tablero del fondo', 'Back panel board')}</h3>
           <BoardPicker
             role="fondo"
             material={m}
@@ -322,35 +356,49 @@ export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, 
           />
         </div>
         <span className="field-hint">
-          Medidas de referencia de cada marca: confirmalas con tu aserradero. Si tu proveedor tiene otra medida, elegí “Otra” y guardala en tus placas.
+          {tr(
+            'Medidas de referencia de cada marca: confírmalas con tu proveedor de cortes. Si tu proveedor tiene otra medida, elige “Otra” y guárdala en tus tableros.',
+            'Reference sizes for each brand: confirm them with your cutting supplier. If your supplier has a different size, choose “Other” and save it to your boards.',
+          )}
         </span>
       </Section>
 
-      <Section title="Corte y tapacanto" collapsible defaultOpen={false}>
+      <Section title={tr('Corte y tapacanto', 'Cutting and edge banding')} collapsible defaultOpen={false}>
         <div className="grid-2">
-          <NumberField id="f-kerf" label="Espesor de sierra" value={m.kerf} onChange={(v) => v !== null && update((d) => void (d.material.kerf = v))} />
-          <NumberField id="f-trim" label="Refilado por borde" value={m.trim} onChange={(v) => v !== null && update((d) => void (d.material.trim = v))} />
+          <NumberField id="f-kerf" label={tr('Espesor de sierra', 'Saw kerf')} value={m.kerf} onChange={(v) => v !== null && update((d) => void (d.material.kerf = v))} />
+          <NumberField id="f-trim" label={tr('Refilado por borde', 'Edge trim per side')} value={m.trim} onChange={(v) => v !== null && update((d) => void (d.material.trim = v))} />
         </div>
         <div className="grid-2">
-          <NumberField id="f-edge-t" label="Espesor tapacanto" value={m.edgeThickness} onChange={(v) => v !== null && update((d) => void (d.material.edgeThickness = v))} />
-          <NumberField id="f-edge-w" label="Ancho tapacanto" value={m.edgeWidth} min={1} onChange={(v) => v !== null && update((d) => void (d.material.edgeWidth = v))} />
+          <NumberField id="f-edge-t" label={tr('Espesor del tapacanto', 'Edge banding thickness')} value={m.edgeThickness} onChange={(v) => v !== null && update((d) => void (d.material.edgeThickness = v))} />
+          <NumberField id="f-edge-w" label={tr('Ancho del tapacanto', 'Edge banding width')} value={m.edgeWidth} min={1} onChange={(v) => v !== null && update((d) => void (d.material.edgeWidth = v))} />
         </div>
         <Switch
           id="f-edge-sub"
-          label="Descontar el tapacanto de la medida de corte"
+          label={tr('Descontar el tapacanto de la medida de corte', 'Subtract edge banding from the cut size')}
           checked={m.subtractEdge}
           onChange={(v) => update((d) => void (d.material.subtractEdge = v))}
         />
-        <span className="field-hint">Activalo con tapacanto grueso (PVC de 1 o 2 mm) para que la pieza terminada mida justo. Con tapacanto de 0,45 mm no hace falta.</span>
+        <span className="field-hint">
+          {tr(
+            'Actívalo con tapacanto grueso (PVC de 1 o 2 mm) para que la pieza terminada mida exacto. Con tapacanto de 0,45 mm no hace falta.',
+            'Turn it on with thick edge banding (1 or 2 mm PVC) so the finished piece is exact. Not needed with 0.45 mm edge banding.',
+          )}
+        </span>
         <div className="grid-2">
-          <NumberField id="f-clear" label="Holgura estantes móviles" value={unit.movableClearance} onChange={(v) => v !== null && update((d) => void (d.movableClearance = v))} hint="Total, se resta al ancho" />
-          <NumberField id="f-setback" label="Retiro de estantes" value={unit.shelfSetback} onChange={(v) => v !== null && update((d) => void (d.shelfSetback = v))} hint="Desde el frente" />
+          <NumberField id="f-clear" label={tr('Holgura de estantes móviles', 'Adjustable shelf clearance')}
+            value={unit.movableClearance}
+            onChange={(v) => v !== null && update((d) => void (d.movableClearance = v))}
+            hint={tr('Total, se resta al ancho', 'Total, subtracted from the width')} />
+          <NumberField id="f-setback" label={tr('Retiro de estantes', 'Shelf setback')}
+            value={unit.shelfSetback}
+            onChange={(v) => v !== null && update((d) => void (d.shelfSetback = v))}
+            hint={tr('Desde el frente', 'From the front')} />
         </div>
       </Section>
 
       <section className="form-section">
         <button type="button" className="btn" onClick={onSaveDefaults}>
-          Usar estas placas en muebles nuevos
+          {tr('Usar estos tableros en muebles nuevos', 'Use these boards for new units')}
         </button>
       </section>
     </div>
@@ -362,7 +410,7 @@ function ColumnWidthInput({ index, spec, computed, update }: { index: number; sp
     <div className="gap-item">
       <NumberField
         id={`f-colw-${index}`}
-        label={`Col. ${index + 1}`}
+        label={tr(`Col. ${index + 1}`, `Col. ${index + 1}`)}
         value={spec.width}
         allowEmpty
         min={1}
@@ -411,7 +459,7 @@ function ShelfEditor({
     <>
       <div className="field">
         <label className="field-label" htmlFor={`f-tpl-${index}`}>
-          Armado rápido
+          {tr('Armado rápido', 'Quick layout')}
         </label>
         <select
           id={`f-tpl-${index}`}
@@ -426,7 +474,7 @@ function ShelfEditor({
             });
           }}
         >
-          <option value="">{placard ? 'Elegí un interior típico…' : 'Elegí una distribución…'}</option>
+          <option value="">{placard ? tr('Elige un interior típico…', 'Choose a typical interior…') : tr('Elige una distribución…', 'Choose a layout…')}</option>
           {TEMPLATES.map((tpl) => (
             <option key={tpl.key} value={tpl.key}>
               {tpl.label}: {tpl.description}
@@ -436,7 +484,7 @@ function ShelfEditor({
       </div>
       <div className="row" style={{ alignItems: 'flex-end' }}>
         <Stepper
-          label="Estantes"
+          label={tr('Estantes', 'Shelves')}
           value={k}
           min={0}
           max={20}
@@ -452,19 +500,19 @@ function ShelfEditor({
         {k > 0 && (
           <div style={{ flex: '1 1 180px' }}>
             <Segmented
-              label="Tipo"
+              label={tr('Tipo', 'Type')}
               value={spec.shelfType}
               onChange={(v) => update((d) => void (d.columns[index].shelfType = v))}
               options={[
-                { value: 'movil', label: 'Móviles' },
-                { value: 'fijo', label: 'Fijos' },
+                { value: 'movil', label: tr('Móviles', 'Adjustable') },
+                { value: 'fijo', label: tr('Fijos', 'Fixed') },
               ]}
             />
           </div>
         )}
       </div>
       <div className="field">
-        <span className="field-label">Huecos, de abajo hacia arriba</span>
+        <span className="field-label">{tr('Huecos, de abajo hacia arriba', 'Compartments, bottom to top')}</span>
         <div className="hueco-list">
           {Array.from({ length: k + 1 }, (_, j) => {
             const f = spec.fill?.[j] ?? null;
@@ -472,7 +520,7 @@ function ShelfEditor({
             return (
               <div key={j} className="hueco-row">
                 <label className="hueco-label" htmlFor={`f-gap-${index}-${j}`}>
-                  Hueco {j + 1}
+                  {tr(`Hueco ${j + 1}`, `Comp. ${j + 1}`)}
                 </label>
                 <GapInput
                   id={`f-gap-${index}-${j}`}
@@ -491,7 +539,7 @@ function ShelfEditor({
                 <select
                   id={`f-fill-${index}-${j}`}
                   className="input"
-                  aria-label={`Contenido del hueco ${j + 1}`}
+                  aria-label={tr(`Contenido del hueco ${j + 1}`, `Contents of compartment ${j + 1}`)}
                   value={key}
                   onChange={(e) => {
                     const v = e.target.value as FillKey;
@@ -502,22 +550,22 @@ function ShelfEditor({
                     setFill(j, v === 'libre' ? null : v === 'barral' ? { kind: 'barral' } : { kind: 'cajones', count: 3 });
                   }}
                 >
-                  <option value="libre">Libre</option>
-                  <option value="barral">Barral</option>
-                  <option value="cajones">Cajones</option>
-                  <option value="zapatero">Zapatero</option>
+                  <option value="libre">{tr('Libre', 'Open')}</option>
+                  <option value="barral">{tr('Barra', 'Rod')}</option>
+                  <option value="cajones">{tr('Cajones', 'Drawers')}</option>
+                  <option value="zapatero">{tr('Zapatero', 'Shoe rack')}</option>
                 </select>
                 {f?.kind === 'zapatero' ? (
                   <select
                     id={`f-shoes-${index}-${j}`}
                     className="input"
-                    aria-label={`Niveles del zapatero del hueco ${j + 1}`}
+                    aria-label={tr(`Niveles del zapatero del hueco ${j + 1}`, `Shoe rack levels in compartment ${j + 1}`)}
                     value={f.levels}
                     onChange={(e) => setFill(j, { ...f, levels: Number(e.target.value) })}
                   >
                     {Array.from({ length: 12 }, (_, x) => x + 1).map((c) => (
                       <option key={c} value={c}>
-                        {c} {c === 1 ? 'nivel' : 'niv.'}
+                        {c} {c === 1 ? tr('nivel', 'level') : tr('niv.', 'lvls')}
                       </option>
                     ))}
                   </select>
@@ -525,7 +573,7 @@ function ShelfEditor({
                   <select
                     id={`f-drawers-${index}-${j}`}
                     className="input"
-                    aria-label={`Cantidad de cajones del hueco ${j + 1}`}
+                    aria-label={tr(`Cantidad de cajones del hueco ${j + 1}`, `Number of drawers in compartment ${j + 1}`)}
                     value={f.count}
                     onChange={(e) => setFill(j, { kind: 'cajones', count: Number(e.target.value) })}
                   >
@@ -547,9 +595,9 @@ function ShelfEditor({
                         setFill(j, { kind: 'zapatero', style, levels: autoShoeLevels(style, gaps[j] ?? 600, thickness) })
                       }
                       options={[
-                        { value: 'inclinado', label: 'Inclinado' },
-                        { value: 'barras', label: 'Barras' },
-                        { value: 'plano', label: 'Plano' },
+                        { value: 'inclinado', label: tr('Inclinado', 'Slanted') },
+                        { value: 'barras', label: tr('Barras', 'Bars') },
+                        { value: 'plano', label: tr('Plano', 'Flat') },
                       ]}
                     />
                   </div>
@@ -559,8 +607,10 @@ function ShelfEditor({
           })}
         </div>
         <span className="field-hint">
-          Alto vacío = automático. El barral va a 5 cm del techo del hueco; los cajones y el zapatero llenan el hueco en partes iguales. El estante de arriba de un
-          barral, cajones o zapatero queda fijo.
+          {tr(
+            'Alto vacío = automático. La barra de colgar va a 5 cm del techo del hueco; los cajones y el zapatero llenan el hueco en partes iguales. El estante de arriba de una barra, cajones o zapatero queda fijo.',
+            'Empty height = automatic. The hanging rod goes 5 cm below the top of the compartment; drawers and shoe racks fill the compartment evenly. The shelf above a rod, drawers or a shoe rack is fixed.',
+          )}
         </span>
       </div>
     </>
@@ -575,7 +625,7 @@ function ShelfEditor({
 }
 
 function GapInput({ id, value, placeholder, onChange }: { id: string; value: number | null; placeholder: string; onChange: (v: number | null) => void }) {
-  const show = (v: number | null) => (v === null ? '' : String(v).replace('.', ','));
+  const show = (v: number | null) => (v === null ? '' : getLang() === 'en' ? String(v) : String(v).replace('.', ','));
   const [text, setText] = useState(show(value));
   const focused = useRef(false);
   useEffect(() => {
@@ -615,21 +665,21 @@ function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUni
   const shelves = refColumn?.shelves ?? [];
 
   return (
-    <Section title="Puertas">
+    <Section title={tr('Puertas', 'Doors')}>
       <Segmented
-        label="Tipo de puertas"
+        label={tr('Tipo de puertas', 'Door type')}
         value={d.type}
         onChange={(v) => set('type', v)}
         options={[
-          { value: 'ninguna', label: 'Sin puertas' },
-          { value: 'batiente', label: 'Con bisagras' },
-          { value: 'corrediza', label: 'Corredizas' },
+          { value: 'ninguna', label: tr('Sin puertas', 'No doors') },
+          { value: 'batiente', label: tr('Con bisagras', 'Hinged') },
+          { value: 'corrediza', label: tr('Corredizas', 'Sliding') },
         ]}
         hint={
           d.type === 'batiente'
-            ? 'Bisagras cazoleta de 35 mm. Necesitan lugar libre adelante para abrir.'
+            ? tr('Bisagras de cazoleta de 35 mm. Necesitan espacio libre adelante para abrir.', '35 mm concealed hinges. They need clear space in front to open.')
             : d.type === 'corrediza'
-              ? 'No necesitan lugar para abrir, pero solo dejan ver una parte a la vez.'
+              ? tr('No necesitan espacio para abrir, pero solo dejan ver una parte a la vez.', 'They need no space to open, but only show part of the inside at a time.')
               : undefined
         }
       />
@@ -637,33 +687,39 @@ function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUni
       {d.type === 'batiente' && (
         <>
           <Segmented
-            label="Montaje"
+            label={tr('Montaje', 'Mounting')}
             value={d.mount}
             onChange={(v) => set('mount', v)}
             options={[
-              { value: 'superpuesta', label: 'Superpuestas' },
-              { value: 'embutida', label: 'Embutidas' },
+              { value: 'superpuesta', label: tr('Superpuestas', 'Full overlay') },
+              { value: 'embutida', label: tr('Embutidas', 'Inset') },
             ]}
             hint={
               d.mount === 'superpuesta'
-                ? `Tapan el canto del mueble. Bisagra recta en los laterales y codo 9 en los divisores. Suman ${mm(t)} mm al frente.`
-                : `Quedan dentro del hueco, al ras del frente. Bisagra codo 18; los estantes de atrás se acortan ${mm(t + 2)} mm.`
+                ? tr(
+                    `Tapan el canto del mueble. Bisagra recta en los laterales y semiacodada en los divisores. Suman ${mm(t)} mm al frente.`,
+                    `They cover the unit's front edges. Full-overlay hinges on the sides and half-overlay hinges on the dividers. They add ${mm(t)} mm to the front.`,
+                  )
+                : tr(
+                    `Quedan dentro del hueco, al ras del frente. Bisagra acodada; los estantes de atrás se acortan ${mm(t + 2)} mm.`,
+                    `They sit inside the opening, flush with the front. Inset hinges; the shelves behind them are ${mm(t + 2)} mm shallower.`,
+                  )
             }
           />
           <Segmented
-            label="Puertas por columna"
+            label={tr('Puertas por columna', 'Doors per column')}
             value={String(d.perColumn) as '0' | '1' | '2'}
             onChange={(v) => set('perColumn', Number(v) as 0 | 1 | 2)}
             options={[
-              { value: '0', label: 'Automático' },
-              { value: '1', label: '1 puerta' },
-              { value: '2', label: '2 puertas' },
+              { value: '0', label: tr('Automático', 'Auto') },
+              { value: '1', label: tr('1 puerta', '1 door') },
+              { value: '2', label: tr('2 puertas', '2 doors') },
             ]}
-            hint={d.perColumn === 0 ? 'Automático: 2 puertas si la columna mide más de 60 cm.' : undefined}
+            hint={d.perColumn === 0 ? tr('Automático: 2 puertas si la columna mide más de 60 cm.', 'Auto: 2 doors if the column is wider than 60 cm.') : undefined}
           />
           {n > 1 && (
             <div className="field">
-              <span className="field-label">Columnas con puertas</span>
+              <span className="field-label">{tr('Columnas con puertas', 'Columns with doors')}</span>
               <div className="chip-checks">
                 {unit.columns.map((_, i) => (
                   <label key={i} className="chip-check" htmlFor={`f-door-col-${i}`}>
@@ -679,7 +735,7 @@ function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUni
                         })
                       }
                     />
-                    Col. {i + 1}
+                    {tr('Col.', 'Col.')} {i + 1}
                   </label>
                 ))}
               </div>
@@ -687,33 +743,43 @@ function DoorsForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUni
           )}
           <div className="field">
             <label className="field-label" htmlFor="f-door-up">
-              Alto de las puertas
+              {tr('Alto de las puertas', 'Door height')}
             </label>
             <select id="f-door-up" className="input" value={d.upToShelf ?? ''} onChange={(e) => set('upToShelf', e.target.value === '' ? null : Number(e.target.value))}>
-              <option value="">Todo el alto</option>
+              <option value="">{tr('Todo el alto', 'Full height')}</option>
               {shelves.map((s) => (
                 <option key={s.index} value={s.index + 1}>
-                  Hasta el estante {s.index + 1} ({mm(s.top)} mm del suelo)
+                  {tr(`Hasta el estante ${s.index + 1} (${mm(s.top)} mm del suelo)`, `Up to shelf ${s.index + 1} (${mm(s.top)} mm from the floor)`)}
                 </option>
               ))}
             </select>
-            <span className="field-hint">Por ejemplo, una biblioteca con puertas solo abajo. Ese estante conviene que sea fijo.</span>
+            <span className="field-hint">
+              {tr('Por ejemplo, un librero con puertas solo abajo. Conviene que ese estante sea fijo.', 'For example, a bookcase with doors only at the bottom. That shelf should be fixed.')}
+            </span>
           </div>
-          <NumberField id="f-door-gap" label="Luz entre puertas" value={d.gap} onChange={(v) => v !== null && set('gap', v)} hint="Separación entre puertas y con los bordes" />
+          <NumberField
+            id="f-door-gap"
+            label={tr('Separación entre puertas', 'Door gap')}
+            value={d.gap}
+            onChange={(v) => v !== null && set('gap', v)}
+            hint={tr('Entre puertas y con los bordes', 'Between doors and at the edges')}
+          />
         </>
       )}
 
       {d.type === 'corrediza' && (
         <>
-          <Stepper label="Hojas" value={d.leaves} min={2} max={4} onChange={(v) => set('leaves', v)} />
+          <Stepper label={tr('Hojas', 'Door panels')} value={d.leaves} min={2} max={4} onChange={(v) => set('leaves', v)} />
           <div className="grid-3">
-            <NumberField id="f-slide-ov" label="Solape" value={d.overlap} onChange={(v) => v !== null && set('overlap', v)} />
-            <NumberField id="f-slide-ded" label="Descuento alto" value={d.heightDeduction} onChange={(v) => v !== null && set('heightDeduction', v)} />
-            <NumberField id="f-slide-depth" label="Lugar rieles" value={d.trackDepth} onChange={(v) => v !== null && set('trackDepth', v)} />
+            <NumberField id="f-slide-ov" label={tr('Solape', 'Overlap')} value={d.overlap} onChange={(v) => v !== null && set('overlap', v)} />
+            <NumberField id="f-slide-ded" label={tr('Descuento de alto', 'Height deduction')} value={d.heightDeduction} onChange={(v) => v !== null && set('heightDeduction', v)} />
+            <NumberField id="f-slide-depth" label={tr('Espacio de rieles', 'Track depth')} value={d.trackDepth} onChange={(v) => v !== null && set('trackDepth', v)} />
           </div>
           <span className="field-hint">
-            Alto de cada hoja = alto libre − descuento (revisalo en las instrucciones de tu kit). Estantes y divisores arrancan {mm(d.trackDepth)} mm más atrás para dejar
-            pasar las hojas.
+            {tr(
+              `Alto de cada hoja = alto libre − descuento (revísalo en las instrucciones de tu kit). Estantes y divisores empiezan ${mm(d.trackDepth)} mm más atrás para dejar pasar las hojas.`,
+              `Each panel's height = clear height − deduction (check your kit's instructions). Shelves and dividers start ${mm(d.trackDepth)} mm further back so the panels can pass.`,
+            )}
           </span>
         </>
       )}

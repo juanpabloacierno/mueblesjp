@@ -1,22 +1,35 @@
-const mmFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1, useGrouping: false });
-const moneyFormat = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  maximumFractionDigits: 0,
-});
-const decimalFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
+import { getLang, locale } from './i18n';
 
-/** Milímetros: enteros sin decimales, si no con un decimal ("764", "763,6"). */
-export function mm(value: number): string {
-  return mmFormat.format(Math.round(value * 10) / 10);
+// Formateadores por idioma (se crean una vez por idioma).
+const cache = new Map<string, { mm: Intl.NumberFormat; money: Intl.NumberFormat; decimal: Intl.NumberFormat }>();
+function formats() {
+  const loc = locale();
+  let f = cache.get(loc);
+  if (!f) {
+    f = {
+      mm: new Intl.NumberFormat(loc, { maximumFractionDigits: 1, useGrouping: false }),
+      money: new Intl.NumberFormat(loc, { maximumFractionDigits: 0 }),
+      decimal: new Intl.NumberFormat(loc, { maximumFractionDigits: 2 }),
+    };
+    cache.set(loc, f);
+  }
+  return f;
 }
 
+/** Milímetros: enteros sin decimales, si no con un decimal ("764", "763,6" / "763.6"). */
+export function mm(value: number): string {
+  return formats().mm.format(Math.round(value * 10) / 10);
+}
+
+/** Importe con signo $ (la moneda es la que use el usuario al cargar los precios). */
 export function money(value: number): string {
-  return moneyFormat.format(value);
+  return `$${getLang() === 'en' ? '' : ' '}${formats().money.format(value)}`;
 }
 
 export function num(value: number, digits = 2): string {
-  return digits === 2 ? decimalFormat.format(value) : value.toFixed(digits).replace('.', ',');
+  if (digits === 2) return formats().decimal.format(value);
+  const s = value.toFixed(digits);
+  return getLang() === 'en' ? s : s.replace('.', ',');
 }
 
 export function plural(n: number, one: string, many: string): string {

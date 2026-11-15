@@ -5,16 +5,16 @@ import type { BackType, BoardType } from './types';
 const KEYWORDS: [RegExp, string][] = [
   [/blanc|white|nieve|polar/i, '#f1f1ee'],
   [/negr|nero|black|ebano|ébano/i, '#262626'],
-  [/grafit|antracit|carbon|carbón|plomo/i, '#3d3f42'],
-  [/humo|topo|taupe/i, '#8a8580'],
+  [/grafit|graphit|antracit|anthracit|carbon|carbón|plomo/i, '#3d3f42'],
+  [/humo|smoke|topo|taupe/i, '#8a8580'],
   [/gris|grey|gray|perla|ceniza|cenizo|cemento|concret|macad/i, '#9b9b98'],
   [/carrara|m[aá]rmol|marble/i, '#e9e8e4'],
-  [/almendra|marfil|crema|vainilla|arena|beige|lino|hueso/i, '#e3d6bf'],
+  [/almendra|almond|marfil|ivory|crema|cream|vainilla|arena|sand|beige|lino|linen|hueso/i, '#e3d6bf'],
   [/wengu|wenge/i, '#3c2b22'],
   [/nogal|walnut|tabaco|chocolate|caf[eé]/i, '#6e4b33'],
   [/caoba|mahog/i, '#6d2f22'],
   [/cerez|cherry|cerejeira|melo|guindo/i, '#9b5b3d'],
-  [/cedro|orinoco/i, '#a5653f'],
+  [/cedro|cedar|orinoco/i, '#a5653f'],
   [/teca|teak|tiza/i, '#8b6a40'],
   [/haya|beech/i, '#d6b08a'],
   [/fresno|ash|n[oó]rdic|abedul|birch|maple|arce/i, '#d9c9ab'],
@@ -49,7 +49,7 @@ export function decorLook(brand: string, color: string, boardType: BoardType, ha
       hex = h;
     }
   }
-  if (/roble.*gris|gris.*roble/i.test(color)) hex = '#a59d92';
+  if (/roble.*gris|gris.*roble|oak.*gr[ae]y|gr[ae]y.*oak/i.test(color)) hex = '#a59d92';
   return { hex, wood: hasGrain };
 }
 

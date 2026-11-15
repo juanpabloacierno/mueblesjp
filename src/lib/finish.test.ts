@@ -45,8 +45,8 @@ describe('colores exterior e interior', () => {
   it('la lista de compras lleva una placa y un tapacanto por color', () => {
     const { unit, r, s } = biblioteca();
     const items = buildShoppingList(unit, r, s);
-    const boards = items.filter((i) => i.category === 'placas' && i.unit === 'placa' && i.name.startsWith('Placa de melamina'));
-    expect(boards.map((b) => b.name)).toEqual(['Placa de melamina Faplac Roble 18 mm (exterior)', 'Placa de melamina Egger Blanco 18 mm (interior)']);
+    const boards = items.filter((i) => i.category === 'placas' && i.unit === 'placa' && i.name.startsWith('Tablero de melamina'));
+    expect(boards.map((b) => b.name)).toEqual(['Tablero de melamina Faplac Roble 18 mm (exterior)', 'Tablero de melamina Egger Blanco 18 mm (interior)']);
     const edges = items.filter((i) => i.key.startsWith('tapacanto'));
     expect(edges.map((e) => e.name)).toEqual(['Tapacanto Roble 22 × 0,45 mm', 'Tapacanto Blanco 22 × 0,45 mm']);
     expect(edges.reduce((n, e) => n + e.qty, 0)).toBe(s.edgeToBuy);

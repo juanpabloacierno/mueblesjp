@@ -1,4 +1,5 @@
 import { mm } from './format';
+import { tr } from './i18n';
 import type { ColumnResult, Door, DoorSpec, DoorsResult, HingeType, ShelfPosition, ShelfUnit, Warning } from './types';
 
 /** Ancho a partir del cual una columna lleva dos puertas en modo automático. */
@@ -9,9 +10,15 @@ export const CUP_EDGE_DISTANCE = 22;
 export const PLATE_FRONT_DISTANCE = 37;
 
 export const HINGE_LABEL: Record<HingeType, string> = {
-  recta: 'recta (codo 0)',
-  codo9: 'codo 9',
-  codo18: 'codo 18',
+  get recta() {
+    return tr('recta (codo 0)', 'full overlay (straight arm)');
+  },
+  get codo9() {
+    return tr('codo 9', 'half overlay (9 mm crank)');
+  },
+  get codo18() {
+    return tr('codo 18', 'inset (18 mm crank)');
+  },
 };
 
 export function hingeCount(height: number): number {
@@ -148,8 +155,8 @@ function hinged({ unit }: Context, zone: Zone): ZoneDoors {
   const warnings: Warning[] = [];
   const doors: Door[] = [];
   const counts: Record<HingeType, number> = { recta: 0, codo9: 0, codo18: 0 };
-  const prefix = zone.main ? '' : 'Maletero, ';
-  const label = (i: number) => (n > 1 ? `${prefix}columna ${i + 1}: ` : zone.main ? '' : 'Maletero: ');
+  const prefix = zone.main ? '' : tr('Maletero, ', 'Top storage, ');
+  const label = (i: number) => (n > 1 ? `${prefix}${tr('columna', 'column')} ${i + 1}: ` : zone.main ? '' : tr('Maletero: ', 'Top storage: '));
 
   for (const col of zone.columns) {
     const i = col.index;
@@ -157,10 +164,15 @@ function hinged({ unit }: Context, zone: Zone): ZoneDoors {
 
     const limit = zone.main && spec.upToShelf !== null ? col.shelves[spec.upToShelf - 1] : undefined;
     if (zone.main && spec.upToShelf !== null && !limit) {
-      warnings.push({ level: 'aviso', text: `${label(i)}no hay estante ${spec.upToShelf}, así que la puerta cubre todo el alto.` });
+      warnings.push({ level: 'aviso', text: label(i) + tr(`no hay estante ${spec.upToShelf}, así que la puerta cubre todo el alto.`, `there is no shelf ${spec.upToShelf}, so the door covers the full height.`) });
     }
     if (limit && limit.type === 'movil') {
-      warnings.push({ level: 'aviso', text: `${label(i)}las puertas terminan en el estante ${spec.upToShelf}, que es móvil: conviene que sea fijo para que cierren contra él.` });
+      warnings.push({ level: 'aviso', text:
+          label(i) +
+          tr(
+            `las puertas terminan en el estante ${spec.upToShelf}, que es móvil: conviene que sea fijo para que cierren contra él.`,
+            `the doors end at shelf ${spec.upToShelf}, which is adjustable: make it fixed so the doors close against it.`,
+          ), });
     }
 
     let left: number;
@@ -183,15 +195,22 @@ function hinged({ unit }: Context, zone: Zone): ZoneDoors {
     const w = Math.floor(overlay ? cover / k - g : (cover - (k + 1) * g) / k);
     const h = Math.floor(overlay ? top - bottom - g : top - bottom - 2 * g);
     if (w < 80 || h < 80) {
-      warnings.push({ level: 'error', text: `${label(i)}no hay lugar para una puerta (quedaría de ${mm(w)} × ${mm(h)} mm).` });
+      warnings.push({ level: 'error', text: label(i) + tr(`no hay lugar para una puerta (quedaría de ${mm(w)} × ${mm(h)} mm).`, `there is no room for a door (it would be ${mm(w)} × ${mm(h)} mm).`) });
       continue;
     }
     if (w > MAX_SINGLE_DOOR) {
       warnings.push({
         level: 'aviso',
-        text: `${label(i)}cada puerta mide ${mm(w)} mm de ancho. Con más de ${MAX_SINGLE_DOOR} mm pesa mucho para las bisagras y barre mucho lugar al abrir: ${
-          k === 1 ? 'mejor 2 puertas' : 'agregá un divisor'
-        }.`,
+        text:
+          label(i) +
+          tr(
+            `cada puerta mide ${mm(w)} mm de ancho. Con más de ${MAX_SINGLE_DOOR} mm pesa mucho para las bisagras y barre mucho espacio al abrir: ${
+              k === 1 ? 'mejor 2 puertas' : 'agrega un divisor'
+            }.`,
+            `each door is ${mm(w)} mm wide. Over ${MAX_SINGLE_DOOR} mm it is too heavy for the hinges and sweeps a lot of space when opening: ${
+              k === 1 ? 'better use 2 doors' : 'add a divider'
+            }.`,
+          ),
       });
     }
 
@@ -220,16 +239,23 @@ function sliding({ unit, interiorWidth }: Context, zone: Zone): ZoneDoors {
   const [bottom, top] = zone.inset;
   const w = Math.floor((interiorWidth + (n - 1) * spec.overlap) / n);
   const h = Math.floor(top - bottom - spec.heightDeduction);
-  const where = zone.main ? '' : ' del maletero';
   if (h < 80 || w < 80) {
-    warnings.push({ level: 'error', text: `No hay lugar para las puertas corredizas${where} con estas medidas.` });
+    warnings.push({
+      level: 'error',
+      text: zone.main
+        ? tr('No hay lugar para las puertas corredizas con estas medidas.', 'There is no room for the sliding doors with these dimensions.')
+        : tr('No hay lugar para las puertas corredizas del maletero con estas medidas.', 'There is no room for the top storage sliding doors with these dimensions.'),
+    });
     return empty;
   }
   if (zone.main) {
     if (interiorWidth < 600) {
-      warnings.push({ level: 'aviso', text: `Con ${mm(interiorWidth)} mm de ancho interior, las corredizas dejan abrir muy poco a la vez: conviene usar bisagras.` });
+      warnings.push({ level: 'aviso', text: tr(
+          `Con ${mm(interiorWidth)} mm de ancho interior, las corredizas dejan abrir muy poco a la vez: conviene usar bisagras.`,
+          `With ${mm(interiorWidth)} mm of interior width, sliding doors open very little at a time: hinged doors are a better choice.`,
+        ), });
     } else if (w < 300) {
-      warnings.push({ level: 'aviso', text: `Las hojas corredizas quedan de ${mm(w)} mm: muy angostas. Probá con menos hojas.` });
+      warnings.push({ level: 'aviso', text: tr(`Las hojas corredizas quedan de ${mm(w)} mm: muy angostas. Prueba con menos hojas.`, `The sliding door panels end up ${mm(w)} mm wide: too narrow. Try fewer panels.`) });
     }
   }
   const doors: Door[] = Array.from({ length: n }, (_, j) => ({

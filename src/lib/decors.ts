@@ -1,3 +1,5 @@
+import { tr } from './i18n';
+
 /**
  * Diseños (colores) de cada marca, con un color aproximado para la vista 3D.
  * Fuentes: sitios de las marcas, lanzamientos y listados de vendedores en Argentina
@@ -243,6 +245,29 @@ export const DECORS: Decor[] = [
     ['Zebrano D1F', 'D1F', '#b89a6e', true, undefined, true],
   ]),
 ];
+
+/** Líneas con nombre descriptivo (las demás son nombres comerciales y no se traducen). */
+const LINE_LABELS: Record<string, [es: string, en: string]> = {
+  Lisos: ['Lisos', 'Solid colors'],
+  'Maderas clásicas': ['Maderas clásicas', 'Classic woods'],
+  Hilados: ['Hilados', 'Textile look'],
+  'Táctil (placa de 2750 × 1300)': ['Táctil (tablero de 2750 × 1300)', 'Táctil (2750 × 1300 board)'],
+  'Blancos y negros': ['Blancos y negros', 'Whites and blacks'],
+  Unicolores: ['Unicolores', 'Solid colors'],
+  Maderas: ['Maderas', 'Woods'],
+  'Materiales (textiles, piedras y metálicos)': ['Materiales (textiles, piedras y metálicos)', 'Materials (textiles, stones and metallics)'],
+  'Semplice (lisos)': ['Semplice (lisos)', 'Semplice (solid colors)'],
+  'Ragazzi (lisos)': ['Ragazzi (lisos)', 'Ragazzi (solid colors)'],
+  'Piacere (maderados)': ['Piacere (maderas)', 'Piacere (woods)'],
+  'Potenza (maderados)': ['Potenza (maderas)', 'Potenza (woods)'],
+  'Sensazioni (maderados)': ['Sensazioni (maderas)', 'Sensazioni (woods)'],
+};
+
+/** Nombre de una línea de diseños para mostrar, en el idioma activo. */
+export function lineLabel(line: string): string {
+  const l = LINE_LABELS[line];
+  return l ? tr(...l) : line;
+}
 
 export function decorsFor(brand: string): Decor[] {
   return DECORS.filter((d) => d.brand === brand);

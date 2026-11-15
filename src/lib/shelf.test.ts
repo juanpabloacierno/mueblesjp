@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PRESETS, column, createFromPreset } from './defaults';
+import { setLang } from './i18n';
 import { computeShelfUnit, splitBack } from './shelf';
 import { cutSize, summarize } from './cutlist';
 import { buildShoppingList } from './shopping';
@@ -214,5 +215,23 @@ describe('validaciones', () => {
     const r = computeShelfUnit(unit);
     const s = summarize(unit, r.pieces);
     expect(s.warnings.some((w) => w.level === 'error' && w.text.includes('Lateral'))).toBe(true);
+  });
+});
+
+describe('textos en inglés', () => {
+  it('avisos y notas en inglés; los nombres internos de las piezas no cambian', () => {
+    const unit = preset('biblioteca');
+    unit.height = 2100;
+    const es = computeShelfUnit(unit);
+    setLang('en');
+    try {
+      const en = computeShelfUnit(unit);
+      expect(en.pieces.map((p) => p.name)).toEqual(es.pieces.map((p) => p.name));
+      expect(en.warnings.map((w) => w.level)).toEqual(es.warnings.map((w) => w.level));
+      expect(en.warnings.some((w) => w.text.includes('wall'))).toBe(true);
+      expect(piece(en, 'Lateral').notes).toContain('Vertical grain');
+    } finally {
+      setLang('es');
+    }
   });
 });

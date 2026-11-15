@@ -11,9 +11,15 @@ Cargás las medidas del mueble (o del hueco, si va empotrado) y la app te da:
   mueble) y dónde va cada divisor, para marcar antes de armar.
 - **Despiece**: lista de piezas con cantidad, largo, ancho y en qué lados lleva tapacanto.
   Se copia en un toque para mandarla por WhatsApp al aserradero, o se descarga en CSV.
-- **Elección de placas**: marca, tipo, medida y espesor para el cuerpo y para el fondo,
-  con un catálogo de referencia (Egger, Faplac, Sadepan y fondos genéricos) y la opción de
-  cargar y guardar las placas de tu proveedor. Si una pieza no entra, sugiere qué placa sí.
+- **Elección de placas**: marca, tipo, medida, espesor y color (con el código del
+  diseño) para el exterior, el interior y el fondo. Catálogo de Egger, Faplac y Sadepan
+  con sus líneas y colores, y la opción de cargar y guardar las placas de tu proveedor.
+  Si una pieza no entra, sugiere qué placa sí.
+- **Color exterior e interior**: puertas y frentes de cajón siempre con el color de
+  afuera; estantes, divisores y cajones con el de adentro; la caja, a elección. Cada color
+  tiene sus placas, su lista de cortes y su tapacanto.
+- **Vista 3D** con los colores elegidos: se gira y se acerca con el dedo o el mouse, con
+  puertas cerradas, abiertas (cajones afuera) o sin puertas.
 - **Placas**: cómo entran las piezas en las placas (cortes de lado a lado, como una
   seccionadora), cuántas placas comprar y qué sobrantes quedan.
 - **Puertas**: con bisagras (superpuestas o embutidas, en todo el alto o solo abajo, en
@@ -97,6 +103,17 @@ Todas las medidas son en milímetros.
 La distribución en placas es orientativa: prueba varias estrategias de corte guillotina
 (con el espesor de sierra y el refilado) y se queda con la que usa menos placas.
 
+### Colores de las marcas
+
+Los colores salen de los sitios de las marcas, sus lanzamientos y listados de comercios
+argentinos (Easy, DAC Maderas, Alnora, DIAC, Maderwil, Trumar, Multiplacas y otros), en
+noviembre de 2026. Los códigos son los de cada marca (Egger W954, H3170…; Faplac 098,
+135…; Sadepan 780, TM4…). Los marcados "a confirmar" solo aparecieron en comercios. El
+color que se ve en el 3D es una aproximación por el nombre: la placa real puede verse
+distinta. Espesores: Egger en 18 mm (15 mm solo Blanco, Negro, Gris Sombra y Fineline
+Crema); Faplac en 18 mm (15 y 25 mm confirmado en Blanco); Sadepan informa de 10 a 25 mm,
+pero los colores se consiguen sobre todo en 18 mm.
+
 ## Usarla
 
 En la compu o el celular, después de activar GitHub Pages (una sola vez):
@@ -120,7 +137,10 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
 - `src/lib/doors.ts`: puertas con bisagras y corredizas (abajo y en el maletero).
 - `src/lib/resolve.ts` y `src/lib/templates.ts`: medidas del hueco e interiores típicos.
 - `src/lib/shoes.ts`: zapateros.
-- `src/lib/catalog.ts`: catálogo de placas (marcas, tipos, medidas y espesores).
+- `src/lib/catalog.ts`: catálogo de placas (marcas, tipos, medidas y espesores) y qué
+  piezas van con el color exterior o interior.
+- `src/lib/decors.ts`: líneas y colores de cada marca, con color aproximado para el 3D.
+- `src/lib/scene.ts` y `src/components/Furniture3D.tsx`: vista 3D (three.js).
 - `src/lib/steps.ts`: pasos de armado.
 - `src/lib/cutlist.ts`: medidas de corte, tapacanto y textos para exportar.
 - `src/lib/shopping.ts`: lista de compras, precios y totales.

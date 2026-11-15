@@ -2026,3 +2026,62 @@ tr.gap-row td.n {
   margin: 0;
 }
 
+/* ---------- Cantidad de cajones ---------- */
+.count-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.count-stepper .stepper button {
+  width: 32px;
+}
+
+.count-stepper .stepper output {
+  min-width: 32px;
+  min-height: 30px;
+}
+
+.count-unit {
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.drawer-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+/* Segmented va dentro de un .field (columna): el ancho flexible se le da al .field. */
+.drawer-sub > .field {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.drawer-counts {
+  display: grid;
+  gap: 8px;
+}
+
+.drawer-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.drawer-count-row .hueco-label {
+  min-width: 112px;
+}
+
+.drawer-count-sizes {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.drawer-count-sizes.is-error {
+  color: var(--danger);
+}

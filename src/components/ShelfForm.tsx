@@ -690,25 +690,17 @@ function ShelfEditor({
                       </option>
                     ))}
                   </select>
-                ) : f?.kind === 'cajones' ? (
-                  <select
-                    id={`f-drawers-${index}-${j}`}
-                    className="input"
-                    aria-label={tr(`Cantidad de cajones del hueco ${j + 1}`, `Number of drawers in compartment ${j + 1}`)}
-                    value={f.count}
-                    onChange={(e) => setFill(j, { ...f, count: Number(e.target.value) })}
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
                 ) : (
                   <span />
                 )}
                 {f?.kind === 'cajones' && (
-                  <div className="hueco-sub">
+                  <div className="hueco-sub drawer-sub">
+                    <CountStepper
+                      value={f.count}
+                      label={tr(`Cantidad de cajones del hueco ${j + 1}`, `Number of drawers in compartment ${j + 1}`)}
+                      unit={f.count === 1 ? tr('cajón', 'drawer') : tr('cajones', 'drawers')}
+                      onChange={(count) => setFill(j, { ...f, count })}
+                    />
                     <Segmented
                       value={f.sizing ?? 'iguales'}
                       onChange={(sizing: DrawerSizing) => setFill(j, { ...f, sizing })}
@@ -789,7 +781,25 @@ function GapInput({ id, value, placeholder, onChange }: { id: string; value: num
   );
 }
 
-/** Cómo se hacen los cajones de todo el mueble: fondo, frentes y correderas. */
+/** Contador compacto (− 3 +) con su unidad al lado, para usar dentro de una fila. */
+function CountStepper({ value, label, unit, onChange, min = 1, max = 10 }: { value: number; label: string; unit: string; onChange: (v: number) => void; min?: number; max?: number }) {
+  return (
+    <div className="count-stepper">
+      <div className="stepper" role="group" aria-label={label}>
+        <button type="button" aria-label={tr('Uno menos', 'One fewer')} disabled={value <= min} onClick={() => onChange(value - 1)}>
+          −
+        </button>
+        <output aria-live="polite">{value}</output>
+        <button type="button" aria-label={tr('Uno más', 'One more')} disabled={value >= max} onClick={() => onChange(value + 1)}>
+          +
+        </button>
+      </div>
+      <span className="count-unit">{unit}</span>
+    </div>
+  );
+}
+
+/** Cómo se hacen los cajones de todo el mueble: cantidad, fondo, frentes y correderas. */
 function DrawersForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfUnitResult; update: Updater }) {
   const d = unit.drawers;
   const set = <K extends keyof DrawerSpec>(key: K, value: DrawerSpec[K]) => update((u) => void (u.drawers[key] = value));
@@ -801,8 +811,53 @@ function DrawersForm({ unit, result, update }: { unit: ShelfUnit; result: ShelfU
       : d.slide === 'cierre-suave'
         ? tr('Telescópicas que frenan solas al cerrar. Más caras.', 'Full-extension slides that brake on their own when closing. More expensive.')
         : tr('De bolas, se abren del todo. De 250 a 600 mm.', 'Ball-bearing; they open all the way. 250 to 600 mm.');
+  // Cada hueco con cajones (con "mismos estantes", solo los de la columna que se copia).
+  const firstShelfCol = unit.columns.findIndex((c) => !c.knee);
+  const stacks = unit.columns.flatMap((c, i) =>
+    c.knee || (unit.sameShelves && i !== firstShelfCol)
+      ? []
+      : (c.fill ?? []).flatMap((f, j) => (f?.kind === 'cajones' ? [{ col: i, j, fill: f }] : [])),
+  );
+  const setCount = (col: number, j: number, count: number) =>
+    update((u) => {
+      const f = u.columns[col].fill?.[j];
+      if (f?.kind === 'cajones') f.count = count;
+    });
+  const stackLabel = (col: number, j: number) => {
+    const hueco = tr(`hueco ${j + 1}`, `comp. ${j + 1}`);
+    if (unit.sameShelves && unit.columns.length > 1) return `${tr('Todas las col.', 'All columns')} · ${hueco}`;
+    if (unit.columns.length > 1) return `${tr('Col.', 'Col.')} ${col + 1} · ${hueco}`;
+    return hueco.charAt(0).toUpperCase() + hueco.slice(1);
+  };
   return (
     <Section title={tr('Cajones', 'Drawers')}>
+      <div className="field">
+        <span className="field-label">{tr('Cantidad de cajones', 'Number of drawers')}</span>
+        <div className="drawer-counts">
+          {stacks.map(({ col, j, fill }) => {
+            const r = result.drawers.find((x) => x.column === col && x.compartment === j);
+            const lo = r ? Math.min(...r.frontHs) : 0;
+            const hi = r ? Math.max(...r.frontHs) : 0;
+            const sizes = !r
+              ? tr('no entran: usa menos cajones o un hueco más alto', 'they do not fit: use fewer drawers or a taller compartment')
+              : lo === hi
+                ? tr(`frentes de ${mm(lo)} mm de alto`, `fronts ${mm(lo)} mm high`)
+                : tr(`frentes de ${mm(lo)} a ${mm(hi)} mm de alto`, `fronts ${mm(lo)} to ${mm(hi)} mm high`);
+            return (
+              <div key={`${col}-${j}`} className="drawer-count-row">
+                {stacks.length > 1 && <span className="hueco-label">{stackLabel(col, j)}</span>}
+                <CountStepper
+                  value={fill.count}
+                  label={tr(`Cantidad de cajones: ${stackLabel(col, j)}`, `Number of drawers: ${stackLabel(col, j)}`)}
+                  unit={fill.count === 1 ? tr('cajón', 'drawer') : tr('cajones', 'drawers')}
+                  onChange={(count) => setCount(col, j, count)}
+                />
+                <span className={`drawer-count-sizes ${r ? '' : 'is-error'}`}>{sizes}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <Segmented
         label={tr('Fondo del cajón', 'Drawer bottom')}
         value={d.bottom}

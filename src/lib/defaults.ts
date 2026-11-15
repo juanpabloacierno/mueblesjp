@@ -2,6 +2,10 @@ import { newId } from './format';
 import type { ColumnSpec, DoorSpec, FurnitureKind, MaleteroSpec, Material, NicheSpec, ShelfUnit } from './types';
 
 export const DEFAULT_MATERIAL: Material = {
+  brand: 'Egger',
+  boardType: 'melamina',
+  backBrand: 'Genérica',
+  backType: 'fibrofacil',
   color: 'Blanco',
   boardLength: 2600,
   boardWidth: 1830,
@@ -280,6 +284,20 @@ export function createFromPreset(preset: Preset, material: Material = DEFAULT_MA
   };
 }
 
+/**
+ * Completa un material guardado con versiones anteriores. Los que no tenían marca
+ * quedan como placa "Otra" con sus mismas medidas.
+ */
+export function normalizeMaterial(raw: Partial<Material> | undefined): Material {
+  if (!raw) return { ...DEFAULT_MATERIAL };
+  const legacy = !('brand' in raw);
+  return {
+    ...DEFAULT_MATERIAL,
+    ...(legacy ? { brand: 'Otra', boardType: 'melamina' as const, backBrand: 'Genérica', backType: 'fibrofacil' as const } : {}),
+    ...raw,
+  };
+}
+
 /** Completa campos faltantes de muebles guardados con versiones anteriores. */
 export function normalizeUnit(raw: Partial<ShelfUnit> & { prices?: unknown }): ShelfUnit {
   const base = createFromPreset(PRESETS.find((p) => p.key === 'biblioteca')!);
@@ -292,7 +310,7 @@ export function normalizeUnit(raw: Partial<ShelfUnit> & { prices?: unknown }): S
     doors: { ...DEFAULT_DOORS, ...raw.doors },
     niche: { ...DEFAULT_NICHE, ...raw.niche },
     maletero: { ...DEFAULT_MALETERO, ...raw.maletero },
-    material: { ...DEFAULT_MATERIAL, ...raw.material },
+    material: normalizeMaterial(raw.material),
     shopping: { ...raw.shopping },
     progress: { ...raw.progress },
     columns: (raw.columns?.length ? raw.columns : base.columns).map((c) => ({ ...column(0), ...c, gaps: c.gaps ?? [], fill: c.fill ?? [] })),

@@ -1660,3 +1660,37 @@ tr.gap-row td.n {
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+
+/* ---------- Elección de placas ---------- */
+
+.board-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.save-board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.save-board .input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

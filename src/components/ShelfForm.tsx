@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { column } from '../lib/defaults';
 import { mm } from '../lib/format';
+import type { CatalogBoard } from '../lib/catalog';
 import { columnHasDoors } from '../lib/doors';
+import { BoardPicker } from './BoardPicker';
 import { resolveUnit } from '../lib/resolve';
 import { TEMPLATES, applyTemplate, type TemplateKey } from '../lib/templates';
 import { autoShoeLevels } from '../lib/shoes';
@@ -11,6 +13,9 @@ import { NumberField, Segmented, Stepper, Switch, TextField } from './ui';
 export type Updater = (fn: (draft: ShelfUnit) => void) => void;
 
 interface Props {
+  customBoards: CatalogBoard[];
+  onSaveBoard: (board: CatalogBoard) => void;
+  onRemoveBoard: (board: CatalogBoard) => void;
   unit: ShelfUnit;
   result: ShelfUnitResult;
   update: Updater;
@@ -63,7 +68,7 @@ const TopIcon = ({ over }: { over: boolean }) => (
   </svg>
 );
 
-export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
+export function ShelfForm({ unit, result, update, onSaveDefaults, customBoards, onSaveBoard, onRemoveBoard }: Props) {
   const m = unit.material;
   const n = unit.columns.length;
 
@@ -250,22 +255,38 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
 
       <DoorsForm unit={unit} result={result} update={update} />
 
-      <Section title="Material y corte" collapsible defaultOpen={false}>
-        <TextField id="f-color" label="Color o modelo de melamina" value={m.color} onChange={(v) => update((d) => void (d.material.color = v))} placeholder="Blanco, Roble, Gris humo…" />
-        <div className="grid-3">
-          <NumberField id="f-board-l" label="Largo placa" value={m.boardLength} min={1} onChange={(v) => v !== null && update((d) => void (d.material.boardLength = v))} />
-          <NumberField id="f-board-w" label="Ancho placa" value={m.boardWidth} min={1} onChange={(v) => v !== null && update((d) => void (d.material.boardWidth = v))} />
-          <NumberField id="f-thick" label="Espesor" value={m.thickness} min={1} onChange={(v) => v !== null && update((d) => void (d.material.thickness = v))} />
+      <Section title="Placas">
+        <div className="subcard">
+          <h3>Placa del mueble</h3>
+          <BoardPicker
+            role="cuerpo"
+            material={m}
+            custom={customBoards}
+            change={(fn) => update((d) => fn(d.material))}
+            onSaveCustom={onSaveBoard}
+            onRemoveCustom={onRemoveBoard}
+          />
         </div>
-        <Switch id="f-grain" label="La melamina tiene veta (no se pueden girar las piezas)" checked={m.hasGrain} onChange={(v) => update((d) => void (d.material.hasGrain = v))} />
+        <div className="subcard">
+          <h3>Placa del fondo</h3>
+          <BoardPicker
+            role="fondo"
+            material={m}
+            custom={customBoards}
+            change={(fn) => update((d) => fn(d.material))}
+            onSaveCustom={onSaveBoard}
+            onRemoveCustom={onRemoveBoard}
+          />
+        </div>
+        <span className="field-hint">
+          Medidas de referencia de cada marca: confirmalas con tu aserradero. Si tu proveedor tiene otra medida, elegí “Otra” y guardala en tus placas.
+        </span>
+      </Section>
+
+      <Section title="Corte y tapacanto" collapsible defaultOpen={false}>
         <div className="grid-2">
           <NumberField id="f-kerf" label="Espesor de sierra" value={m.kerf} onChange={(v) => v !== null && update((d) => void (d.material.kerf = v))} />
           <NumberField id="f-trim" label="Refilado por borde" value={m.trim} onChange={(v) => v !== null && update((d) => void (d.material.trim = v))} />
-        </div>
-        <div className="grid-3">
-          <NumberField id="f-back-t" label="Espesor fondo" value={m.backThickness} min={1} onChange={(v) => v !== null && update((d) => void (d.material.backThickness = v))} />
-          <NumberField id="f-back-l" label="Largo placa fondo" value={m.backBoardLength} min={1} onChange={(v) => v !== null && update((d) => void (d.material.backBoardLength = v))} />
-          <NumberField id="f-back-w" label="Ancho placa fondo" value={m.backBoardWidth} min={1} onChange={(v) => v !== null && update((d) => void (d.material.backBoardWidth = v))} />
         </div>
         <div className="grid-2">
           <NumberField id="f-edge-t" label="Espesor tapacanto" value={m.edgeThickness} onChange={(v) => v !== null && update((d) => void (d.material.edgeThickness = v))} />
@@ -286,7 +307,7 @@ export function ShelfForm({ unit, result, update, onSaveDefaults }: Props) {
 
       <section className="form-section">
         <button type="button" className="btn" onClick={onSaveDefaults}>
-          Usar este material en muebles nuevos
+          Usar estas placas en muebles nuevos
         </button>
       </section>
     </div>

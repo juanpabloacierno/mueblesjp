@@ -1,4 +1,5 @@
-import { DEFAULT_MATERIAL, PRESETS, createFromPreset, normalizeUnit } from './defaults';
+import type { CatalogBoard } from './catalog';
+import { DEFAULT_MATERIAL, PRESETS, createFromPreset, normalizeMaterial, normalizeUnit } from './defaults';
 import { CUT_KEY, backBoardKey, boardKey, edgeKey, type PriceList } from './shopping';
 import type { Furniture, LegacyPrices, Material } from './types';
 
@@ -11,6 +12,8 @@ export interface AppState {
   defaults: { material: Material };
   /** Precios por ítem de la lista de compras, compartidos por todos los muebles. */
   priceList: PriceList;
+  /** Placas que cargó el usuario además del catálogo ("Mis placas"). */
+  customBoards: CatalogBoard[];
 }
 
 export function initialState(): AppState {
@@ -21,6 +24,7 @@ export function initialState(): AppState {
     activeId: sample.id,
     defaults: { material: { ...DEFAULT_MATERIAL } },
     priceList: {},
+    customBoards: [],
   };
 }
 
@@ -42,7 +46,7 @@ export function parseState(data: unknown): AppState {
   // Versión anterior: precios guardados en cada mueble.
   for (const p of d.projects) {
     if (!p.prices) continue;
-    const material = { ...DEFAULT_MATERIAL, ...p.material };
+    const material = normalizeMaterial(p.material);
     const set = (key: string, value: number) => {
       if (value > 0 && !(priceList[key] > 0)) priceList[key] = value;
     };
@@ -57,8 +61,9 @@ export function parseState(data: unknown): AppState {
   return {
     projects,
     activeId,
-    defaults: { material: { ...DEFAULT_MATERIAL, ...d.defaults?.material } },
+    defaults: { material: d.defaults?.material ? normalizeMaterial(d.defaults.material) : { ...DEFAULT_MATERIAL } },
     priceList,
+    customBoards: Array.isArray(d.customBoards) ? d.customBoards.map((b) => ({ ...b, custom: true })) : [],
   };
 }
 

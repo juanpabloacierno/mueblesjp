@@ -1,3 +1,4 @@
+import { backLabel, boardLabel, boardsThatFit } from './catalog';
 import { mm, num } from './format';
 import { packPieces, type PackItem, type PackResult } from './packing';
 import type { CutSize, Furniture, Material, Piece, Warning } from './types';
@@ -86,9 +87,14 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
     const refs = [...new Set(pack.unplaced.map((u) => u.ref))];
     for (const ref of refs) {
       const p = list.find((x) => x.code === ref)!;
+      const size = cutSize(p, m);
+      const fits = p.material === 'melamina' ? boardsThatFit(m, size.length, size.width) : [];
+      const tip = fits.length
+        ? ` Entra en ${fits.map((b) => `${b.brand} de ${mm(b.length)} × ${mm(b.width)}`).join(' o ')}: cambiá la placa en la sección Placas.`
+        : '';
       warnings.push({
         level: 'error',
-        text: `La pieza ${p.code} (${p.name}, ${mm(p.length)} × ${mm(p.width)} mm) no entra en la placa de ${board} mm${m.trim ? ` con ${mm(m.trim)} mm de refilado` : ''}.`,
+        text: `La pieza ${p.code} (${p.name}, ${mm(p.length)} × ${mm(p.width)} mm) no entra en la placa de ${board} mm${m.trim ? ` con ${mm(m.trim)} mm de refilado` : ''}.${tip}`,
       });
     }
   }
@@ -100,7 +106,7 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
   const area = (list: Piece[]) => list.reduce((s, p) => s + p.length * p.width * p.qty, 0) / 1e6;
   return {
     melamina: {
-      label: `Melamina ${m.color} ${mm(m.thickness)} mm`.replace(/\s+/g, ' '),
+      label: boardLabel(m),
       boardLabel: `${mm(m.boardLength)} × ${mm(m.boardWidth)} mm`,
       pieces: mel,
       pack: melPack,
@@ -108,7 +114,7 @@ export function summarize(furniture: Furniture, pieces: Piece[]): Summary {
     },
     fondo: backPack
       ? {
-          label: `Fondo ${mm(m.backThickness)} mm`,
+          label: backLabel(m),
           boardLabel: `${mm(m.backBoardLength)} × ${mm(m.backBoardWidth)} mm`,
           pieces: back,
           pack: backPack,
@@ -160,7 +166,7 @@ export function cutListCsv(furniture: Furniture, pieces: Piece[]): string {
       mm(size.length),
       mm(size.width),
       mm(p.thickness),
-      p.material === 'melamina' ? `Melamina ${m.color}`.trim() : 'Fondo',
+      p.material === 'melamina' ? boardLabel(m) : backLabel(m),
       String(p.edges.long),
       String(p.edges.short),
       p.canRotate ? 'Sí' : 'No',

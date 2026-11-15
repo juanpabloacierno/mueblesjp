@@ -80,7 +80,7 @@ describe('lista de compras', () => {
     const text = shoppingText(unit, items, prices);
     expect(text).not.toContain('pernos');
     expect(text).toContain('Minifix');
-    expect(text).toContain('1 placa · Placa de melamina Blanco 18 mm');
+    expect(text).toContain('1 placa · Placa de melamina Egger Blanco 18 mm');
   });
 
   it('pasa los precios de la versión anterior a la lista de precios', () => {

@@ -1,7 +1,18 @@
 // Todas las medidas están en milímetros.
 
+/** Placa para el cuerpo del mueble. */
+export type BoardType = 'melamina' | 'melamina-mdf' | 'mdf' | 'aglomerado';
+/** Placa para el fondo. */
+export type BackType = 'fondo-blanco' | 'fibrofacil';
+
 /** Material y parámetros de corte de un mueble. */
 export interface Material {
+  /** Marca de la placa del cuerpo ("Otra" = medidas cargadas a mano). */
+  brand: string;
+  boardType: BoardType;
+  /** Marca y tipo de la placa del fondo. */
+  backBrand: string;
+  backType: BackType;
   /** Nombre o color de la melamina, p. ej. "Blanco" o "Roble Kendal". */
   color: string;
   /** Largo de la placa (sentido de la veta). */

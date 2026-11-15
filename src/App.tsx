@@ -5,6 +5,7 @@ import { PlanPanel } from './components/PlanPanel';
 import { ShelfForm, type Updater } from './components/ShelfForm';
 import { ShoppingPanel } from './components/ShoppingPanel';
 import { StepsPanel } from './components/StepsPanel';
+import type { CatalogBoard } from './lib/catalog';
 import { resolveUnit } from './lib/resolve';
 import { buildSteps } from './lib/steps';
 import { downloadFile } from './components/ui';
@@ -293,7 +294,26 @@ export default function App() {
             update={update}
             onSaveDefaults={() => {
               setState((s) => ({ ...s, defaults: { material: { ...unit.material } } }));
-              notify('Guardado: los muebles nuevos usan este material');
+              notify('Guardado: los muebles nuevos usan estas placas');
+            }}
+            customBoards={state.customBoards}
+            onSaveBoard={(board) => {
+              setState((s) => {
+                const same = (b: CatalogBoard) => b.brand === board.brand && b.type === board.type && b.length === board.length && b.width === board.width;
+                const existing = s.customBoards.find(same);
+                const customBoards = existing
+                  ? s.customBoards.map((b) => (same(b) ? { ...b, thicknesses: [...new Set([...b.thicknesses, ...board.thicknesses])].sort((x, y) => x - y) } : b))
+                  : [...s.customBoards, board];
+                return { ...s, customBoards };
+              });
+              notify(`Guardada en tus placas: ${board.brand}`);
+            }}
+            onRemoveBoard={(board) => {
+              setState((s) => ({
+                ...s,
+                customBoards: s.customBoards.filter((b) => !(b.brand === board.brand && b.type === board.type && b.length === board.length && b.width === board.width)),
+              }));
+              notify(`Quitada de tus placas: ${board.brand}`);
             }}
           />
         </aside>
@@ -310,7 +330,9 @@ export default function App() {
             <div className="stats">
               <div className="stat">
                 <span className="stat-value">{summary.melamina.pack.sheets.length}</span>
-                <span className="stat-label">{summary.melamina.pack.sheets.length === 1 ? 'placa' : 'placas'} de melamina</span>
+                <span className="stat-label">{summary.melamina.pack.sheets.length === 1 ? 'placa' : 'placas'}{' '}
+                  {built.material.boardType === 'mdf' ? 'de MDF' : built.material.boardType === 'aglomerado' ? 'de aglomerado' : 'de melamina'}
+                </span>
               </div>
               {summary.fondo && (
                 <div className="stat">

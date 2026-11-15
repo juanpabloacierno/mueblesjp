@@ -1,4 +1,5 @@
 import type { Summary } from './cutlist';
+import { backLabel, boardLabel, isGenericBrand, isRawBoard } from './catalog';
 import { HINGE_LABEL } from './doors';
 import { mm, money, num } from './format';
 import type { HingeType, Material, ShelfUnit, ShelfUnitResult } from './types';
@@ -30,8 +31,15 @@ export interface ShoppingItem {
 
 export type PriceList = Record<string, number>;
 
-export const boardKey = (m: Material) => `placa-melamina|${m.color.trim().toLowerCase()}|${m.thickness}|${m.boardLength}x${m.boardWidth}`;
-export const backBoardKey = (m: Material) => `placa-fondo|${m.backThickness}|${m.backBoardLength}x${m.backBoardWidth}`;
+/** Placas genéricas o "Otra": misma clave que antes del catálogo, para no perder precios cargados. */
+export const boardKey = (m: Material) =>
+  isGenericBrand(m.brand) && m.boardType === 'melamina'
+    ? `placa-melamina|${m.color.trim().toLowerCase()}|${m.thickness}|${m.boardLength}x${m.boardWidth}`
+    : `placa|${m.brand.trim().toLowerCase()}|${m.boardType}|${isRawBoard(m) ? '' : m.color.trim().toLowerCase()}|${m.thickness}|${m.boardLength}x${m.boardWidth}`;
+export const backBoardKey = (m: Material) =>
+  isGenericBrand(m.backBrand) && m.backType === 'fibrofacil'
+    ? `placa-fondo|${m.backThickness}|${m.backBoardLength}x${m.backBoardWidth}`
+    : `placa-fondo|${m.backBrand.trim().toLowerCase()}|${m.backType}|${m.backThickness}|${m.backBoardLength}x${m.backBoardWidth}`;
 export const edgeKey = (m: Material) => `tapacanto|${m.color.trim().toLowerCase()}|${m.edgeWidth}x${m.edgeThickness}`;
 export const CUT_KEY = 'corte-placa';
 
@@ -62,7 +70,8 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
   add({
     key: boardKey(m),
     category: 'placas',
-    name: `Placa de melamina ${color} ${mm(m.thickness)} mm`.replace(/\s+/g, ' '),
+    // "Placa de melamina Egger Blanco 18 mm", "Placa de MDF crudo Faplac 18 mm".
+    name: `Placa de ${boardLabel(m).replace(/^(Melamina|Aglomerado)/, (w) => w.toLowerCase())}`,
     qty: boards,
     unit: 'placa',
     note: `${summary.melamina.boardLabel} · aprovechamiento ${Math.round(summary.melamina.pack.efficiency * 100)} %`,
@@ -72,7 +81,7 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     add({
       key: backBoardKey(m),
       category: 'placas',
-      name: `Placa de fondo ${mm(m.backThickness)} mm (fibrofácil)`,
+      name: `Placa de fondo: ${backLabel(m)}`,
       qty: backBoards,
       unit: 'placa',
       note: summary.fondo.boardLabel,
@@ -94,8 +103,11 @@ export function buildShoppingList(unit: ShelfUnit, result: ShelfUnitResult, summ
     name: `Tapacanto ${color} ${mm(m.edgeWidth)} × ${num(m.edgeThickness)} mm`.replace(/\s+/g, ' '),
     qty: summary.edgeToBuy,
     unit: 'm',
-    note: `${num(summary.edgeMeters, 1)} m justos + 10 % para recortes`,
-    defaultOn: true,
+    note: isRawBoard(m)
+      ? 'Opcional en placa cruda: si la vas a pintar, los cantos se masillan y lijan'
+      : `${num(summary.edgeMeters, 1)} m justos + 10 % para recortes`,
+    defaultOn: !isRawBoard(m),
+    optional: isRawBoard(m),
   });
   add({
     key: 'pegado-tapacanto',

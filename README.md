@@ -35,8 +35,11 @@ Cargás las medidas del mueble (o del hueco, si va empotrado) y la app te da:
   herrajes, tornillos y fijaciones, insumos y herramientas. Viene tildado lo necesario;
   los opcionales (minifix, tarugos, amortiguadores, herramientas…) se tildan a mano.
   Cargás el precio de cada ítem una vez y sirve para todos los muebles.
-- **Armado**: los pasos en orden con las medidas de tu mueble (marcar, perforar, armar la
-  caja, escuadrar, barrales, cajones, puertas), para ir tildando en el taller.
+- **Instrucciones de armado ilustradas**: una hoja con todas las piezas dibujadas (con su
+  letra, cantidad, medidas y cantos con tapacanto) y los herrajes, y después los pasos en
+  orden, cada uno con su dibujo: lo ya armado en blanco, las piezas nuevas resaltadas y
+  separadas, con flechas hasta su lugar y la letra del despiece, más qué piezas y herrajes
+  lleva el paso. Los dibujos salen del modelo 3D, así que siempre coinciden con tu mueble.
 - **Avisos**: estantes demasiado largos que se van a pandear, muebles altos que hay que
   fijar a la pared, piezas que no entran en la placa, etc.
 
@@ -141,7 +144,8 @@ npm run build:single  # un único index.html autocontenido, en dist-single/
   piezas van con el color exterior o interior.
 - `src/lib/decors.ts`: líneas y colores de cada marca, con color aproximado para el 3D.
 - `src/lib/scene.ts` y `src/components/Furniture3D.tsx`: vista 3D (three.js).
-- `src/lib/steps.ts`: pasos de armado.
+- `src/lib/steps.ts` y `src/lib/assembly.ts`: pasos de armado (texto, piezas y herrajes
+  de cada paso); `src/components/assemblyRender.ts` los dibuja.
 - `src/lib/cutlist.ts`: medidas de corte, tapacanto y textos para exportar.
 - `src/lib/shopping.ts`: lista de compras, precios y totales.
 - `src/components/`: interfaz en React.

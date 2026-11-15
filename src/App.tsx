@@ -10,7 +10,7 @@ import { StepsPanel } from './components/StepsPanel';
 const Furniture3D = lazy(() => import('./components/Furniture3D'));
 import type { CatalogBoard } from './lib/catalog';
 import { resolveUnit } from './lib/resolve';
-import { buildSteps } from './lib/steps';
+import { buildAssembly } from './lib/assembly';
 import { downloadFile } from './components/ui';
 import { summarize } from './lib/cutlist';
 import { buildShoppingList, shoppingTotals } from './lib/shopping';
@@ -87,7 +87,7 @@ export default function App() {
   const result = useMemo(() => computeShelfUnit(built), [built]);
   const summary = useMemo(() => summarize(built, result.pieces), [built, result]);
   const shopping = useMemo(() => buildShoppingList(built, result, summary), [built, result, summary]);
-  const steps = useMemo(() => buildSteps(built, result, summary), [built, result, summary]);
+  const assembly = useMemo(() => buildAssembly(built, result, summary), [built, result, summary]);
   const total = shoppingTotals(built, shopping, state.priceList).total;
 
   const update: Updater = useCallback(
@@ -440,7 +440,8 @@ export default function App() {
           <div className={`tab-panel ${activeResultTab === 'armado' ? '' : 'is-inactive'}`} role="tabpanel">
             <StepsPanel
               unit={built}
-              steps={steps}
+              plan={assembly}
+              pieces={result.pieces}
               notify={notify}
               setDone={(key, value) => update((d) => void (d.progress[key] = value))}
               reset={() => update((d) => void (d.progress = {}))}

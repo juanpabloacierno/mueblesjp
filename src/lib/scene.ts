@@ -132,7 +132,8 @@ export function buildScene(unit: ShelfUnit, r: ShelfUnitResult): SceneBox[] {
 
   // --- Puertas ---
   for (const door of r.doors.doors) {
-    const name = door.track ? 'Puerta corrediza' : 'Puerta';
+    // Mismo nombre que en el despiece, para que coincidan las letras.
+    const name = (door.track ? 'Puerta corrediza' : 'Puerta') + (door.zone === 'maletero' ? ' de maletero' : '');
     const finish = fin(name);
     if (door.track) {
       // Hoja de adelante a 4 mm del frente; la de atrás, 4 mm más adentro.

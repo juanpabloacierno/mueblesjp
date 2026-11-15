@@ -39,10 +39,12 @@ describe('escena 3D', () => {
     const boxes = buildScene(unit, r);
     expect(boxes.find((b) => b.name === 'Lateral')?.finish).toBe('interior');
     expect(boxes.find((b) => b.name === 'Puerta corrediza')?.finish).toBe('exterior');
+    expect(boxes.find((b) => b.name === 'Puerta corrediza de maletero')?.finish).toBe('exterior');
     expect(boxes.filter((b) => b.name === 'Barral' && b.shape === 'cylinder')).toHaveLength(2);
     expect(boxes.filter((b) => b.name === 'Frente de cajón')).toHaveLength(3);
     expect(boxes.filter((b) => b.name === 'Estante zapatero inclinado').every((b) => (b.tilt ?? 0) > 0)).toBe(true);
-    const leaves = boxes.filter((b) => b.name === 'Puerta corrediza');
+    const leaves = boxes.filter((b) => b.name.startsWith('Puerta corrediza'));
+    expect(boxes.filter((b) => b.name === 'Puerta corrediza de maletero')).toHaveLength(2);
     expect(leaves).toHaveLength(4);
     // Las hojas de adelante se corren al abrir; las de atrás quedan.
     expect(leaves.map((l) => l.slideX)).toEqual([0, -(892 - 30), 0, -(892 - 30)]);
